@@ -1,3 +1,6 @@
+packages:
+  - frontend
+
 # Supply-chain cooldown: only resolve versions published at least 3 days ago.
 minimumReleaseAge: 4320
 

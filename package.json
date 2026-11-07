@@ -1,0 +1,29 @@
+{
+  "name": "maskette",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-or-later",
+  "packageManager": "pnpm@12.16.1",
+  "scripts": {
+    "dev": "tauri dev",
+    "tauri": "tauri",
+    "bundle": "tauri build",
+    "build": "pnpm -r --if-present build",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml",
+    "lint": "biome check",
+    "format": "biome format --write",
+    "deps:semver": "pnpm up -r",
+    "deps:latest": "pnpm up -r --latest",
+    "deps:interactive": "pnpm up -r -i --latest"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.5",
+    "@tauri-apps/cli": "^2.12.4",
+    "@tsconfig/node26": "^26.0.1",
+    "@tsconfig/strictest": "^2.0.8",
+    "typescript": "7.0.2"
+  }
+}

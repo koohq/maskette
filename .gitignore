@@ -1,0 +1,25 @@
+# Node
+node_modules/
+dist/
+coverage/
+.vite/
+*.log
+
+# Rust / Tauri
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# Local runtime data and secrets
+.env
+.env.*
+!.env.example
+
+# Git worktrees
+.worktrees/
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
