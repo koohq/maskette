@@ -1595,7 +1595,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   async function handleSave() {
     const compactRecipe = compactRecipeAnnotations(latestRecipeRef.current);
     const imageBlob = await exportEditedBlob(false);
-    const fileName = `vsk-edit-${Date.now()}.png`;
+    const fileName = `maskette-edit-${Date.now()}.png`;
     if (downloadOnSave) downloadBlob(imageBlob, fileName);
     await onSave?.({ annotationPrompt: buildAnnotationPrompt(compactRecipe.annotations), fileName, imageBlob, recipe: compactRecipe });
   }

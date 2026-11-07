@@ -71,8 +71,8 @@ export function ProjectsPage() {
   return (
     <div className="ide-home">
       <header className="ide-titlebar" style={{ height: 44 }}>
-        <img alt="Visual Studio Kigurumi" className="h-6 w-6" src="/logo.png" />
-        <span className="text-sm font-semibold">Visual Studio Kigurumi</span>
+        <img alt="Maskette" className="h-6 w-6" src="/logo.png" />
+        <span className="text-sm font-semibold">Maskette</span>
         <span className="flex-1" />
         <SettingsLink />
         <ThemeToggle />

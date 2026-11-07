@@ -157,7 +157,7 @@ const ja: TranslationResource = {
     deleteMessage: "返信を削除",
     confirmDeleteMessage: "この返信を削除しますか？アシスタントの文脈からも消えます。生成済みの画像は残ります。",
     you: "あなた",
-    assistant: "V.S.K",
+    assistant: "Maskette",
     approve: "これで決定",
     approveDesign: "設定画を確定",
     approved: "確認済み",

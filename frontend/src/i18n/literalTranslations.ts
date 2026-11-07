@@ -12,7 +12,7 @@ const en: Record<string, string> = {
   "从本地上传图片后直接进入图像编辑器。": "Upload a local image and open it directly in the image editor.",
   "任务": "Job",
   "任务记录": "History",
-  "关于 Visual Studio Kigurumi": "About Visual Studio Kigurumi",
+  "关于 Maskette": "About Maskette",
   "前端构建与开发服务": "Frontend build and dev server",
   "前端界面运行时": "Frontend UI runtime",
   "发型": "Hair",
@@ -36,8 +36,8 @@ const en: Record<string, string> = {
   "本地图片编辑器": "Local Image Editor",
   "本站使用以下主要开源项目构建。各项目版权归原作者所有，许可证以对应项目为准。":
     "This site is built with the following major open source projects. Each project belongs to its original authors, and licenses follow the linked project.",
-  "Visual Studio Kigurumi 是用于 Kigurumi 头壳预览图生成、编辑和标注的工具。":
-    "Visual Studio Kigurumi is a tool for generating, editing, and annotating Kigurumi head preview images. It is developed based on KigCraft.",
+  "Maskette 是用于 Kigurumi 头壳预览图生成、编辑和标注的工具。":
+    "Maskette is a tool for generating, editing, and annotating Kigurumi head preview images. It is derived from Visual Studio Kigurumi, which is based on KigCraft.",
   "标注、脸型、眼睛、液化。": "Annotation, face, eyes, and liquify.",
   "标注": "Annotate",
   "标注图形交互": "Annotation shape interaction",
@@ -478,7 +478,7 @@ const ja: Record<string, string> = {
   "从本地上传图片后直接进入图像编辑器。": "ローカル画像をアップロードして、そのまま画像エディターを開きます。",
   "任务": "タスク",
   "任务记录": "タスク履歴",
-  "关于 Visual Studio Kigurumi": "Visual Studio Kigurumi について",
+  "关于 Maskette": "Maskette について",
   "前端构建与开发服务": "フロントエンドのビルドと開発サーバー",
   "前端界面运行时": "フロントエンド UI ランタイム",
   "发型": "髪型",
@@ -502,8 +502,8 @@ const ja: Record<string, string> = {
   "本地图片编辑器": "ローカル画像エディター",
   "本站使用以下主要开源项目构建。各项目版权归原作者所有，许可证以对应项目为准。":
     "本サイトは以下の主要なオープンソースプロジェクトで構築されています。著作権は各原作者に帰属し、ライセンスは各プロジェクトに従います。",
-  "Visual Studio Kigurumi 是用于 Kigurumi 头壳预览图生成、编辑和标注的工具。":
-    "Visual Studio Kigurumi は着ぐるみマスクのプレビュー画像を生成・編集し、注釈を付けるためのツールです。KigCraft をベースに開発されています。",
+  "Maskette 是用于 Kigurumi 头壳预览图生成、编辑和标注的工具。":
+    "Maskette は着ぐるみマスクのプレビュー画像を生成・編集し、注釈を付けるためのツールです。Visual Studio Kigurumi（KigCraft をベースに開発）から派生しています。",
   "标注、脸型、眼睛、液化。": "注釈、輪郭、目、ゆがみ。",
   "标注": "注釈",
   "标注图形交互": "注釈図形インタラクション",

@@ -155,7 +155,7 @@ const zhCN = {
     deleteMessage: "删除回复",
     confirmDeleteMessage: "删除这条回复？它也会从助手的上下文里去掉，已生成的图片会保留。",
     you: "你",
-    assistant: "V.S.K",
+    assistant: "Maskette",
     approve: "就用这张",
     approveDesign: "确认设定图",
     approved: "已确认",

@@ -688,7 +688,7 @@ describe("EditorWorkspace", () => {
     await waitFor(() =>
       expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
         annotationPrompt: "",
-        fileName: expect.stringMatching(/^vsk-edit-\d+\.png$/),
+        fileName: expect.stringMatching(/^maskette-edit-\d+\.png$/),
         imageBlob: expect.any(Blob),
         recipe: expect.objectContaining({
           face: expect.objectContaining({ faceWidth: -0.048 }),

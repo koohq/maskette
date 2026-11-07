@@ -1,7 +1,7 @@
 ---
 version: "beta"
-name: "Visual Studio Kigurumi IDE"
-description: "An IDE-style workspace for designing kigurumi head shells, themed after the V.S.K logo."
+name: "Maskette IDE"
+description: "An IDE-style workspace for designing kigurumi head shells, themed after the logo it inherited from Visual Studio Kigurumi (V.S.K)."
 colors:
   logo-blue: "#1890F8"
   logo-navy: "#003880"

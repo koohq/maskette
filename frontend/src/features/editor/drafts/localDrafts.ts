@@ -16,7 +16,7 @@ export type EditorDraft = EditorDraftState & {
   updatedAt: number;
 };
 
-const databaseName = "vsk-editor-drafts";
+const databaseName = "maskette-editor-drafts";
 const storeName = "drafts";
 
 function draftKey(projectId: string, versionId: string) {

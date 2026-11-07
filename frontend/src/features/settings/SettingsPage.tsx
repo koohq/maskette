@@ -100,7 +100,7 @@ export function SettingsPage() {
         <Link aria-label={t("workspace.home")} className="ide-icon-button" title={t("workspace.home")} to="/">
           <IconArrowLeft size={16} />
         </Link>
-        <img alt="Visual Studio Kigurumi" className="h-6 w-6" src="/logo.png" />
+        <img alt="Maskette" className="h-6 w-6" src="/logo.png" />
         <span className="text-sm font-semibold">{t("settings.title")}</span>
         <span className="flex-1" />
         <ThemeToggle />

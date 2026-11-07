@@ -699,7 +699,7 @@ function TitleBar({
       <Link aria-label={t("workspace.home")} className="ide-icon-button" title={t("workspace.home")} to="/">
         <IconArrowLeft size={16} />
       </Link>
-      <img alt="Visual Studio Kigurumi" className="h-5 w-5" src="/logo.png" />
+      <img alt="Maskette" className="h-5 w-5" src="/logo.png" />
       <div className="ide-titlebar-title">
         <Link className="hover:text-(--ide-text)" to="/">
           {t("workspace.projects")}
