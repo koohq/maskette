@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { DEFAULT_LOCALE, type AppLocale } from "../i18n/locales";
+import { apiFetch, resolveApiUrls } from "./backend";
 
 const API_BASE = "/api";
 const REFERENCE_UPLOAD_MAX_DIMENSION = 600;
@@ -415,7 +416,7 @@ async function requestRawJson(
     ? window.setTimeout(() => controller.abort(), timeoutMs)
     : null;
   try {
-    const response = await fetch(`${API_BASE}${url}`, controller ? { ...init, signal: controller.signal } : init);
+    const response = await apiFetch(`${API_BASE}${url}`, controller ? { ...init, signal: controller.signal } : init);
     const body = await readJson(response);
     if (!response.ok) {
       const detail =
@@ -424,7 +425,7 @@ async function requestRawJson(
           : body;
       throw new ApiError(`API request failed: ${response.status}`, response.status, detail);
     }
-    return body;
+    return resolveApiUrls(body);
   } catch (error) {
     if (
       options?.timeoutDetail &&

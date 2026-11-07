@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiFetch, resolveApiUrls } from "../../api/backend";
 
 export const backendSettingsSchema = z.object({
   writable: z.boolean(),
@@ -57,7 +58,7 @@ export type ProbeResult = z.infer<typeof probeResultSchema>;
 export type ProbeRole = "agent" | "analysis";
 
 async function send(path: string, init?: RequestInit): Promise<unknown> {
-  const response = await fetch(`/api/settings${path}`, init);
+  const response = await apiFetch(`/api/settings${path}`, init);
   if (!response.ok) {
     let detail = response.statusText;
     try {
@@ -68,7 +69,7 @@ async function send(path: string, init?: RequestInit): Promise<unknown> {
     }
     throw new Error(detail || `HTTP ${response.status}`);
   }
-  return response.json();
+  return resolveApiUrls(await response.json());
 }
 
 async function request(init?: RequestInit): Promise<BackendSettings> {

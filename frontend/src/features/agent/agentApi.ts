@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { apiFetch, apiUrl, resolveApiUrls } from "../../api/backend";
 
 const API_BASE = "/api/agent";
 
@@ -91,7 +92,7 @@ export class AgentApiError extends Error {
 }
 
 async function request<S extends z.ZodTypeAny>(path: string, schema: S, init?: RequestInit): Promise<z.output<S>> {
-  const response = await fetch(`${API_BASE}${path}`, init);
+  const response = await apiFetch(`${API_BASE}${path}`, init);
   if (!response.ok) {
     let detail = response.statusText;
     try {
@@ -102,7 +103,7 @@ async function request<S extends z.ZodTypeAny>(path: string, schema: S, init?: R
     }
     throw new AgentApiError(detail, response.status);
   }
-  return schema.parse(await response.json());
+  return schema.parse(resolveApiUrls(await response.json()));
 }
 
 export function listConversations() {
@@ -119,7 +120,7 @@ export function createConversation(locale: string, title = "") {
 
 /** GET download of the whole project as a .vkp bundle; the backend names the attachment. */
 export function exportProjectUrl(id: string) {
-  return `${API_BASE}/conversations/${id}/export`;
+  return apiUrl(`${API_BASE}/conversations/${id}/export`);
 }
 
 /** Restore a .vkp bundle as a new project (a copy with a fresh id). */
@@ -149,12 +150,12 @@ export function uploadReferences(id: string, files: File[]) {
 
 /** Unwatermarked pixels of a version: the editor works on these so watermarks never stack. */
 export function versionSourceUrl(id: string, imageId: string) {
-  return `${API_BASE}/conversations/${id}/versions/${imageId}/source`;
+  return apiUrl(`${API_BASE}/conversations/${id}/versions/${imageId}/source`);
 }
 
 /** The version's public watermarked image re-encoded as a PNG attachment download. */
 export function versionDownloadUrl(id: string, imageId: string) {
-  return `${API_BASE}/conversations/${id}/versions/${imageId}/download`;
+  return apiUrl(`${API_BASE}/conversations/${id}/versions/${imageId}/download`);
 }
 
 export function saveManualVersion(
@@ -249,9 +250,9 @@ export function subscribeToEvents(
   let opened = false;
 
   const open = () => {
-    source = new EventSource(`${API_BASE}/conversations/${id}/events?after=${getAfterSeq()}`);
+    source = new EventSource(apiUrl(`${API_BASE}/conversations/${id}/events?after=${getAfterSeq()}`));
     source.addEventListener("agent", (message) => {
-      const parsed = agentEventSchema.safeParse(JSON.parse((message as MessageEvent<string>).data));
+      const parsed = agentEventSchema.safeParse(resolveApiUrls(JSON.parse((message as MessageEvent<string>).data)));
       if (parsed.success) onEvent(parsed.data as AgentEvent);
     });
     source.addEventListener("open", () => {
