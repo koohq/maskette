@@ -42,6 +42,11 @@ pnpm install
 pnpm dev            # opens the Maskette window (tauri dev)
 ```
 
+To compare with the old Python backend while routers are being ported, run
+it (from Visual Studio Kigurumi, on port 18000) and set
+`MASKETTE_LEGACY_API_URL=http://127.0.0.1:18000` before `pnpm dev`; API
+routes Maskette does not handle yet are then relayed to it.
+
 Other scripts:
 
 | Script | What it does |

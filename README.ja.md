@@ -43,6 +43,11 @@ pnpm install
 pnpm dev            # Maskette の窓を開く（tauri dev）
 ```
 
+ルーターを移している間に旧 Python のバックエンドと見比べるときは、それを
+（Visual Studio Kigurumi から、ポート 18000 で）起動し、`pnpm dev` の前に
+`MASKETTE_LEGACY_API_URL=http://127.0.0.1:18000` を設定します。Maskette が
+まだ扱わない API は、そちらへ中継されます。
+
 ほかのスクリプト：
 
 | スクリプト | 内容 |
