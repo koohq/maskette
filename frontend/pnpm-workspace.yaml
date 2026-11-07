@@ -1,0 +1,14 @@
+# Supply-chain cooldown: only resolve versions published at least 3 days ago.
+minimumReleaseAge: 4320
+
+# Install scripts stay disabled. Neither is needed at runtime:
+# - esbuild ships its binary through the @esbuild/<platform> optional dependency.
+# - protobufjs' postinstall only prints a version-compatibility warning.
+allowBuilds:
+  esbuild: false
+  protobufjs: false
+
+# pixi.js bundles agent skills; they are not used here.
+permissions:
+  pixi.js:
+    skills: false

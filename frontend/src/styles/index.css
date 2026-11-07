@@ -1,0 +1,494 @@
+@import 'tailwindcss';
+
+@theme {
+  --color-ink: #1f2430;
+  --color-panel: #f7f8fb;
+  --color-accent: #2f7df6;
+}
+
+/*
+  The default border color has changed to `currentcolor` in Tailwind CSS v4,
+  so we've added these compatibility styles to make sure everything still
+  looks the same as it did with Tailwind CSS v3.
+
+  If we ever want to remove these styles, we need to add an explicit border
+  color utility to any element that depends on these defaults.
+*/
+@layer base {
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--color-gray-200, currentcolor);
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* ---- Theme tokens (keep in sync with app/theme.ts) ---------------------- */
+
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ide-accent: #2e95f8;
+  --ide-accent-hover: #52a8fa;
+  --ide-accent-contrast: #04122a;
+  --ide-accent-soft: rgba(46, 149, 248, 0.16);
+  --ide-bg: #0a1426;
+  --ide-panel: #0e1a30;
+  --ide-panel-raised: #14223b;
+  --ide-activity: #071022;
+  --ide-border: #1e2d48;
+  --ide-border-strong: #2b3d5e;
+  --ide-text: #e3eaf5;
+  --ide-text-muted: #8796b0;
+  --ide-text-faint: #566684;
+  --ide-hover: #172741;
+  --ide-input: #071022;
+  --ide-canvas: #060d1b;
+  --ide-canvas-check: #0a1426;
+  --ide-danger: #f26d6d;
+  --ide-success: #43c38c;
+  --ide-warning: #e5b454;
+  --ide-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --ide-accent: #116ced;
+  --ide-accent-hover: #0b59c8;
+  --ide-accent-contrast: #ffffff;
+  --ide-accent-soft: rgba(17, 108, 237, 0.1);
+  --ide-bg: #f4f7fc;
+  --ide-panel: #ffffff;
+  --ide-panel-raised: #edf2f9;
+  --ide-activity: #e6edf7;
+  --ide-border: #d9e2ef;
+  --ide-border-strong: #c1cee1;
+  --ide-text: #0f1f3d;
+  --ide-text-muted: #5a6a86;
+  --ide-text-faint: #93a1b8;
+  --ide-hover: #e8eff9;
+  --ide-input: #ffffff;
+  --ide-canvas: #e3eaf4;
+  --ide-canvas-check: #dae2ee;
+  --ide-danger: #d64545;
+  --ide-success: #25966a;
+  --ide-warning: #b7791f;
+  --ide-shadow: 0 10px 30px rgba(7, 22, 48, 0.12);
+}
+
+/* Legacy tokens used by the editor and audit components, mapped onto the IDE theme. */
+:root {
+  --kb-faded-black: var(--ide-text);
+  --kb-paper-black: var(--ide-text);
+  --kb-paper-dark: var(--ide-panel);
+  --kb-old-paper: var(--ide-panel);
+  --kb-old-paper-2: var(--ide-panel-raised);
+  --kb-ink: var(--ide-text);
+  --kb-dirty-yellow: var(--ide-accent);
+  --kb-muted-red: var(--ide-danger);
+  --kb-off-white: var(--ide-text);
+  --kb-olive-drab: var(--ide-success);
+  --kb-denim-blue: var(--ide-accent);
+  --kb-concrete-grey: var(--ide-text-muted);
+  --kb-line: var(--ide-border);
+  --kb-line-strong: var(--ide-border-strong);
+  --kb-shadow: transparent;
+  --kb-accent: var(--ide-accent);
+  --kb-text: var(--ide-text);
+  --kb-muted: var(--ide-text-muted);
+  --kb-panel: var(--ide-panel);
+  --kb-panel-soft: var(--ide-panel-raised);
+  --kb-panel-hover: var(--ide-hover);
+  --kb-button-hover: var(--ide-accent-hover);
+  --kb-hard-shadow: none;
+  --kb-hard-shadow-sm: none;
+}
+
+/* ---- UI font stacks per locale ------------------------------------------
+  Han characters are drawn with different glyph forms in Chinese and Japanese
+  fonts, so each locale names its own CJK fonts before the generic families.
+  `system-ui` is kept last: on Windows it can resolve CJK text to a Chinese
+  font even when the page language is Japanese. <html lang> follows the
+  selected locale (see i18n/index.ts). */
+:root {
+  --ui-font-latin: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial;
+  --ui-font-family: var(--ui-font-latin), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+}
+
+:root:lang(ja) {
+  --ui-font-family: var(--ui-font-latin), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo UI",
+    "Meiryo", "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+}
+
+:root:lang(en) {
+  --ui-font-family: var(--ui-font-latin), system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+  background: var(--ide-bg);
+  color: var(--ide-text);
+  font-family: var(--ui-font-family);
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: var(--ide-accent-soft);
+}
+
+a,
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+/* Tailwind v3's preflight reset disabled controls to the default cursor; v4 dropped that. */
+:disabled {
+  cursor: default;
+}
+
+* {
+  scrollbar-color: var(--ide-border-strong) transparent;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--ide-border-strong);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+
+.editor-horizontal-scroll {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.editor-horizontal-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.editor-viewport-toolbar {
+  overflow: visible;
+}
+
+.editor-viewport-toolbar .MuiIconButton-root {
+  flex: 0 0 auto;
+}
+
+.landmark-correction-hint.MuiAlert-root {
+  align-items: center;
+  padding: 8px 12px;
+}
+
+.landmark-correction-hint .MuiAlert-icon {
+  margin-right: 8px;
+}
+
+.landmark-correction-hint .MuiAlert-message {
+  line-height: 1.35;
+}
+
+.landmark-loading-card {
+  background:
+    repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.025) 0 1px, transparent 1px 5px),
+    var(--kb-panel) !important;
+  border: 1px solid var(--kb-line);
+  border-radius: 0;
+  box-shadow: var(--kb-hard-shadow-sm);
+  color: var(--kb-ink);
+  padding: 8px 12px;
+}
+
+.landmark-loading-spinner {
+  animation: kb-spin 0.9s linear infinite;
+  border: 3px solid rgba(25, 31, 35, 0.22);
+  border-top-color: var(--kb-accent);
+  border-radius: 999px;
+  display: inline-block;
+  flex: 0 0 auto;
+  height: 18px;
+  width: 18px;
+}
+
+.kb-spin {
+  animation: kb-spin 0.9s linear infinite;
+}
+
+@keyframes kb-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.editor-tool-button-vertical {
+  min-height: 112px !important;
+}
+
+.editor-tool-button-vertical .MuiButton-startIcon {
+  margin: 0 !important;
+}
+
+.editor-tool-button-vertical .MuiButton-icon {
+  margin: 0 !important;
+}
+
+.editor-tool-button-vertical .MuiButton-startIcon > svg {
+  height: 34px;
+  width: 34px;
+}
+
+.editor-tool-button-vertical.MuiButton-root {
+  flex-direction: column;
+  gap: 10px;
+  justify-content: center;
+}
+
+.editor-tool-button-horizontal.MuiButton-root {
+  min-height: 44px;
+}
+
+.reference-slot-card {
+  background: var(--reference-slot-bg, var(--kb-panel-soft));
+  border: 3px var(--reference-slot-border-style, solid) var(--reference-slot-border-color, var(--kb-line));
+  box-shadow: var(--reference-slot-shadow, var(--kb-hard-shadow-sm));
+  transition:
+    background-color 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease,
+    color 140ms ease,
+    transform 120ms ease;
+}
+
+.reference-slot-card:hover,
+.reference-slot-card:focus-within {
+  --reference-slot-bg: var(--kb-panel-hover);
+  --reference-slot-border-color: var(--kb-dirty-yellow);
+  --reference-slot-shadow: 6px 6px 0 var(--kb-shadow);
+  transform: translate(-1px, -1px);
+}
+
+.parameter-slider-shell {
+  align-items: center;
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.parameter-slider-input {
+  --parameter-slider-progress: 50%;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+  height: 32px;
+  margin: 0;
+  outline: none;
+  width: 100%;
+}
+
+.parameter-slider-input::-webkit-slider-runnable-track {
+  background:
+    linear-gradient(
+      to right,
+      var(--kb-dirty-yellow) 0%,
+      var(--kb-dirty-yellow) var(--parameter-slider-progress),
+      var(--kb-line) var(--parameter-slider-progress),
+      var(--kb-line) 100%
+    );
+  border-radius: 0;
+  height: 3px;
+}
+
+.parameter-slider-input::-webkit-slider-thumb {
+  appearance: none;
+  background: var(--kb-dirty-yellow);
+  border: 1px solid var(--kb-line);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--kb-shadow);
+  height: 18px;
+  margin-top: -7.5px;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    transform 120ms ease;
+  width: 20px;
+}
+
+.parameter-slider-input:focus-visible::-webkit-slider-thumb,
+.parameter-slider-input:hover::-webkit-slider-thumb {
+  background: #d8663e;
+  box-shadow: 4px 4px 0 var(--kb-shadow);
+}
+
+.parameter-slider-input:active::-webkit-slider-thumb {
+  transform: scale(1.06);
+}
+
+.parameter-slider-input::-moz-range-track {
+  background: var(--kb-line);
+  border-radius: 0;
+  height: 3px;
+}
+
+.parameter-slider-input::-moz-range-progress {
+  background: var(--kb-dirty-yellow);
+  border-radius: 0;
+  height: 5px;
+}
+
+.parameter-slider-input::-moz-range-thumb {
+  background: var(--kb-dirty-yellow);
+  border: 1px solid var(--kb-line);
+  border-radius: 999px;
+  box-shadow: 3px 3px 0 var(--kb-shadow);
+  height: 18px;
+  width: 18px;
+}
+
+.grunge-card {
+  background:
+    repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.025) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(90deg, rgba(25, 31, 35, 0.018) 0 1px, transparent 1px 5px),
+    var(--kb-panel);
+  border: 1px solid var(--kb-line);
+  border-radius: 0;
+  box-shadow: var(--kb-hard-shadow);
+  color: var(--kb-ink);
+  position: relative;
+}
+
+.audit-page-surface {
+  background:
+    repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.03) 0 1px, transparent 1px 8px),
+    radial-gradient(circle at 18% 14%, rgba(201, 85, 47, 0.08), transparent 28%),
+    var(--kb-old-paper);
+}
+
+.audit-metric-card {
+  background:
+    linear-gradient(135deg, rgba(255, 248, 233, 0.92), rgba(255, 244, 221, 0.96)),
+    var(--kb-panel-soft);
+  border: 1px solid var(--kb-line);
+  box-shadow: var(--kb-hard-shadow-sm);
+  color: var(--kb-ink);
+  min-height: 112px;
+}
+
+.audit-chart-card {
+  background:
+    linear-gradient(180deg, rgba(255, 248, 233, 0.94), rgba(255, 244, 221, 0.98)),
+    var(--kb-panel-soft);
+  border: 1px solid var(--kb-line);
+  box-shadow: var(--kb-hard-shadow-sm);
+  min-height: 260px;
+}
+
+.audit-trend-chart {
+  background: var(--kb-old-paper-2);
+  border: 1px solid var(--kb-line);
+  padding: 8px 8px 0;
+}
+
+.audit-trend-chart-axis {
+  stroke: var(--kb-line);
+  stroke-width: 2;
+}
+
+.audit-trend-chart-line {
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.audit-trend-chart-dot {
+  stroke: var(--kb-ink);
+  stroke-width: 1.5;
+}
+
+.audit-trend-chart-label,
+.audit-trend-chart-x-label {
+  fill: var(--kb-concrete-grey);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.audit-generation-job-list {
+  max-height: min(520px, calc(100vh - 280px));
+  overflow-y: auto;
+  padding-right: 4px;
+  scrollbar-color: var(--kb-coral) var(--kb-old-paper-2);
+  scrollbar-width: thin;
+}
+
+.audit-generation-job-list::-webkit-scrollbar {
+  width: 10px;
+}
+
+.audit-generation-job-list::-webkit-scrollbar-track {
+  background: var(--kb-old-paper-2);
+  border: 1px solid var(--kb-line);
+}
+
+.audit-generation-job-list::-webkit-scrollbar-thumb {
+  background: var(--kb-coral);
+  border: 1px solid var(--kb-line);
+}
+
+.audit-generation-job-detail {
+  max-height: min(520px, calc(100vh - 280px));
+  overflow-y: auto;
+  scrollbar-color: var(--kb-coral) var(--kb-old-paper-2);
+  scrollbar-width: thin;
+}
+
+.audit-generation-job-detail::-webkit-scrollbar {
+  width: 10px;
+}
+
+.audit-generation-job-detail::-webkit-scrollbar-track {
+  background: var(--kb-old-paper-2);
+  border: 1px solid var(--kb-line);
+}
+
+.audit-generation-job-detail::-webkit-scrollbar-thumb {
+  background: var(--kb-coral);
+  border: 1px solid var(--kb-line);
+}
+
+.grunge-card::after {
+  border: 0;
+  content: "";
+  inset: 7px;
+  pointer-events: none;
+  position: absolute;
+}
+
+.grunge-label {
+  color: var(--kb-concrete-grey);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
