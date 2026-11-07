@@ -7,7 +7,6 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "serve": "node server.mjs",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "deps:semver": "pnpm up -r",
