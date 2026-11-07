@@ -20,3 +20,14 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.5", features = [] }
 tauri-plugin-log = "2"
+axum = "0.8.9"
+tokio = { version = "1.54.1", features = ["net", "sync"] }
+tower-http = { version = "0.7.1", features = ["cors", "set-header"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["stream"] }
+getrandom = "0.4.3"
+futures-util = "0.3.34"
+
+[dev-dependencies]
+http-body-util = "0.1.5"
+tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread"] }
+tower = { version = "0.5.3", features = ["util"] }

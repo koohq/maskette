@@ -5,24 +5,12 @@
   "identifier": "app.maskette",
   "build": {
     "frontendDist": "../frontend/dist",
-    "devUrl": "http://localhost:5173",
+    "devUrl": "http://127.0.0.1:5173",
     "beforeDevCommand": "pnpm --filter ./frontend dev",
     "beforeBuildCommand": "pnpm --filter ./frontend build"
   },
   "app": {
-    "windows": [
-      {
-        "label": "main",
-        "title": "Maskette",
-        "width": 1280,
-        "height": 720,
-        "minWidth": 1024,
-        "minHeight": 640,
-        "center": true,
-        "resizable": true,
-        "fullscreen": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null,
       "headers": {

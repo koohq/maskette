@@ -23,3 +23,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Dev-only backend handoff for the Vite proxy (holds the session token)
+.maskette-dev/
