@@ -1,31 +1,24 @@
 # Maskette
 
-English | [日本語](README.ja.md)
-
 **Maskette — 着ぐるみマスクのデザインツール**
 **Maskette · Kigurumi 头壳设计工具**
 
-Maskette is a desktop app for designing kigurumi head shells (masks). The
-name plays on *mask* and *maquette*. It runs as a local
-[Tauri](https://tauri.app) app: the editor UI is TypeScript/React, and the
-backend is being rebuilt in Rust.
+Maskette is a desktop app for designing kigurumi masks from character art.
+Give it reference pictures of a character, and its design assistant helps
+you work out a 2D design, then a finished-mask front view and four views.
+Every image can be adjusted by hand in the built-in editor, and each result
+is kept in the project's version history.
 
-## Lineage
+## Credits
 
-```
-KigCraft (SeaRabbit / 海兔, https://kigcraft.com)
-  └─ Visual Studio Kigurumi (VSK)
-       └─ Maskette
-```
-
-Maskette started from the frontend of
+Maskette is based on
 [Visual Studio Kigurumi](https://github.com/ElysiaRealm0019/Visual-Studio-Kigurumi)
-(VSK), which is itself based on [KigCraft](https://kigcraft.com) by
-SeaRabbit / 海兔. The conversational workflow, workspace and generation
-pipeline come from KigCraft; VSK added switchable model backends, a settings
-page, editor improvements and prompt tuning. Maskette is a separate
-repository, not a GitHub fork, and does not merge from either project; it
-takes ideas from them where they fit.
+(VSK) by [ElysiaRealm0019](https://github.com/ElysiaRealm0019), which is
+based on [KigCraft](https://kigcraft.com) by SeaRabbit / 海兔
+([icyqwq](https://github.com/icyqwq)). Thanks to both projects.
+
+Like them, Maskette is licensed under GPL-3.0-or-later. See
+[LICENSE](LICENSE), which also records what Maskette changed.
 
 ## Development
 
@@ -42,11 +35,6 @@ pnpm install
 pnpm dev            # opens the Maskette window (tauri dev)
 ```
 
-To compare with the old Python backend while routers are being ported, run
-it (from Visual Studio Kigurumi, on port 18000) and set
-`MASKETTE_LEGACY_API_URL=http://127.0.0.1:18000` before `pnpm dev`; API
-routes Maskette does not handle yet are then relayed to it.
-
 Other scripts:
 
 | Script | What it does |
@@ -60,12 +48,7 @@ Other scripts:
 
 Layout:
 
-- `frontend/` — the editor UI (Vite, React, pixi.js, konva,
+- `frontend/` — the UI and the image editor (Vite, React, pixi.js, konva,
   onnxruntime-web, MediaPipe)
-- `src-tauri/` — the Tauri shell and, later, the Rust backend
+- `src-tauri/` — the desktop shell and the local API, in Rust (Tauri, axum)
 - `docs/` — design notes and hand-over documents
-
-## License
-
-GPL-3.0-or-later. See [LICENSE](LICENSE), which also records the lineage
-and what Maskette changed.
