@@ -9,12 +9,14 @@
 //!
 //! Neither repository ships a finished-product style photo
 //! (`ref/product-reference.png`), so only the "no style photo" variants of
-//! the prompts moved. Overriding single lines (the old `runtime/prompts.json`)
-//! comes with the prompts router.
+//! the prompts moved. Single lines and the constraint lists can be overridden
+//! in `prompts.json` ([`crate::backend::prompts`], the old
+//! `runtime/prompts.json`).
 
 use serde_json::Value;
 
 use super::{GenerationRequest, Mode};
+use crate::backend::prompts::Overrides;
 use crate::backend::safety::sanitize_user_text;
 
 // Shared wording adapted from the upstream KigCraft V2 stage briefs
@@ -124,19 +126,19 @@ pub const WATERMARK_LINE: &str = "Reference and base images may carry a watermar
 as if it were not there and never reproduce it. Do not generate any watermark, text, logo, signature, UI, labels, \
 captions or extra characters; the service will add the configured watermark after generation.";
 
-const IDENTITY_LINE: &str = "Preserve the character identity, eye color, eye shape, expression, facial mood, and clearly visible head \
+pub const IDENTITY_LINE: &str = "Preserve the character identity, eye color, eye shape, expression, facial mood, and clearly visible head \
 accessories or special features. Do not invent features that are not in the references and do not average the \
 character into a generic face.";
-const HAIR_FIDELITY_LINE: &str = "Faithfully reproduce all visible hairstyle details: hair silhouette, bangs/fringe shape, side locks, ahoge, strand \
+pub const HAIR_FIDELITY_LINE: &str = "Faithfully reproduce all visible hairstyle details: hair silhouette, bangs/fringe shape, side locks, ahoge, strand \
 grouping, layered clumps, parting, volume, length, asymmetry, hair accessories, and color blocks or highlights. \
 Do not simplify, invent, or replace visible hairstyle details.";
-const NO_IMPOSED_HAIRSTYLE_LINE: &str = "Do not impose a specific hairstyle such as twin tails, long hair, short hair, bangs, or hair-length restoration \
+pub const NO_IMPOSED_HAIRSTYLE_LINE: &str = "Do not impose a specific hairstyle such as twin tails, long hair, short hair, bangs, or hair-length restoration \
 unless it is clearly visible in the references or explicitly requested by the user.";
-const FRONT_EARS_LINE: &str = "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as \
+pub const FRONT_EARS_LINE: &str = "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as \
 designed: same shape, size, and position. In the front view both ears must be visible and symmetric; if the \
 reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or \
 crop the ears.";
-const SHELL_EARS_LINE: &str = "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as \
+pub const SHELL_EARS_LINE: &str = "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as \
 designed: same shape, size, and position. In the front view both ears must be visible and symmetric; if the \
 reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or \
 crop the ears, even when a finished-product style reference shows a shell without ears.";
@@ -164,29 +166,97 @@ human facial anatomy. It must read as a painted mask of the drawn character, nev
 or a realistic 3D render.";
 
 /// The front style line when no finished-product photo is attached.
-const FRONT_NONE_STYLE_LINE: &str = "No finished-product reference image is attached. Achieve the physical product look from these written \
+pub const FRONT_NONE_STYLE_LINE: &str = "No finished-product reference image is attached. Achieve the physical product look from these written \
 requirements only: white studio background, finished kigurumi head shell material, wig fiber realism, \
 clean product framing, and product-photo lighting.";
-const TURNAROUND_NONE_STYLE_LINE: &str = "No finished-product reference image is attached. Build the four-view layout and the physical product look \
+pub const TURNAROUND_NONE_STYLE_LINE: &str = "No finished-product reference image is attached. Build the four-view layout and the physical product look \
 from the written requirements only: four evenly spaced views, white studio background, finished shell \
 surface, and wig fiber realism.";
 
-const FOUR_VIEW_LAYOUT_LINE: &str = "Layout: one horizontal sheet showing the SAME head from four directions, side by side in a single row, left to \
+pub const FOUR_VIEW_LAYOUT_LINE: &str = "Layout: one horizontal sheet showing the SAME head from four directions, side by side in a single row, left to \
 right: (1) front, facing the camera straight on; (2) front three-quarter, turned about 45 degrees to the \
 character's left, so the face is still clearly visible; (3) side profile, turned 90 degrees; (4) back, turned 180 \
 degrees, the back of the head and hair with no face visible. Within each view the head is upright, with no tilt, \
 roll or nod; only the turn differs. The four heads are the same size and scale, evenly spaced, aligned on one \
 common horizontal baseline, centred vertically, with clear margins around each and no overlap or cropping.";
-const FOUR_VIEW_CLEAN_LINE: &str = "Draw no text, labels, arrows, grid lines, panel borders or extra heads, and do not output four separate images.";
-const FOUR_VIEW_CLEAN_ITEM: &str = "- Draw no text, labels, arrows, grid lines, panel borders or extra heads, and do not output four separate images.";
+pub const FOUR_VIEW_CLEAN_LINE: &str = "Draw no text, labels, arrows, grid lines, panel borders or extra heads, and do not output four separate images.";
 
 const COMPOSITION_LINE: &str = "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear \
 margins; head and wig only, no body.";
 
+/// The shared lines of the stage prompts, each one overridable by its key
+/// in `prompts.json` (see [`crate::backend::prompts`]).
+pub struct Texts<'a> {
+    head_pose: &'a str,
+    head_pose_compact: &'a str,
+    watermark: &'a str,
+    identity: &'a str,
+    hair_fidelity: &'a str,
+    no_imposed_hairstyle: &'a str,
+    front_ears: &'a str,
+    shell_ears: &'a str,
+    physical_translation: &'a str,
+    anime_face: &'a str,
+    head_shell_look: &'a str,
+    head_shell_look_compact: &'a str,
+    head_shell_presentation: &'a str,
+    head_shell_presentation_compact: &'a str,
+    front_none_style: &'a str,
+    turnaround_none_style: &'a str,
+    four_view_layout: &'a str,
+    four_view_clean: &'a str,
+}
+
+impl<'a> Texts<'a> {
+    pub fn new(overrides: &'a Overrides) -> Self {
+        let text = |key, default| overrides.text(key, default);
+        Self {
+            head_pose: text("head_pose", HEAD_POSE),
+            head_pose_compact: text("head_pose_compact", HEAD_POSE_COMPACT),
+            watermark: text("watermark_line", WATERMARK_LINE),
+            identity: text("identity_line", IDENTITY_LINE),
+            hair_fidelity: text("hair_fidelity_line", HAIR_FIDELITY_LINE),
+            no_imposed_hairstyle: text("no_imposed_hairstyle_line", NO_IMPOSED_HAIRSTYLE_LINE),
+            front_ears: text("front_ears_line", FRONT_EARS_LINE),
+            shell_ears: text("shell_ears_line", SHELL_EARS_LINE),
+            physical_translation: text("physical_translation_line", PHYSICAL_TRANSLATION_LINE),
+            anime_face: text("anime_face_line", ANIME_FACE_LINE),
+            head_shell_look: text("head_shell_look", HEAD_SHELL_LOOK),
+            head_shell_look_compact: text("head_shell_look_compact", HEAD_SHELL_LOOK_COMPACT),
+            head_shell_presentation: text("head_shell_presentation", HEAD_SHELL_PRESENTATION),
+            head_shell_presentation_compact: text(
+                "head_shell_presentation_compact",
+                HEAD_SHELL_PRESENTATION_COMPACT,
+            ),
+            front_none_style: text("style_line_replacement.front.none", FRONT_NONE_STYLE_LINE),
+            turnaround_none_style: text(
+                "style_line_replacement.turnaround.none",
+                TURNAROUND_NONE_STYLE_LINE,
+            ),
+            four_view_layout: text("four_view_layout_line", FOUR_VIEW_LAYOUT_LINE),
+            four_view_clean: text("four_view_clean_line", FOUR_VIEW_CLEAN_LINE),
+        }
+    }
+
+    /// A long stage paragraph's compact version, for image models with a
+    /// short prompt limit.
+    fn compact_line(&self, line: String) -> String {
+        if line == self.head_shell_look {
+            self.head_shell_look_compact.to_owned()
+        } else if line == self.head_shell_presentation {
+            self.head_shell_presentation_compact.to_owned()
+        } else if line == self.head_pose {
+            self.head_pose_compact.to_owned()
+        } else {
+            line
+        }
+    }
+}
+
 /// The head-shell front (design and revision), as the image APIs get it:
 /// the old `_final_front_view_prompt` without its landmark lines and the
 /// agent-only size line, with the "no style photo" line.
-fn final_front_view_prompt() -> Vec<String> {
+fn final_front_view_prompt(t: &Texts) -> Vec<String> {
     let mut lines = vec![
         "You are generating one final front-view studio photograph of a finished, physical animegao kigurumi head shell \
 with its wig, translated from the character design."
@@ -194,22 +264,23 @@ with its wig, translated from the character design."
         String::new(),
     ];
     lines.push(format!(
-        "Use the uploaded character image(s) as the primary identity reference. {IDENTITY_LINE}"
+        "Use the uploaded character image(s) as the primary identity reference. {}",
+        t.identity
     ));
     lines.extend(
         [
             "If the design source is a clean flat 2D design, treat it as the authoritative design to translate into the \
 physical product, not as an image to redraw: keep its proportions, eyes, expression, hair and accessories.",
-            PHYSICAL_TRANSLATION_LINE,
-            ANIME_FACE_LINE,
-            HAIR_FIDELITY_LINE,
-            NO_IMPOSED_HAIRSTYLE_LINE,
-            HEAD_POSE,
-            SHELL_EARS_LINE,
-            FRONT_NONE_STYLE_LINE,
+            t.physical_translation,
+            t.anime_face,
+            t.hair_fidelity,
+            t.no_imposed_hairstyle,
+            t.head_pose,
+            t.shell_ears,
+            t.front_none_style,
             "",
-            HEAD_SHELL_LOOK,
-            HEAD_SHELL_PRESENTATION,
+            t.head_shell_look,
+            t.head_shell_presentation,
             COMPOSITION_LINE,
             "",
             "Kigurumi head requirements:",
@@ -227,7 +298,7 @@ side locks frame the face at the sides, and loose strands never drape over the e
             "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
             "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
             "",
-            WATERMARK_LINE,
+            t.watermark,
             "Output only one front-view head shell photograph.",
             "",
         ]
@@ -236,7 +307,8 @@ side locks frame the face at the sides, and loose strands never drape over the e
     lines
 }
 
-fn final_turnaround_prompt() -> Vec<String> {
+fn final_turnaround_prompt(t: &Texts) -> Vec<String> {
+    let clean_item = format!("- {}", t.four_view_clean);
     [
         "You are generating one final four-view studio photograph sheet of a finished, physical animegao kigurumi head shell.",
         "",
@@ -244,35 +316,35 @@ fn final_turnaround_prompt() -> Vec<String> {
 preserve the approved front-view design: same character identity, same face, same eyes, same expression, same \
 visible head accessories, same materials and same overall proportions in all four heads. Do not redesign, \
 simplify, beautify, reinterpret, or change the character.",
-        PHYSICAL_TRANSLATION_LINE,
-        ANIME_FACE_LINE,
+        t.physical_translation,
+        t.anime_face,
         "Faithfully carry over all visible hairstyle details from the approved front-view design into every generated \
 view: hair silhouette, bangs/fringe shape, side locks, ahoge, strand grouping, layered clumps, parting, volume, \
 length, asymmetry, hair accessories, and color blocks or highlights. Where the sides or the back are not shown \
 anywhere, infer them conservatively from the front and the visible hair; do not invent new accessories or a \
 different hairstyle.",
-        NO_IMPOSED_HAIRSTYLE_LINE,
-        TURNAROUND_NONE_STYLE_LINE,
+        t.no_imposed_hairstyle,
+        t.turnaround_none_style,
         "",
-        FOUR_VIEW_LAYOUT_LINE,
+        t.four_view_layout,
         "One shared plain white seamless backdrop and the same lighting direction across all four heads.",
-        HEAD_SHELL_LOOK,
-        HEAD_SHELL_PRESENTATION,
+        t.head_shell_look,
+        t.head_shell_presentation,
         "",
         "Kigurumi turnaround requirements:",
         "- long loose hair must stay continuous across all views without holes, missing chunks, or cutouts",
         "- the characteristic ears or horn-like appendages stay present, matched, and consistent in every view",
         "- consistent approved design across every view",
-        FOUR_VIEW_CLEAN_ITEM,
+        clean_item.as_str(),
         "",
-        WATERMARK_LINE,
+        t.watermark,
         "Output only one four-view turnaround image.",
     ]
     .map(str::to_owned)
     .into()
 }
 
-fn character_sheet_common() -> [&'static str; 8] {
+fn character_sheet_common<'a>(t: &Texts<'a>) -> [&'a str; 8] {
     [
         "This is stage 1 of the kigurumi workflow: a clean 2D character design sheet of the head. It is NOT the physical \
 head shell yet; the user will edit and approve this design, and the head shell will be generated from it later.",
@@ -280,8 +352,8 @@ head shell yet; the user will edit and approve this design, and the head shell w
 proportions, eye shape, iris colour and highlights, eyebrows, expression and temperament, hair colour and length, \
 every distinctive hair structure, ear shape, size, placement and colour, and the drawing style of the source. \
 Do not invent features that are not in the references and do not average the character into a generic face.",
-        HAIR_FIDELITY_LINE,
-        NO_IMPOSED_HAIRSTYLE_LINE,
+        t.hair_fidelity,
+        t.no_imposed_hairstyle,
         "Remove everything that would interfere with building a head shell: background, body, clothing, props, hands, \
 text, effects, and anything covering the head such as hoods, hats, veils or masks. Rebuild the hair and head shape \
 those items hide so that it is consistent with the visible hair; infer hidden hair structure conservatively. Keep \
@@ -295,22 +367,22 @@ realistic shading.",
     ]
 }
 
-fn character_front_view_prompt() -> Vec<String> {
+fn character_front_view_prompt(t: &Texts) -> Vec<String> {
     let mut lines = vec![
         "You are drawing one front-view 2D character design of the character's head from the uploaded reference image(s).".to_owned(),
         String::new(),
-        format!("Use the uploaded character image(s) as the identity reference. {IDENTITY_LINE}"),
+        format!("Use the uploaded character image(s) as the identity reference. {}", t.identity),
     ];
-    lines.extend(character_sheet_common().map(str::to_owned));
+    lines.extend(character_sheet_common(t).map(str::to_owned));
     lines.extend(
         [
             "",
             "Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and \
 hair only (at most a short neck stub), no shoulders or body.",
-            HEAD_POSE,
-            FRONT_EARS_LINE,
+            t.head_pose,
+            t.front_ears,
             "",
-            WATERMARK_LINE,
+            t.watermark,
             "Output only one front-view design image.",
         ]
         .map(str::to_owned),
@@ -318,7 +390,7 @@ hair only (at most a short neck stub), no shoulders or body.",
     lines
 }
 
-fn character_revision_prompt() -> Vec<String> {
+fn character_revision_prompt(t: &Texts) -> Vec<String> {
     let mut lines = vec![
         "You are revising one front-view 2D character design of the character's head.".to_owned(),
         String::new(),
@@ -328,12 +400,12 @@ only the changes the user asks for or that the annotations drawn on the draft po
 annotation marks."
             .to_owned(),
     ];
-    lines.extend(character_sheet_common().map(str::to_owned));
+    lines.extend(character_sheet_common(t).map(str::to_owned));
     lines.extend(
         [
             "",
             "",
-            WATERMARK_LINE,
+            t.watermark,
             "Output only one front-view design image.",
         ]
         .map(str::to_owned),
@@ -341,7 +413,7 @@ annotation marks."
     lines
 }
 
-fn character_turnaround_prompt() -> Vec<String> {
+fn character_turnaround_prompt(t: &Texts) -> Vec<String> {
     let mut lines = vec![
         "You are drawing one 2D character design turnaround sheet of the character's head: front, three-quarter/front-side, \
 side, and back views in one image."
@@ -352,17 +424,17 @@ and design and apply only the requested changes. Use any other attached images o
 image does not show, such as the back of the hair."
             .to_owned(),
     ];
-    lines.extend(character_sheet_common().map(str::to_owned));
+    lines.extend(character_sheet_common(t).map(str::to_owned));
     lines.extend(
         [
             "",
-            FOUR_VIEW_LAYOUT_LINE,
+            t.four_view_layout,
             "Every view must show the same design; the back view must show a plausible continuation of the visible hairstyle.",
             "If the character has characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages), keep them \
 visible, matched, and consistent in every view; never let hair or a view angle remove or hide them.",
-            FOUR_VIEW_CLEAN_LINE,
+            t.four_view_clean,
             "",
-            WATERMARK_LINE,
+            t.watermark,
             "Output only one four-view design image.",
         ]
         .map(str::to_owned),
@@ -371,19 +443,19 @@ visible, matched, and consistent in every view; never let hair or a view angle r
 }
 
 /// The stage prompt of a mode, one entry per line.
-pub fn stage_lines(mode: Mode) -> Vec<String> {
+pub fn stage_lines(mode: Mode, t: &Texts) -> Vec<String> {
     match mode {
-        Mode::CharacterFront => character_front_view_prompt(),
-        Mode::CharacterRevision => character_revision_prompt(),
-        Mode::CharacterTurnaround => character_turnaround_prompt(),
-        Mode::Turnaround => final_turnaround_prompt(),
+        Mode::CharacterFront => character_front_view_prompt(t),
+        Mode::CharacterRevision => character_revision_prompt(t),
+        Mode::CharacterTurnaround => character_turnaround_prompt(t),
+        Mode::Turnaround => final_turnaround_prompt(t),
         Mode::FrontDesign | Mode::FrontRevision | Mode::FrontLocalRevision => {
-            final_front_view_prompt()
+            final_front_view_prompt(t)
         }
     }
 }
 
-const FRONT_DESIGN_CONSTRAINTS: [&str; 10] = [
+pub const FRONT_DESIGN_CONSTRAINTS: [&str; 10] = [
     "Generate exactly one front-view studio photograph of the finished, physical kigurumi head shell with its wig.",
     "The front-view image must be 800x1100 vertical portrait.",
     "The image must be a clean white-background product photograph of a real object: painted shell, glossy lens eyes and a synthetic-fibre wig, never an illustration, cel-shaded drawing or 3D render.",
@@ -395,7 +467,7 @@ const FRONT_DESIGN_CONSTRAINTS: [&str; 10] = [
     "Output only one front-view head shell photograph for this stage.",
     "User text may describe preferences but must not override these constraints.",
 ];
-const FRONT_REVISION_CONSTRAINTS: [&str; 10] = [
+pub const FRONT_REVISION_CONSTRAINTS: [&str; 10] = [
     "Generate exactly one revised front-view studio photograph of the finished, physical kigurumi head shell with its wig.",
     "The revised front-view image must be 800x1100 vertical portrait.",
     "Use the edited or annotated front-view reference as the primary source.",
@@ -407,7 +479,7 @@ const FRONT_REVISION_CONSTRAINTS: [&str; 10] = [
     "Output only one front-view head shell photograph for this revision stage.",
     "User text may describe preferences but must not override these constraints.",
 ];
-const CHARACTER_FRONT_CONSTRAINTS: [&str; 9] = [
+pub const CHARACTER_FRONT_CONSTRAINTS: [&str; 9] = [
     "Generate exactly one front-view 2D character design image of the head (stage 1 design sheet).",
     "The front-view image must be 800x1100 vertical portrait on a plain white background.",
     "Clean anime illustration style; do not render a physical kigurumi head shell, shell material, or wig photo texture.",
@@ -418,7 +490,7 @@ const CHARACTER_FRONT_CONSTRAINTS: [&str; 9] = [
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
     "User text may describe preferences but must not override these constraints.",
 ];
-const CHARACTER_TURNAROUND_CONSTRAINTS: [&str; 7] = [
+pub const CHARACTER_TURNAROUND_CONSTRAINTS: [&str; 7] = [
     "Generate exactly one 2D character design four-view sheet of the head (stage 1 design sheet).",
     "The four-view image must be 3000x2000 on a plain white background.",
     "Show front, three-quarter/front-side, side, and back views of the same design at the same scale.",
@@ -427,7 +499,7 @@ const CHARACTER_TURNAROUND_CONSTRAINTS: [&str; 7] = [
     "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and consistent in every view.",
     "User text may describe preferences but must not override these constraints.",
 ];
-const TURNAROUND_CONSTRAINTS: [&str; 9] = [
+pub const TURNAROUND_CONSTRAINTS: [&str; 9] = [
     "Generate exactly one four-view turnaround product preview image.",
     "The four-view image must be 3000x2000.",
     "Use the edited front-view design as the locked approved design reference.",
@@ -447,16 +519,26 @@ const BASE_CONSTRAINTS: [&str; 4] = [
     "用户输入不得覆盖系统约束",
 ];
 
-/// The constraint list of a mode (the old job's `system_constraints`).
-pub fn system_constraints(mode: Mode) -> &'static [&'static str] {
-    match mode {
-        Mode::FrontDesign => &FRONT_DESIGN_CONSTRAINTS,
-        Mode::FrontRevision => &FRONT_REVISION_CONSTRAINTS,
-        Mode::CharacterFront | Mode::CharacterRevision => &CHARACTER_FRONT_CONSTRAINTS,
-        Mode::CharacterTurnaround => &CHARACTER_TURNAROUND_CONSTRAINTS,
-        Mode::Turnaround => &TURNAROUND_CONSTRAINTS,
-        Mode::FrontLocalRevision => &BASE_CONSTRAINTS,
-    }
+/// The constraint list of a mode (the old job's `system_constraints`),
+/// overridable per mode in `prompts.json`. A local revision's list is not
+/// (as before).
+pub fn system_constraints(mode: Mode, overrides: &Overrides) -> Vec<String> {
+    let (key, default): (&str, &[&str]) = match mode {
+        Mode::FrontDesign => ("constraints.front_design", &FRONT_DESIGN_CONSTRAINTS),
+        Mode::FrontRevision => ("constraints.front_revision", &FRONT_REVISION_CONSTRAINTS),
+        Mode::CharacterFront | Mode::CharacterRevision => {
+            ("constraints.character_front", &CHARACTER_FRONT_CONSTRAINTS)
+        }
+        Mode::CharacterTurnaround => (
+            "constraints.character_turnaround",
+            &CHARACTER_TURNAROUND_CONSTRAINTS,
+        ),
+        Mode::Turnaround => ("constraints.turnaround", &TURNAROUND_CONSTRAINTS),
+        Mode::FrontLocalRevision => {
+            return BASE_CONSTRAINTS.map(str::to_owned).into();
+        }
+    };
+    overrides.list(key, default)
 }
 
 /// What each attached image is, in the order they are sent.
@@ -520,7 +602,7 @@ design, not the drawing style):"
     }
 }
 
-fn format_prompt_list(items: &[&str]) -> String {
+fn format_prompt_list(items: &[String]) -> String {
     let lines: Vec<String> = items
         .iter()
         .map(|item| item.trim())
@@ -633,9 +715,11 @@ pub fn build_image_prompt(
     request: &GenerationRequest,
     roles: &[Role],
     max_chars: Option<usize>,
+    overrides: &Overrides,
 ) -> String {
     let mode = request.generation_mode;
-    let mut stage: Vec<String> = stage_lines(mode)
+    let texts = Texts::new(overrides);
+    let mut stage: Vec<String> = stage_lines(mode, &texts)
         .into_iter()
         .filter(|line| {
             !AGENT_ONLY_PREFIXES
@@ -651,7 +735,7 @@ pub fn build_image_prompt(
         .join("\n");
     let constraints = format!(
         "Non-negotiable constraints:\n{}",
-        format_prompt_list(system_constraints(mode))
+        format_prompt_list(&system_constraints(mode, overrides))
     );
     let detail_heading = format!("{}\n", detail_lock_heading(mode));
     let mut detail_lock = format_detail_lock(request.detail_lock.as_ref());
@@ -693,7 +777,10 @@ pub fn build_image_prompt(
     stage = without_requirement_lists(stage);
     prompt = assemble(&stage, "", &detail_lock, &descriptions);
     if char_len(&prompt) > max_chars {
-        stage = stage.into_iter().map(compact_line).collect();
+        stage = stage
+            .into_iter()
+            .map(|line| texts.compact_line(line))
+            .collect();
         prompt = assemble(&stage, "", &detail_lock, &descriptions);
     }
     if char_len(&prompt) > max_chars {
@@ -720,17 +807,6 @@ pub fn build_image_prompt(
         char_len(&prompt)
     );
     prompt
-}
-
-/// A long stage paragraph's compact version, for image models with a short
-/// prompt limit.
-fn compact_line(line: String) -> String {
-    match line.as_str() {
-        HEAD_SHELL_LOOK => HEAD_SHELL_LOOK_COMPACT.to_owned(),
-        HEAD_SHELL_PRESENTATION => HEAD_SHELL_PRESENTATION_COMPACT.to_owned(),
-        HEAD_POSE => HEAD_POSE_COMPACT.to_owned(),
-        _ => line,
-    }
 }
 
 fn without_requirement_lists(lines: Vec<String>) -> Vec<String> {
@@ -822,7 +898,12 @@ mod tests {
     #[test]
     fn the_realism_proposals_reach_the_head_shell_prompts() {
         for mode in [Mode::FrontDesign, Mode::FrontRevision, Mode::Turnaround] {
-            let prompt = build_image_prompt(&request(mode), &[Role::ApprovedFront], None);
+            let prompt = build_image_prompt(
+                &request(mode),
+                &[Role::ApprovedFront],
+                None,
+                &Overrides::default(),
+            );
             // 1: open mouth; 2: satin sheen; 3: porcelain skin.
             assert!(prompt.contains("painted red or pink inside"), "{mode:?}");
             assert!(prompt.contains("soft satin paint finish"), "{mode:?}");
@@ -831,7 +912,12 @@ mod tests {
             assert!(!prompt.contains("Generate the"), "{mode:?}");
             assert!(prompt.contains("No finished-product reference image is attached."));
         }
-        let design = build_image_prompt(&request(Mode::CharacterFront), &[Role::Character], None);
+        let design = build_image_prompt(
+            &request(Mode::CharacterFront),
+            &[Role::Character],
+            None,
+            &Overrides::default(),
+        );
         assert!(!design.contains("porcelain"));
         assert!(design.contains("stage 1 of the kigurumi workflow"));
     }
@@ -853,7 +939,12 @@ mod tests {
                 description: "not sent".to_owned(),
             },
         ];
-        let prompt = build_image_prompt(&request, &[Role::Character, Role::Supplemental], None);
+        let prompt = build_image_prompt(
+            &request,
+            &[Role::Character, Role::Supplemental],
+            None,
+            &Overrides::default(),
+        );
         assert!(prompt.starts_with("Image 1 is the character reference."));
         assert!(prompt.contains("\nImage 2 contains supplemental references"));
         let order = [
@@ -877,9 +968,14 @@ mod tests {
     fn a_prompt_limit_shortens_in_steps_but_keeps_the_notes() {
         let mut request = request(Mode::FrontDesign);
         request.free_text = "NOTE ".repeat(40);
-        let full = build_image_prompt(&request, &[Role::Character], None);
+        let full = build_image_prompt(&request, &[Role::Character], None, &Overrides::default());
         assert!(char_len(&full) > 8000);
-        let short = build_image_prompt(&request, &[Role::Character], Some(8000));
+        let short = build_image_prompt(
+            &request,
+            &[Role::Character],
+            Some(8000),
+            &Overrides::default(),
+        );
         assert!(char_len(&short) <= 8000);
         assert!(!short.contains("Kigurumi head requirements:"));
         assert!(!short.contains("Non-negotiable constraints:"));
@@ -888,7 +984,12 @@ mod tests {
         // Neck, body and clothing stay out even in the compact version.
         assert!(short.contains("no shoulders, body or clothing"));
         assert!(short.contains(request.free_text.trim()));
-        let tiny = build_image_prompt(&request, &[Role::Character], Some(500));
+        let tiny = build_image_prompt(
+            &request,
+            &[Role::Character],
+            Some(500),
+            &Overrides::default(),
+        );
         assert_eq!(char_len(&tiny), 500);
         assert!(tiny.ends_with(TRUNCATION_MARK));
     }

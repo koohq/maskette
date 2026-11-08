@@ -3,8 +3,8 @@
 //!
 //! Ported from the old backend's `app/settings/`. API keys are write-only:
 //! responses only say whether a key is set, where it comes from and its last
-//! four characters. `GET /api/settings/prompts` (the prompt inventory) moves
-//! over with the prompts router; until then the relay answers it.
+//! four characters. `GET /api/settings/prompts` (the prompt inventory) is
+//! served by [`crate::backend::prompts`].
 
 pub mod probe;
 pub mod secrets;

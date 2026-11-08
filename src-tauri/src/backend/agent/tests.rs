@@ -525,6 +525,46 @@ async fn the_model_gets_a_streamed_request_in_the_openai_shape() {
 }
 
 #[tokio::test]
+async fn prompt_overrides_reach_the_model_and_the_job_record() {
+    let setup = setup(auto_design).await;
+    std::fs::write(
+        setup
+            .backend
+            .dir
+            .path()
+            .join(crate::backend::prompts::FILE_NAME),
+        json!({
+            "agent.system_prompt": "TEST ASSISTANT in {language}. State: {state}",
+            "constraints.character_front": ["Custom design constraint."],
+        })
+        .to_string(),
+    )
+    .unwrap();
+    let id = setup.start().await;
+    let body = setup.send(&id, "make the design", 1, &[]).await;
+
+    let sent = setup.llm.bodies.lock().unwrap()[0].clone();
+    let prompt = sent["messages"][0]["content"].as_str().unwrap();
+    assert!(prompt.starts_with("TEST ASSISTANT in Simplified Chinese. State: {"));
+
+    let design = images(&body)
+        .into_iter()
+        .find(|image| image["role"] == "design")
+        .expect("a design");
+    let record = setup
+        .backend
+        .state
+        .generation
+        .jobs
+        .get(design["job_id"].as_str().unwrap())
+        .unwrap();
+    assert_eq!(
+        record.prompt_payload["system_constraints"],
+        json!(["Custom design constraint."])
+    );
+}
+
+#[tokio::test]
 async fn tool_results_reach_the_model_without_their_name() {
     let setup = setup(|messages| {
         if last_is_user(messages) {

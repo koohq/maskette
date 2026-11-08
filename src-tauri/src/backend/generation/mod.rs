@@ -294,10 +294,12 @@ impl ImageBackend {
         request: &GenerationRequest,
         cancelled: &AtomicBool,
     ) -> Result<GeneratedImage, String> {
-        let job = state
-            .generation
-            .jobs
-            .create(request, self.name(), &self.model());
+        let job = state.generation.jobs.create(
+            request,
+            &crate::backend::prompts::Overrides::load(&state.data_dir),
+            self.name(),
+            &self.model(),
+        );
         let job_id = job.id();
         log::info!(
             "generation job started job_id={job_id} provider={} mode={:?} references={}",

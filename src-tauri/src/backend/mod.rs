@@ -6,6 +6,7 @@
 //! ported, its requests can be relayed to the old backend (see [`relay`]).
 
 pub mod agent;
+pub mod audit;
 pub mod chat_api;
 #[cfg(debug_assertions)]
 pub mod dev_handoff;
@@ -13,6 +14,7 @@ mod error;
 pub mod generation;
 mod health;
 mod ids;
+pub mod prompts;
 pub mod references;
 pub mod relay;
 mod safety;
@@ -70,6 +72,7 @@ pub struct AppState {
     pub chat: ChatApi,
     pub agent: agent::Agent,
     pub generation: generation::Services,
+    pub audit: audit::Audit,
     /// Every generation request, by job id, for the tests to inspect.
     #[cfg(test)]
     pub generation_log: std::sync::Mutex<Vec<(String, generation::GenerationRequest)>>,
@@ -111,6 +114,7 @@ impl Backend {
             token: token.clone(),
             agent: agent::Agent::new(&config.data_dir),
             generation: generation::Services::new(&config.data_dir),
+            audit: audit::Audit::default(),
             data_dir: config.data_dir,
             relay,
             settings: Arc::new(settings),
@@ -180,6 +184,8 @@ pub fn router(state: SharedState) -> Router {
         .merge(references::routes())
         .merge(agent::routes())
         .merge(generation::routes())
+        .merge(audit::routes())
+        .merge(prompts::routes())
         .fallback(relay::fallback)
         .method_not_allowed_fallback(method_not_allowed)
         .layer(middleware::from_fn_with_state(

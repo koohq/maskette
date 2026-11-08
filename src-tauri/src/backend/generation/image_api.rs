@@ -21,6 +21,7 @@ use super::{
     generated_root, generated_url, watermark,
 };
 use crate::backend::chat_api::JsonObject;
+use crate::backend::prompts::Overrides;
 use crate::backend::references;
 
 /// Waits between retries of a failed request.
@@ -181,7 +182,12 @@ fn prepare_generation(
     }
 
     Ok(Prepared {
-        prompt: prompt::build_image_prompt(request, &roles, max_prompt_chars),
+        prompt: prompt::build_image_prompt(
+            request,
+            &roles,
+            max_prompt_chars,
+            &Overrides::load(data_dir),
+        ),
         images,
         finish: if is_turnaround {
             Finish::Turnaround

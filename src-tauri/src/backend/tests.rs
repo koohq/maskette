@@ -57,6 +57,7 @@ impl TestBackend {
                 data_dir,
                 vec![std::time::Duration::ZERO; 3],
             ),
+            audit: super::audit::Audit::default(),
             generation_log: Default::default(),
         })
     }

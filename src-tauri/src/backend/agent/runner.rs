@@ -14,12 +14,15 @@ use super::llm::{self, ToolCall};
 use super::store::{Conversation, DESIGN_ROLES, DesignImage, Entry};
 use super::tools::{self, GENERATION_TOOLS, LocalRevision, ToolContext};
 use crate::backend::SharedState;
+use crate::backend::prompts::Overrides;
 
 /// The old `.env`-only limits.
 pub const MAX_STEPS_PER_TURN: usize = 12;
 pub const MAX_GENERATIONS_PER_TURN: usize = 3;
 
-const SYSTEM_PROMPT: &str = r#"You are Maskette's design assistant. You help the user turn character reference images into a
+/// The built-in system prompt; `prompts.json` can replace it
+/// (`agent.system_prompt`). `{language}` and `{state}` are filled in.
+pub const SYSTEM_PROMPT: &str = r#"You are Maskette's design assistant. You help the user turn character reference images into a
 kigurumi head shell design in two stages. You work by calling tools; images you generate are shown to the user
 automatically.
 
@@ -77,15 +80,57 @@ fn language(locale: &str) -> &'static str {
     }
 }
 
-pub fn system_prompt(conversation: &Conversation) -> String {
+pub fn system_prompt(conversation: &Conversation, overrides: &Overrides) -> String {
     let mut state = Vec::new();
     let formatter = serde_json::ser::PrettyFormatter::with_indent(b" ");
     let mut serializer = serde_json::Serializer::with_formatter(&mut state, formatter);
     serde::Serialize::serialize(&state_summary(conversation), &mut serializer)
         .expect("state summary is JSON");
-    SYSTEM_PROMPT
-        .replace("{language}", language(&conversation.locale))
-        .replace("{state}", &String::from_utf8_lossy(&state))
+    let language = language(&conversation.locale);
+    let state = String::from_utf8_lossy(&state);
+    let template = overrides.text("agent.system_prompt", SYSTEM_PROMPT);
+    fill_template(template, language, &state).unwrap_or_else(|| {
+        // An edited template with a broken placeholder must never stop the chat.
+        log::warn!("agent.system_prompt override is not a usable template; using the built-in one");
+        fill_template(SYSTEM_PROMPT, language, &state).unwrap_or_default()
+    })
+}
+
+/// Fills `{language}` and `{state}` the way the old backend's
+/// `str.format` did: `{{` and `}}` are literal braces, and any other
+/// placeholder or a lone brace makes the template unusable (`None`).
+fn fill_template(template: &str, language: &str, state: &str) -> Option<String> {
+    let mut out = String::with_capacity(template.len() + state.len());
+    let mut chars = template.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' if chars.peek() == Some(&'{') => {
+                chars.next();
+                out.push('{');
+            }
+            '{' => {
+                let mut name = String::new();
+                loop {
+                    match chars.next()? {
+                        '}' => break,
+                        c => name.push(c),
+                    }
+                }
+                match name.as_str() {
+                    "language" => out.push_str(language),
+                    "state" => out.push_str(state),
+                    _ => return None,
+                }
+            }
+            '}' if chars.peek() == Some(&'}') => {
+                chars.next();
+                out.push('}');
+            }
+            '}' => return None,
+            c => out.push(c),
+        }
+    }
+    Some(out)
 }
 
 fn state_summary(conversation: &Conversation) -> Value {
@@ -263,10 +308,11 @@ async fn run_chat(
             entry.emit(&mut conversation, "notice", json!({"code": "cancelled"}));
             return Ok(());
         }
+        let overrides = Overrides::load(&state.data_dir);
         let (prompt, messages) = {
             let conversation = entry.lock();
             (
-                system_prompt(&conversation),
+                system_prompt(&conversation, &overrides),
                 conversation.llm_messages.clone(),
             )
         };
