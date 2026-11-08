@@ -195,7 +195,7 @@ async fn responses_opt_in_to_cross_origin_embedding() {
 async fn unported_api_paths_say_so_when_the_relay_is_off() {
     let response = app(None)
         .oneshot(
-            get("/api/references")
+            get("/api/generation/jobs")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
@@ -216,7 +216,7 @@ async fn unported_api_paths_say_so_when_the_relay_is_off() {
 }
 
 /// A stand-in for the old Python backend that echoes what it received.
-async fn spawn_legacy_echo() -> String {
+pub async fn spawn_legacy_echo() -> String {
     async fn echo(request: Request) -> axum::Json<Value> {
         let (parts, body) = request.into_parts();
         let body: Bytes = body.collect().await.expect("body").to_bytes();
@@ -282,7 +282,7 @@ async fn relay_reports_an_unreachable_legacy_api() {
     let relay = Relay::new(&format!("http://127.0.0.1:{port}/")).unwrap();
     let response = app(Some(relay))
         .oneshot(
-            get("/api/references")
+            get("/api/generation/jobs")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),

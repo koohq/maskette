@@ -10,6 +10,7 @@ pub mod chat_api;
 pub mod dev_handoff;
 mod error;
 mod health;
+pub mod references;
 pub mod relay;
 pub mod settings;
 pub mod token;
@@ -59,8 +60,6 @@ pub struct BackendConfig {
 
 pub struct AppState {
     pub token: Token,
-    // Read by the routers as they are ported.
-    #[allow(dead_code)]
     pub data_dir: PathBuf,
     pub relay: Option<Relay>,
     pub settings: Arc<SettingsStore>,
@@ -165,7 +164,9 @@ pub fn router(state: SharedState) -> Router {
     Router::new()
         .route("/api/health", get(health::health))
         .merge(settings::routes())
+        .merge(references::routes())
         .fallback(relay::fallback)
+        .method_not_allowed_fallback(method_not_allowed)
         .layer(middleware::from_fn_with_state(
             state.clone(),
             token::require_token,
@@ -179,6 +180,14 @@ pub fn router(state: SharedState) -> Router {
         ))
         // Outermost, so CORS preflights are answered before the token check.
         .layer(cors)
+}
+
+/// A known path with another method, in the old backend's shape.
+async fn method_not_allowed() -> error::ApiError {
+    error::ApiError::new(
+        axum::http::StatusCode::METHOD_NOT_ALLOWED,
+        "Method Not Allowed",
+    )
 }
 
 #[cfg(test)]

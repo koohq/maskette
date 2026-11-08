@@ -23,8 +23,8 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.12.5", features = [] }
 tauri-plugin-log = "2"
-axum = "0.8.9"
-tokio = { version = "1.54.1", features = ["net", "sync", "time", "rt"] }
+axum = { version = "0.8.9", features = ["multipart"] }
+tokio = { version = "1.54.1", features = ["fs", "net", "sync", "time", "rt"] }
 tower-http = { version = "0.7.1", features = ["cors", "set-header"] }
 reqwest = { version = "0.13.5", default-features = false, features = ["stream", "json", "native-tls"] }
 getrandom = "0.4.3"
