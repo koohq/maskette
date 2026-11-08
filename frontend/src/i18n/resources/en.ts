@@ -191,6 +191,12 @@ const en: TranslationResource = {
       succeeded: "Done",
       failed: "Failed",
     },
+    toolPhase: {
+      analyzing: "Analyzing",
+      preparing_references: "Preparing references",
+      generating: "Generating",
+      saving_outputs: "Saving",
+    },
     elapsed: "Elapsed {{duration}}",
     toolReasoning: "~{{count}} tokens reasoned",
     notices: {

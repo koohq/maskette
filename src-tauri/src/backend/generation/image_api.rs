@@ -16,6 +16,7 @@ use reqwest::header::HeaderMap;
 use serde_json::{Value, json};
 
 use super::prompt::{self, Role};
+use super::usage::TokenUsage;
 use super::{
     FRONT_SIZE, GeneratedImage, GenerationRequest, LocalEdit, Mode, TURNAROUND_SIZE, clean_root,
     generated_root, generated_url, watermark,
@@ -42,6 +43,14 @@ pub struct ApiRequest {
     pub url: String,
     pub headers: Vec<(&'static str, String)>,
     pub payload: JsonObject,
+}
+
+/// The image bytes of a successful answer, with what the request used.
+pub struct ApiOutput {
+    pub bytes: Vec<u8>,
+    pub usage: Option<TokenUsage>,
+    /// The price in US dollars, when the API says (OpenRouter's `usage.cost`).
+    pub cost: Option<f64>,
 }
 
 /// What a backend reads from a successful answer.
@@ -599,14 +608,14 @@ pub trait ImageApi: Send + Sync {
 }
 
 /// Sends the request, retrying what the API marks as retryable, and returns
-/// the image bytes.
+/// the image bytes and the reported usage.
 pub async fn request_image(
     client: &reqwest::Client,
     api: &dyn ImageApi,
     request: &ApiRequest,
     trace_id: &str,
     retry_delays: &[Duration],
-) -> Result<Vec<u8>, String> {
+) -> Result<ApiOutput, String> {
     let name = api.display_name();
     let max_retries = api.max_retries();
     let mut attempt = 0;
@@ -646,21 +655,31 @@ pub async fn request_image(
                     Err(error) => format!("unreadable answer: {error}"),
                 };
                 if status == 200 {
-                    let image = serde_json::from_str::<Value>(&text)
-                        .ok()
-                        .and_then(|body| api.extract_image(&body))
+                    let body = serde_json::from_str::<Value>(&text).unwrap_or_default();
+                    let image = api
+                        .extract_image(&body)
                         .ok_or_else(|| format!("{name} response did not include an image"))?;
+                    let reported = body.get("usage");
+                    let usage = reported.and_then(TokenUsage::parse);
+                    let cost = reported
+                        .and_then(|usage| usage.get("cost"))
+                        .and_then(Value::as_f64);
                     log::info!(
-                        "{name} image generated trace_id={server_trace} duration={:.1}s attempt={}",
+                        "{name} image generated trace_id={server_trace} duration={:.1}s attempt={} usage={} cost={cost:?}",
                         started.elapsed().as_secs_f64(),
-                        attempt + 1
+                        attempt + 1,
+                        usage.map_or_else(
+                            || "none".to_owned(),
+                            |usage| usage.to_json(None).to_string()
+                        ),
                     );
-                    return match image {
+                    let bytes = match image {
                         ApiImage::Base64(data) => base64::engine::general_purpose::STANDARD
                             .decode(data.trim())
-                            .map_err(|_| format!("{name} response did not include an image")),
-                        ApiImage::Url(url) => download(client, &url, name, api.timeout()).await,
+                            .map_err(|_| format!("{name} response did not include an image"))?,
+                        ApiImage::Url(url) => download(client, &url, name, api.timeout()).await?,
                     };
+                    return Ok(ApiOutput { bytes, usage, cost });
                 }
                 (
                     format!(

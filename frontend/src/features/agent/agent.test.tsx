@@ -140,6 +140,24 @@ describe("ChatTimeline", () => {
     vi.useRealTimers();
   });
 
+  it("names the job step a running tool is on", () => {
+    render(
+      <ChatTimeline
+        conversation={conversation()}
+        events={[
+          { seq: 1, type: "tool", tool: "generate_turnaround", status: "running", progress: 45, phase: "generating" },
+          { seq: 2, type: "tool", tool: "generate_front_view", status: "running", progress: 50, phase: "some_new_step" },
+        ]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running
+      />,
+    );
+    expect(screen.getByText(/· 生成中/)).toBeTruthy();
+    expect(screen.getByText(/· some_new_step/)).toBeTruthy();
+    expect(screen.getAllByRole("progressbar")[0]?.getAttribute("aria-valuenow")).toBe("45");
+  });
+
   it("shows the streamed reasoning token estimate on a running tool", () => {
     render(
       <ChatTimeline

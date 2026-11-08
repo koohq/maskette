@@ -191,6 +191,12 @@ const ja: TranslationResource = {
       succeeded: "完了",
       failed: "失敗",
     },
+    toolPhase: {
+      analyzing: "分析中",
+      preparing_references: "素材を準備中",
+      generating: "生成中",
+      saving_outputs: "保存中",
+    },
     elapsed: "経過時間 {{duration}}",
     toolReasoning: "推論約 {{count}} トークン",
     notices: {

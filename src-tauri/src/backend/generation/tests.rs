@@ -213,8 +213,68 @@ async fn generate(
 ) -> Result<super::GeneratedImage, String> {
     let image_backend = image_backend(&backend.state.settings.settings())?;
     image_backend
-        .generate(&backend.state, request, &AtomicBool::new(false))
+        .generate(&backend.state, request, &AtomicBool::new(false), &|_, _| {})
         .await
+}
+
+#[tokio::test]
+async fn job_steps_reach_the_observer_and_usage_is_recorded() {
+    let usage = json!({
+        "prompt_tokens": 3573,
+        "completion_tokens": 3052,
+        "completion_tokens_details": {"image_tokens": 1680, "reasoning_tokens": 0},
+        "cost": 0.066,
+    });
+    let data = base64::engine::general_purpose::STANDARD.encode(png(768, 1024));
+    let answer = Answer::Json(200, json!({"data": [{"b64_json": data}], "usage": usage}));
+    let fake = fake(models(), vec![answer]).await;
+    let (backend, key) = openrouter_backend(&fake);
+    let steps = std::sync::Mutex::new(Vec::new());
+    let observe =
+        |progress: u32, phase: &str| steps.lock().unwrap().push((progress, phase.to_owned()));
+    let image_backend = image_backend(&backend.state.settings.settings()).unwrap();
+    let output = image_backend
+        .generate(
+            &backend.state,
+            &front_request(&key),
+            &AtomicBool::new(false),
+            &observe,
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(
+        *steps.lock().unwrap(),
+        vec![
+            (15, "preparing_references".to_owned()),
+            (45, "generating".to_owned()),
+            (90, "saving_outputs".to_owned()),
+        ]
+    );
+    let record = backend.state.generation.jobs.get(&output.job_id).unwrap();
+    let stored = record.token_usage.unwrap();
+    assert_eq!(stored["input_tokens"], 3573);
+    assert_eq!(stored["output_tokens"], 3052);
+    assert_eq!(stored["reasoning_output_tokens"], 0);
+    assert_eq!(stored["total_tokens"], 6625);
+    assert_eq!(stored["cost"], 0.066);
+    assert!(
+        record
+            .events
+            .iter()
+            .any(|event| event.kind == "token_usage")
+    );
+    assert_eq!(record.status, "succeeded");
+}
+
+#[tokio::test]
+async fn answers_without_token_counts_leave_usage_empty() {
+    // `b64_image` reports only a cost.
+    let fake = fake(models(), vec![b64_image(768, 1024)]).await;
+    let (backend, key) = openrouter_backend(&fake);
+    let output = generate(&backend, &front_request(&key)).await.unwrap();
+    let record = backend.state.generation.jobs.get(&output.job_id).unwrap();
+    assert_eq!(record.token_usage, None);
 }
 
 #[tokio::test]
@@ -400,7 +460,7 @@ async fn a_cancelled_job_stops_waiting() {
     let image_backend = image_backend(&backend.state.settings.settings()).unwrap();
     let cancelled = AtomicBool::new(false);
     let request = front_request(&key);
-    let run = image_backend.generate(&backend.state, &request, &cancelled);
+    let run = image_backend.generate(&backend.state, &request, &cancelled, &|_, _| {});
     let cancel = async {
         tokio::time::sleep(Duration::from_millis(300)).await;
         cancelled.store(true, std::sync::atomic::Ordering::SeqCst);

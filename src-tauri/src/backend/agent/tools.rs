@@ -645,8 +645,10 @@ async fn run_generation(
         return Err("Cancelled by the user.".to_owned());
     }
     context.progress(5, "generating");
+    // The job's own steps (15, 45, 90) move the bar on from here.
+    let progress = |value: u32, phase: &str| context.progress(value, phase);
     let output = backend
-        .generate(&context.state, &request, &context.cancelled)
+        .generate(&context.state, &request, &context.cancelled, &progress)
         .await
         .map_err(|error| {
             if context.cancelled.load(Ordering::SeqCst) {

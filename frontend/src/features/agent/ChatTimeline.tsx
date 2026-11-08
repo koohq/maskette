@@ -10,6 +10,7 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
+import { type TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { approveActionFor, isDesignRole, isTurnaroundRole, type AgentEvent, type Conversation } from "./agentApi";
 
@@ -270,6 +271,13 @@ function Thumbnails({
   );
 }
 
+const TOOL_PHASES = new Set(["analyzing", "preparing_references", "generating", "saving_outputs"]);
+
+/** The backend sends a job step's status as the phase; unknown ones are shown as they are. */
+function phaseLabel(t: TFunction, phase: string): string {
+  return TOOL_PHASES.has(phase) ? t(`agent.toolPhase.${phase}`) : phase;
+}
+
 function ToolCard({ event }: { event: AgentEvent }) {
   const { t } = useTranslation();
   const tool = event.tool as string;
@@ -287,7 +295,7 @@ function ToolCard({ event }: { event: AgentEvent }) {
         {status === "failed" ? <IconX className="text-(--ide-danger)" size={14} /> : null}
         <span className="font-semibold">{label}</span>
         <span className="truncate text-(--ide-text-muted)">
-          · {running && event.phase ? (event.phase as string) : t(`agent.toolStatus.${status}`)}
+          · {running && event.phase ? phaseLabel(t, event.phase as string) : t(`agent.toolStatus.${status}`)}
           {elapsed !== null ? ` · ${t("agent.elapsed", { duration: formatElapsed(elapsed) })}` : ""}
         </span>
       </div>

@@ -406,16 +406,6 @@ impl ImageApi for OpenRouter {
     }
 
     fn extract_image(&self, body: &Value) -> Option<ApiImage> {
-        if let Some(usage) = body
-            .get("usage")
-            .filter(|usage| usage.get("cost").is_some())
-        {
-            let usage = usage.to_string();
-            log::info!(
-                "OpenRouter image usage {}",
-                usage.chars().take(300).collect::<String>()
-            );
-        }
         let item = body.get("data")?.get(0)?;
         match item.get("b64_json").and_then(Value::as_str) {
             // Some providers hand back a data URL instead of bare base64.

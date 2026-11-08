@@ -15,6 +15,7 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use super::usage::TokenUsage;
 use super::{GeneratedImage, GenerationRequest, prompt};
 use crate::backend::ids;
 use crate::backend::prompts::Overrides;
@@ -179,6 +180,7 @@ impl JobStore {
         Job {
             store: self,
             record: Mutex::new(record),
+            observer: None,
         }
     }
 
@@ -225,13 +227,23 @@ fn transition(
     });
 }
 
+/// Hears each step of a job: its progress (0-100) and status.
+pub type Observer<'a> = &'a (dyn Fn(u32, &str) + Sync);
+
 /// A job being run; every change is written through.
 pub struct Job<'a> {
     store: &'a JobStore,
     record: Mutex<JobRecord>,
+    observer: Option<Observer<'a>>,
 }
 
-impl Job<'_> {
+impl<'a> Job<'a> {
+    /// Passes each later step to `observer` (the agent's tool progress).
+    pub fn observed_by(mut self, observer: Observer<'a>) -> Self {
+        self.observer = Some(observer);
+        self
+    }
+
     pub fn id(&self) -> String {
         self.lock().id.clone()
     }
@@ -251,6 +263,31 @@ impl Job<'_> {
     /// The old queue's steps: preparing (15), generating (45), saving (90).
     pub fn step(&self, status: &str, progress: u32, label: &str) {
         self.change(|record| transition(record, status, progress, label, status, None));
+        if let Some(observer) = self.observer {
+            observer(progress, status);
+        }
+    }
+
+    /// Keeps what the job used, as the old `record_token_usage` (one
+    /// `token_usage` event with the counts).
+    pub fn record_usage(&self, usage: TokenUsage, cost: Option<f64>) {
+        let stored = usage.to_json(cost);
+        self.change(|record| {
+            record.token_usage = Some(stored.clone());
+            let (status, progress, label) = (
+                record.status.clone(),
+                record.progress,
+                record.phase_label.clone(),
+            );
+            transition(
+                record,
+                &status,
+                progress,
+                &label,
+                "token_usage",
+                Some(stored),
+            );
+        });
     }
 
     pub fn record_prompt(&self, prompt: &str, request: Value) {

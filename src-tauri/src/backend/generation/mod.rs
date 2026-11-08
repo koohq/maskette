@@ -23,6 +23,7 @@ pub mod hosted;
 pub mod image_api;
 pub mod jobs;
 pub mod prompt;
+pub mod usage;
 pub mod watermark;
 
 #[cfg(test)]
@@ -293,20 +294,25 @@ impl ImageBackend {
         true
     }
 
-    /// Runs one job, recorded from start to end. Stops early, without an
-    /// image, when `cancelled` is set.
+    /// Runs one job, recorded from start to end, telling `progress` of each
+    /// step. Stops early, without an image, when `cancelled` is set.
     pub async fn generate(
         self,
         state: &AppState,
         request: &GenerationRequest,
         cancelled: &AtomicBool,
+        progress: jobs::Observer<'_>,
     ) -> Result<GeneratedImage, String> {
-        let job = state.generation.jobs.create(
-            request,
-            &crate::backend::prompts::Overrides::load(&state.data_dir),
-            self.name(),
-            &self.model(),
-        );
+        let job = state
+            .generation
+            .jobs
+            .create(
+                request,
+                &crate::backend::prompts::Overrides::load(&state.data_dir),
+                self.name(),
+                &self.model(),
+            )
+            .observed_by(progress);
         let job_id = job.id();
         log::info!(
             "generation job started job_id={job_id} provider={} mode={:?} references={}",
@@ -393,7 +399,7 @@ impl ImageBackend {
         };
         job.record_prompt(&prepared.prompt, image_api::request_summary(&api_request));
         job.step("generating", 45, "生成中");
-        let bytes = image_api::request_image(
+        let answer = image_api::request_image(
             &state.generation.client,
             api.api(),
             &api_request,
@@ -401,7 +407,11 @@ impl ImageBackend {
             &state.generation.retry_delays,
         )
         .await?;
+        if let Some(usage) = answer.usage {
+            job.record_usage(usage, answer.cost);
+        }
         job.step("saving_outputs", 90, "保存结果");
+        let bytes = answer.bytes;
         let (job_id, request) = (job_id.to_owned(), request.clone());
         blocking(move || {
             let raw = image_api::decode_rgb(&bytes)

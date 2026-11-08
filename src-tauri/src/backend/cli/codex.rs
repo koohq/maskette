@@ -21,6 +21,7 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 use super::{Cli, Invocation, keep, outdated_hint, run_error_detail, shorten};
+use crate::backend::generation::usage::TokenUsage;
 use crate::backend::prompts::Overrides;
 
 const NAME: &str = "Codex";
@@ -124,6 +125,8 @@ pub struct Run {
     pub thread_id: Option<String>,
     /// Commands the model ran (there should be none).
     pub commands: Vec<String>,
+    /// The tokens its turns used (`turn.completed`), added up.
+    pub usage: Option<TokenUsage>,
 }
 
 /// Runs one prompt in `workspace` with `images` attached; `label` names the
@@ -163,6 +166,7 @@ pub async fn run(
         return Err(failure_detail(&output.stdout, &output.stderr));
     }
     let mut run = read_events(&output.stdout);
+    run.usage = TokenUsage::from_codex_events(&output.stdout);
     if let Ok(text) = std::fs::read_to_string(&last_message)
         && !text.trim().is_empty()
     {

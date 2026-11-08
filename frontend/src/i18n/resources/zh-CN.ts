@@ -189,6 +189,12 @@ const zhCN = {
       succeeded: "完成",
       failed: "失败",
     },
+    toolPhase: {
+      analyzing: "分析中",
+      preparing_references: "准备素材",
+      generating: "生成中",
+      saving_outputs: "保存结果",
+    },
     elapsed: "已用时 {{duration}}",
     toolReasoning: "已思考约 {{count}} tokens",
     notices: {

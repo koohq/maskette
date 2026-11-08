@@ -550,7 +550,8 @@ fn codex_painter(home: PathBuf, size: (u32, u32), colour: [u8; 3]) -> Arc<FakeRu
             colour,
         );
         ok("{\"type\":\"thread.started\",\"thread_id\":\"thread-9\"}\n\
-{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Done.\"}}\n")
+{\"type\":\"item.completed\",\"item\":{\"type\":\"agent_message\",\"text\":\"Done.\"}}\n\
+{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":1200,\"cached_input_tokens\":200,\"output_tokens\":80}}\n")
     })
 }
 
@@ -573,7 +574,12 @@ async fn generate_with_codex(
     let request = build(&backend);
     let image_backend = image_backend(&backend.state.settings.settings()).unwrap();
     let result = image_backend
-        .generate(&backend.state, &request, &AtomicBool::new(false))
+        .generate(
+            &backend.state,
+            &request,
+            &AtomicBool::new(false),
+            &|_, _| {},
+        )
         .await;
     (backend, result)
 }
@@ -591,6 +597,18 @@ async fn codex_generates_a_labelled_front_view() {
     .await;
     let output = result.unwrap();
     assert_eq!((output.width, output.height), (800, 1100));
+    let usage = backend
+        .state
+        .generation
+        .jobs
+        .get(&output.job_id)
+        .unwrap()
+        .token_usage
+        .unwrap();
+    assert_eq!(usage["input_tokens"], 1200);
+    assert_eq!(usage["cached_input_tokens"], 200);
+    assert_eq!(usage["total_tokens"], 1280);
+    assert!(usage.get("cost").is_none());
     let clean = image::open(&output.clean_path).unwrap().to_rgb8();
     assert_eq!(clean.get_pixel(400, 550).0, [10, 200, 10]);
     let public = generated_file_from_url(backend.dir.path(), &output.url).unwrap();

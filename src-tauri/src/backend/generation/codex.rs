@@ -72,6 +72,9 @@ pub async fn generate(
         Purpose::Image,
     )
     .await?;
+    if let Some(usage) = run.usage {
+        job.record_usage(usage, None);
+    }
     job.step("saving_outputs", 90, "保存结果");
     let (job_id, request) = (job_id.to_owned(), request.clone());
     blocking(move || {
