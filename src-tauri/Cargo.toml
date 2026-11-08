@@ -9,7 +9,10 @@ publish = false
 
 [lib]
 name = "maskette_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+# Desktop only needs the rlib. The Tauri template's "staticlib" (iOS) and
+# "cdylib" (Android) cost ~0.9 GB per debug build; add them back before
+# running `tauri ios init` or `tauri android init`.
+crate-type = ["rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.7.4", features = [] }
@@ -34,3 +37,11 @@ http-body-util = "0.1.5"
 tempfile = "3.27.0"
 tokio = { version = "1.54.1", features = ["macros", "rt-multi-thread"] }
 tower = { version = "0.5.3", features = ["util"] }
+
+# Keep debug builds small: dependencies carry no debug info, and our own
+# crate keeps line tables so backtraces still show file and line.
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
