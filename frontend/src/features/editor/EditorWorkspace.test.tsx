@@ -609,6 +609,17 @@ describe("EditorWorkspace", () => {
     expect(screen.getByTestId("landmark-stage")).toHaveAttribute("data-height", "900");
   });
 
+  it("loads API images with CORS so the face detector can read their pixels", async () => {
+    const { unmount } = renderEditor({ imageUrl: "http://127.0.0.1:4321/api/references/references/a/front.webp" });
+    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalled());
+    expect(screen.getByTestId("editor-base-image")).toHaveAttribute("crossorigin", "anonymous");
+    unmount();
+
+    renderEditor({ imageUrl: "blob:http://127.0.0.1:5173/upload-a" });
+    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("blob:http://127.0.0.1:5173/upload-a"));
+    expect(screen.getByTestId("editor-base-image")).not.toHaveAttribute("crossorigin");
+  });
+
   it("places the parameter controls on the right side of the preview area", async () => {
     renderEditor();
     await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));

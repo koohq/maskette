@@ -381,6 +381,11 @@ function downloadBlob(blob: Blob, fileName: string) {
   URL.revokeObjectURL(objectUrl);
 }
 
+/** `blob:` and `data:` images never taint a canvas, so they load without CORS. */
+function isLocalImageUrl(url: string | undefined): boolean {
+  return !url || url.startsWith("blob:") || url.startsWith("data:");
+}
+
 function loadBlobImage(blob: Blob): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     if (typeof URL.createObjectURL !== "function") {
@@ -2975,6 +2980,8 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                       <Box
                         alt=""
                         component="img"
+                        // The face detector reads this image's pixels; the API is on another origin in the app window.
+                        crossOrigin={isLocalImageUrl(imageUrl) ? undefined : "anonymous"}
                         data-testid="editor-base-image"
                         onLoad={handleBaseImageLoad}
                         ref={baseImageRef}
