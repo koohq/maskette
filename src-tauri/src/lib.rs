@@ -1,5 +1,8 @@
 mod backend;
 
+use std::sync::Arc;
+
+use backend::settings::secrets::{self, KeyringSecrets};
 use backend::{Backend, BackendConfig, relay};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
 
@@ -22,6 +25,7 @@ pub fn run() {
             let backend = Backend::start(BackendConfig {
                 data_dir,
                 legacy_api_url: relay::legacy_api_url_from_env(),
+                secrets: Arc::new(KeyringSecrets::new(secrets::SERVICE)),
             })?;
             log::info!("backend listening on {}", backend.base_url());
             #[cfg(debug_assertions)]

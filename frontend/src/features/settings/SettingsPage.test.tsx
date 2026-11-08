@@ -82,7 +82,7 @@ describe("SettingsPage", () => {
     await screen.findByText("已保存，下一次请求起生效");
     const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(JSON.parse(String(put?.[1]?.body))).toEqual({ values: { image_provider: "siliconflow" } });
-    expect(screen.getByText("已覆盖 .env")).toBeTruthy();
+    expect(screen.getByText("已修改")).toBeTruthy();
   });
 
   it("shows the OpenRouter image fields and saves its model", async () => {

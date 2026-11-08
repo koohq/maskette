@@ -5,10 +5,13 @@
 //! Python backend, so routers can move over one at a time; until a router is
 //! ported, its requests can be relayed to the old backend (see [`relay`]).
 
+pub mod chat_api;
 #[cfg(debug_assertions)]
 pub mod dev_handoff;
+mod error;
 mod health;
 pub mod relay;
+pub mod settings;
 pub mod token;
 
 use std::net::{Ipv4Addr, SocketAddr, TcpListener};
@@ -24,7 +27,10 @@ use axum::routing::get;
 use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 
+use chat_api::ChatApi;
 use relay::Relay;
+use settings::secrets::SecretStore;
+use settings::store::SettingsStore;
 use token::Token;
 
 /// Origins the UI is served from: the Vite dev server in debug builds, and
@@ -47,6 +53,8 @@ pub struct BackendConfig {
     pub data_dir: PathBuf,
     /// Base URL of the old Python backend; `None` turns the relay off.
     pub legacy_api_url: Option<String>,
+    /// Where API keys are kept (the OS credential store outside tests).
+    pub secrets: Arc<dyn SecretStore>,
 }
 
 pub struct AppState {
@@ -55,6 +63,8 @@ pub struct AppState {
     #[allow(dead_code)]
     pub data_dir: PathBuf,
     pub relay: Option<Relay>,
+    pub settings: Arc<SettingsStore>,
+    pub chat: ChatApi,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -86,10 +96,15 @@ impl Backend {
             },
             None => None,
         };
+        // Fixture backends are for development only.
+        let settings =
+            SettingsStore::open(&config.data_dir, config.secrets, cfg!(debug_assertions));
         let state = Arc::new(AppState {
             token: token.clone(),
             data_dir: config.data_dir,
             relay,
+            settings: Arc::new(settings),
+            chat: ChatApi::new(),
         });
         let app = router(state);
 
@@ -149,6 +164,7 @@ pub fn router(state: SharedState) -> Router {
 
     Router::new()
         .route("/api/health", get(health::health))
+        .merge(settings::routes())
         .fallback(relay::fallback)
         .layer(middleware::from_fn_with_state(
             state.clone(),

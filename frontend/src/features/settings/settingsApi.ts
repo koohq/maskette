@@ -85,7 +85,7 @@ export function getBackendSettings() {
   return request();
 }
 
-/** A null value drops the saved override, so the .env value applies again. */
+/** A null value drops the saved change, so the default applies again. */
 export function updateBackendSettings(values: Record<string, string | null>) {
   return request({ method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ values }) });
 }

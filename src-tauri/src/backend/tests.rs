@@ -10,25 +10,83 @@ use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
+use super::chat_api::ChatApi;
 use super::relay::Relay;
+use super::settings::secrets::MemorySecrets;
+use super::settings::store::SettingsStore;
 use super::token::{self, Token};
-use super::{AppState, Backend, router};
+use super::{AppState, Backend, SharedState, router};
 
-const TOKEN: &str = "test-token-0123456789abcdef";
+pub const TOKEN: &str = "test-token-0123456789abcdef";
+
+/// A backend on a temporary data folder, with API keys kept in memory.
+pub struct TestBackend {
+    pub dir: tempfile::TempDir,
+    pub secrets: Arc<MemorySecrets>,
+    pub state: SharedState,
+}
+
+impl TestBackend {
+    pub fn new(relay: Option<Relay>, allow_fixture: bool) -> Self {
+        let dir = tempfile::tempdir().expect("temporary data folder");
+        let secrets = Arc::new(MemorySecrets::default());
+        let state = Self::state(dir.path(), &secrets, relay, allow_fixture);
+        Self {
+            dir,
+            secrets,
+            state,
+        }
+    }
+
+    fn state(
+        data_dir: &std::path::Path,
+        secrets: &Arc<MemorySecrets>,
+        relay: Option<Relay>,
+        allow_fixture: bool,
+    ) -> SharedState {
+        let store = SettingsStore::open(data_dir, secrets.clone(), allow_fixture);
+        Arc::new(AppState {
+            token: Token::from_static(TOKEN),
+            data_dir: data_dir.to_owned(),
+            relay,
+            settings: Arc::new(store),
+            // Retries must not wait in tests.
+            chat: ChatApi::with_retry_delays(vec![std::time::Duration::ZERO; 3]),
+        })
+    }
+
+    /// The same data folder and credential store, read again as on a restart.
+    pub fn restart(&self) -> SharedState {
+        Self::state(
+            self.dir.path(),
+            &self.secrets,
+            None,
+            self.state.settings.settings().allow_fixture,
+        )
+    }
+
+    pub fn app(&self) -> Router {
+        router(self.state.clone())
+    }
+}
 
 fn app(relay: Option<Relay>) -> Router {
-    router(Arc::new(AppState {
-        token: Token::from_static(TOKEN),
-        data_dir: std::env::temp_dir(),
-        relay,
-    }))
+    TestBackend::new(relay, true).app()
 }
 
 fn get(uri: &str) -> axum::http::request::Builder {
     Request::builder().method(Method::GET).uri(uri)
 }
 
-async fn json_body(response: Response) -> Value {
+/// A request that carries the token.
+pub fn authed(method: Method, uri: &str) -> axum::http::request::Builder {
+    Request::builder()
+        .method(method)
+        .uri(uri)
+        .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
+}
+
+pub async fn json_body(response: Response) -> Value {
     let bytes = response
         .into_body()
         .collect()
@@ -137,7 +195,7 @@ async fn responses_opt_in_to_cross_origin_embedding() {
 async fn unported_api_paths_say_so_when_the_relay_is_off() {
     let response = app(None)
         .oneshot(
-            get("/api/settings")
+            get("/api/references")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
@@ -224,7 +282,7 @@ async fn relay_reports_an_unreachable_legacy_api() {
     let relay = Relay::new(&format!("http://127.0.0.1:{port}/")).unwrap();
     let response = app(Some(relay))
         .oneshot(
-            get("/api/settings")
+            get("/api/references")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
                 .body(Body::empty())
                 .unwrap(),
@@ -278,10 +336,12 @@ fn init_script_guards_the_token_by_origin() {
 
 #[tokio::test]
 async fn backend_serves_on_a_random_local_port() {
+    let dir = tempfile::tempdir().unwrap();
     // `Backend::start` spawns on the Tauri runtime, which also works in tests.
     let backend = Backend::start(super::BackendConfig {
-        data_dir: std::env::temp_dir(),
+        data_dir: dir.path().to_owned(),
         legacy_api_url: None,
+        secrets: Arc::new(MemorySecrets::default()),
     })
     .unwrap();
     let url = format!("{}/api/health", backend.base_url());
