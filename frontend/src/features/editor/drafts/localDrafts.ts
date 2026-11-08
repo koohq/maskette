@@ -1,4 +1,4 @@
-import { normalizeEditRecipe, type EditRecipe } from "../deformation/recipe";
+import { type EditRecipe, normalizeEditRecipe } from "../deformation/recipe";
 import type { LocalMaskStroke } from "../localGeneration";
 
 /** Unsaved editor state of one version. Lives only in this browser (IndexedDB), never on the server. */
@@ -40,7 +40,11 @@ function open(): Promise<IDBDatabase | null> {
   });
 }
 
-async function run<T>(mode: IDBTransactionMode, action: (store: IDBObjectStore) => IDBRequest | null, fallback: T): Promise<T> {
+async function run<T>(
+  mode: IDBTransactionMode,
+  action: (store: IDBObjectStore) => IDBRequest | null,
+  fallback: T,
+): Promise<T> {
   const db = await open();
   if (!db) return fallback;
   return new Promise((resolve, reject) => {
@@ -65,7 +69,11 @@ export function draftHasContent(state: EditorDraftState, recipeHasEdits: (recipe
 
 export const editorDrafts = {
   async get(projectId: string, versionId: string): Promise<EditorDraft | undefined> {
-    const record = await run<EditorDraft | undefined>("readonly", (store) => store.get(draftKey(projectId, versionId)), undefined);
+    const record = await run<EditorDraft | undefined>(
+      "readonly",
+      (store) => store.get(draftKey(projectId, versionId)),
+      undefined,
+    );
     if (!record || record.schemaVersion !== 1) return undefined;
     return { ...record, recipe: normalizeEditRecipe(record.recipe) };
   },

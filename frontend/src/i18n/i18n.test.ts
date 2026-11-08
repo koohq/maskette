@@ -3,8 +3,8 @@ import i18n from "./index";
 import { translateLiteralString } from "./literalTranslations";
 import {
   DEFAULT_LOCALE,
-  LOCALE_STORAGE_KEY,
   detectBrowserLocale,
+  LOCALE_STORAGE_KEY,
   normalizeLocale,
   readStoredLocale,
   SUPPORTED_LOCALES,

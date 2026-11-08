@@ -1,5 +1,5 @@
 import { coreFalloff, flatFalloff } from "./falloff";
-import { resolveBrowLandmarks, type LandmarkPoint, type ManualLandmarks } from "./landmarks";
+import { type LandmarkPoint, type ManualLandmarks, resolveBrowLandmarks } from "./landmarks";
 import type { EditRecipe, FaceControlKey, LiquifyMode, LiquifyStroke } from "./recipe";
 
 /** Ellipse in normalized image coordinates whose content face-shape edits must not move. */
@@ -20,7 +20,13 @@ function round(value: number) {
   return Number(value.toFixed(4));
 }
 
-function pushStroke(strokes: LiquifyStroke[], point: LandmarkPoint, mode: LiquifyMode, strength: number, radius: number) {
+function pushStroke(
+  strokes: LiquifyStroke[],
+  point: LandmarkPoint,
+  mode: LiquifyMode,
+  strength: number,
+  radius: number,
+) {
   const normalizedStrength = clamp(Math.abs(strength), 0, 1);
   if (normalizedStrength < 0.01) return;
 
@@ -126,20 +132,26 @@ export type FaceShapeTransform = {
 };
 
 export function createFaceShapeTransform(recipe: EditRecipe, landmarks: ManualLandmarks): FaceShapeTransform | null {
-  const bands = [false, true].map((local) => {
-    const inward = new Array<number>(13).fill(0);
-    const up = new Array<number>(13).fill(0);
-    let active = false;
-    for (const [key, profile] of Object.entries(faceShapeProfiles) as [FaceShapeControlKey, ContourProfile][]) {
-      const value = recipe.face[key];
-      if (profile.local !== local || value === 0) continue;
-      active = true;
-      const scale = (value / faceShapeSliderEnd) * (value < 0 ? profile.negativeScale : 1) / 100;
-      profile.inward.forEach((amount, index) => { inward[index] += amount * scale; });
-      profile.up.forEach((amount, index) => { up[index] += amount * scale; });
-    }
-    return active ? { band: local ? localBand : broadBand, inward, up } : null;
-  }).filter((band) => band !== null);
+  const bands = [false, true]
+    .map((local) => {
+      const inward = new Array<number>(13).fill(0);
+      const up = new Array<number>(13).fill(0);
+      let active = false;
+      for (const [key, profile] of Object.entries(faceShapeProfiles) as [FaceShapeControlKey, ContourProfile][]) {
+        const value = recipe.face[key];
+        if (profile.local !== local || value === 0) continue;
+        active = true;
+        const scale = ((value / faceShapeSliderEnd) * (value < 0 ? profile.negativeScale : 1)) / 100;
+        profile.inward.forEach((amount, index) => {
+          inward[index] += amount * scale;
+        });
+        profile.up.forEach((amount, index) => {
+          up[index] += amount * scale;
+        });
+      }
+      return active ? { band: local ? localBand : broadBand, inward, up } : null;
+    })
+    .filter((band) => band !== null);
 
   return bands.length > 0 ? { contour: faceContour(landmarks), bands } : null;
 }
@@ -161,11 +173,20 @@ export function faceContour(landmarks: ManualLandmarks): LandmarkPoint[] {
   };
   const imageLeft = side(leftIsImageLeft ? "left" : "right", -1);
   const imageRight = side(leftIsImageLeft ? "right" : "left", 1);
-  const [jawImageLeft, jawImageRight] = landmarks.jawLeft.x <= landmarks.jawRight.x
-    ? [landmarks.jawLeft, landmarks.jawRight]
-    : [landmarks.jawRight, landmarks.jawLeft];
+  const [jawImageLeft, jawImageRight] =
+    landmarks.jawLeft.x <= landmarks.jawRight.x
+      ? [landmarks.jawLeft, landmarks.jawRight]
+      : [landmarks.jawRight, landmarks.jawLeft];
 
-  return [imageLeft.top, imageLeft.eyeSide, jawImageLeft, landmarks.chin, jawImageRight, imageRight.eyeSide, imageRight.top];
+  return [
+    imageLeft.top,
+    imageLeft.eyeSide,
+    jawImageLeft,
+    landmarks.chin,
+    jawImageRight,
+    imageRight.eyeSide,
+    imageRight.top,
+  ];
 }
 
 function profileAt(table: readonly number[], s: number) {
@@ -221,8 +242,10 @@ export function createFaceShapeDeformer(transform: FaceShapeTransform, width: nu
       sigmaSquared: (reach * 0.35) ** 2,
       offsets,
       bounds: {
-        minX: Math.min(...xs) - reach, maxX: Math.max(...xs) + reach,
-        minY: Math.min(...ys) - reach, maxY: Math.max(...ys) + reach,
+        minX: Math.min(...xs) - reach,
+        maxX: Math.max(...xs) + reach,
+        minY: Math.min(...ys) - reach,
+        maxY: Math.max(...ys) + reach,
       },
     };
   });
@@ -263,7 +286,13 @@ export function createProportionStrokes(recipe: EditRecipe, landmarks: ManualLan
   if (face.faceLength !== 0) {
     const foreheadY = Math.max(0, eyeY - Math.abs(landmarks.chin.y - eyeY) * 0.7);
     const grow = face.faceLength > 0;
-    pushStroke(strokes, { x: landmarks.chin.x, y: foreheadY }, grow ? "push-up" : "push-down", face.faceLength * 0.3, 128);
+    pushStroke(
+      strokes,
+      { x: landmarks.chin.x, y: foreheadY },
+      grow ? "push-up" : "push-down",
+      face.faceLength * 0.3,
+      128,
+    );
     pushStroke(strokes, landmarks.jawLeft, grow ? "push-down" : "push-up", face.faceLength * 0.34, 132);
     pushStroke(strokes, landmarks.jawRight, grow ? "push-down" : "push-up", face.faceLength * 0.34, 132);
     pushStroke(strokes, landmarks.jawLeft, grow ? "push-right" : "push-left", face.faceLength * 0.14, 120);

@@ -80,7 +80,13 @@ export function AgentPanel({
       </div>
       <div className="ide-agent-footer">
         {sendError ? <p className="agent-notice agent-notice-error mb-2">{sendError}</p> : null}
-        <Composer onFilesChange={onFilesChange} onSend={onSend} onStop={onStop} pendingFiles={pendingFiles} running={running} />
+        <Composer
+          onFilesChange={onFilesChange}
+          onSend={onSend}
+          onStop={onStop}
+          pendingFiles={pendingFiles}
+          running={running}
+        />
       </div>
     </aside>
   );

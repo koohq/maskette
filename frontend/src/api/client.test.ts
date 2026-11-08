@@ -11,8 +11,8 @@ import {
   listAlbumItems,
   saveAlbumImageFile,
   saveAlbumItem,
-  uploadReferenceFile,
   updateQuotaPolicy,
+  uploadReferenceFile,
 } from "./client";
 
 function stubFetchJson(body: unknown) {
@@ -473,7 +473,9 @@ describe("generation API compatibility", () => {
         editNote: "fix mouth",
         maskImageBlob: new Blob(["mask"], { type: "image/png" }),
         selectedReferenceKeys: [],
-        uploadedReferences: [{ description: "mouth reference", file: new File(["raw"], "mouth.png", { type: "image/png" }) }],
+        uploadedReferences: [
+          { description: "mouth reference", file: new File(["raw"], "mouth.png", { type: "image/png" }) },
+        ],
       });
 
       const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
@@ -621,11 +623,7 @@ describe("audit and album API", () => {
     ).resolves.toEqual(item);
     await expect(listAlbumItems()).resolves.toEqual([item]);
 
-    expect(fetchMock).toHaveBeenNthCalledWith(
-      1,
-      "/api/album/items",
-      expect.objectContaining({ method: "POST" }),
-    );
+    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/album/items", expect.objectContaining({ method: "POST" }));
     expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/album/items", undefined);
   });
 

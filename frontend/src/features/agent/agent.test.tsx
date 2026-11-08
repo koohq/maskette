@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import { applyEvent, type AgentEvent, type Conversation } from "./agentApi";
+import { type AgentEvent, applyEvent, type Conversation } from "./agentApi";
 import { ChatTimeline } from "./ChatTimeline";
 
 function conversation(approved: string | null = null): Conversation {
@@ -40,7 +40,12 @@ describe("applyEvent", () => {
     let events = applyEvent([], tool);
     events = applyEvent(events, tool);
     expect(events).toHaveLength(1);
-    events = applyEvent(events, { seq: 2, type: "event_patch", target_seq: 1, patch: { status: "succeeded", progress: 100 } });
+    events = applyEvent(events, {
+      seq: 2,
+      type: "event_patch",
+      target_seq: 1,
+      patch: { status: "succeeded", progress: 100 },
+    });
     expect(events).toHaveLength(1);
     expect(events[0]).toMatchObject({ status: "succeeded", progress: 100 });
   });
@@ -50,7 +55,13 @@ describe("ChatTimeline", () => {
   it("offers approval on the latest front view and sends it", () => {
     const onApprove = vi.fn();
     render(
-      <ChatTimeline conversation={conversation()} events={[frontImage]} onApprove={onApprove} onOpenImage={vi.fn()} running={false} />,
+      <ChatTimeline
+        conversation={conversation()}
+        events={[frontImage]}
+        onApprove={onApprove}
+        onOpenImage={vi.fn()}
+        running={false}
+      />,
     );
     fireEvent.click(screen.getByRole("button", { name: /就用这张/ }));
     expect(onApprove).toHaveBeenCalledWith("front-1");
@@ -58,7 +69,13 @@ describe("ChatTimeline", () => {
 
   it("hides approval while running and shows the approved badge afterwards", () => {
     const { rerender } = render(
-      <ChatTimeline conversation={conversation()} events={[frontImage]} onApprove={vi.fn()} onOpenImage={vi.fn()} running />,
+      <ChatTimeline
+        conversation={conversation()}
+        events={[frontImage]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running
+      />,
     );
     expect(screen.queryByRole("button", { name: /就用这张/ })).toBeNull();
     rerender(
@@ -146,7 +163,14 @@ describe("ChatTimeline", () => {
         conversation={conversation()}
         events={[
           { seq: 1, type: "tool", tool: "generate_turnaround", status: "running", progress: 45, phase: "generating" },
-          { seq: 2, type: "tool", tool: "generate_front_view", status: "running", progress: 50, phase: "some_new_step" },
+          {
+            seq: 2,
+            type: "tool",
+            tool: "generate_front_view",
+            status: "running",
+            progress: 50,
+            phase: "some_new_step",
+          },
         ]}
         onApprove={vi.fn()}
         onOpenImage={vi.fn()}

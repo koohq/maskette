@@ -1,4 +1,13 @@
-import { IconEdit, IconEye, IconFeather, IconMoodSmile, IconRuler2, IconSparkles, IconUserCircle, IconWand } from "@tabler/icons-react";
+import {
+  IconEdit,
+  IconEye,
+  IconFeather,
+  IconMoodSmile,
+  IconRuler2,
+  IconSparkles,
+  IconUserCircle,
+  IconWand,
+} from "@tabler/icons-react";
 import { Box, Button, Stack, Tab, Tabs, Text } from "../../../ui/mui";
 
 export type EditorTool =

@@ -101,7 +101,12 @@ const en: TranslationResource = {
     versions: "Versions",
     noVersions: "No versions yet. Chat with the agent on the right to generate the first front view.",
     sources: { agent: "AI", manual: "Manual", local_revision: "Local" },
-    roles: { design: "Design", design_turnaround: "Design four-view", front: "Shell front", turnaround: "Shell four-view" },
+    roles: {
+      design: "Design",
+      design_turnaround: "Design four-view",
+      front: "Shell front",
+      turnaround: "Shell four-view",
+    },
     stages: { design: "Character design", front: "Head shell front", turnaround: "Head shell four-view" },
     stageHint: "Click to open this stage's version",
     approved: "Approved",
@@ -145,7 +150,8 @@ const en: TranslationResource = {
     untitled: "Untitled chat",
     deleteChat: "Delete chat",
     welcomeTitle: "Upload a character to start a head design",
-    welcomeBody: "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that.",
+    welcomeBody:
+      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that.",
     placeholder: "Describe what you want, or tell me what to change…",
     attach: "Add reference images",
     send: "Send",
@@ -155,7 +161,8 @@ const en: TranslationResource = {
     regenerate: "Regenerate",
     retry: "Retry",
     deleteMessage: "Delete reply",
-    confirmDeleteMessage: "Delete this reply? It is also removed from the assistant's context. Generated images are kept.",
+    confirmDeleteMessage:
+      "Delete this reply? It is also removed from the assistant's context. Generated images are kept.",
     you: "You",
     assistant: "Maskette",
     approve: "Use this one",
@@ -229,7 +236,8 @@ const en: TranslationResource = {
   settings: {
     title: "Settings",
     open: "Settings",
-    intro: "Choose and configure the backends used by the chat assistant, reference analysis and image generation. Changes are saved on this computer.",
+    intro:
+      "Choose and configure the backends used by the chat assistant, reference analysis and image generation. Changes are saved on this computer.",
     readOnly: "Settings are read-only in production. Edit .env instead.",
     loadFailed: "Could not load settings",
     saveFailed: "Save failed: {{error}}",
@@ -253,7 +261,8 @@ const en: TranslationResource = {
     model: "Model",
     modelDefault: "Leave empty for the default model",
     extraBody: "Extra request fields (JSON)",
-    extraBodyHint: "Sent with every request; by default it asks OpenRouter for a low reasoning effort. Removed automatically when a model rejects it; clear it if you don't need it.",
+    extraBodyHint:
+      "Sent with every request; by default it asks OpenRouter for a low reasoning effort. Removed automatically when a model rejects it; clear it if you don't need it.",
     probe: "Test connection",
     probing: "Testing…",
     probeHint: "Sends one small request with the saved settings (uses a few tokens).",
@@ -288,11 +297,14 @@ const en: TranslationResource = {
     },
     sameAsAgent: "Empty uses the chat assistant's: {{value}}",
     analysisKeyHint: "If empty, the chat assistant's key is reused for the same URL, or the Ark key for the Ark URL.",
-    analysisExtraBodyHint: "Sent with every analysis request (e.g. OpenRouter's reasoning effort: {\"reasoning\": {\"effort\": \"medium\"}}). If empty, the chat assistant's fields are reused only when the URL is the same. Enter {} to send none.",
+    analysisExtraBodyHint:
+      'Sent with every analysis request (e.g. OpenRouter\'s reasoning effort: {"reasoning": {"effort": "medium"}}). If empty, the chat assistant\'s fields are reused only when the URL is the same. Enter {} to send none.',
     visionRequired: "The model must accept image input (multimodal), otherwise analysis fails.",
     openrouterKeyHint: "If empty, the analysis or chat assistant key is reused when its URL is OpenRouter's.",
-    openrouterModelHint: "An image model that accepts reference images, e.g. one listed at openrouter.ai/api/v1/images/models.",
-    openrouterExtraBodyHint: "Added to every image request (e.g. {\"quality\": \"high\"}). Leave empty to send nothing extra.",
+    openrouterModelHint:
+      "An image model that accepts reference images, e.g. one listed at openrouter.ai/api/v1/images/models.",
+    openrouterExtraBodyHint:
+      'Added to every image request (e.g. {"quality": "high"}). Leave empty to send nothing extra.',
     codexBridgeRemoved: "Codex Bridge is no longer available. Choose Codex or another backend.",
     apiKey: "API key",
     keyFromEnv: "Set {{hint}} (from .env)",
@@ -304,7 +316,8 @@ const en: TranslationResource = {
     keyClear: "Clear the key saved here",
     keyUndoClear: "Undo",
     agentKeyHint: "If empty and the base URL is the Ark endpoint, the Ark image key is reused.",
-    keyStorageNote: "API keys are kept in the credential store of your OS (Windows Credential Manager, macOS Keychain), not in a file. They are never shown on this page.",
+    keyStorageNote:
+      "API keys are kept in the credential store of your OS (Windows Credential Manager, macOS Keychain), not in a file. They are never shown on this page.",
     providers: {
       openai_compatible: "OpenAI-compatible API",
       claude_code: "Claude Code CLI",

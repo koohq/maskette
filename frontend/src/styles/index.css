@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 
 @theme {
   --color-ink: #1f2430;
@@ -119,13 +119,15 @@ body,
   selected locale (see i18n/index.ts). */
 :root {
   --ui-font-latin: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial;
-  --ui-font-family: var(--ui-font-latin), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei",
-    "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+  --ui-font-family:
+    var(--ui-font-latin), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC",
+    "Noto Sans CJK SC", system-ui, sans-serif;
 }
 
 :root:lang(ja) {
-  --ui-font-family: var(--ui-font-latin), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo UI",
-    "Meiryo", "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+  --ui-font-family:
+    var(--ui-font-latin), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo UI", "Meiryo",
+    "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
 }
 
 :root:lang(en) {
@@ -210,8 +212,7 @@ button,
 
 .landmark-loading-card {
   background:
-    repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.025) 0 1px, transparent 1px 5px),
-    var(--kb-panel) !important;
+    repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.025) 0 1px, transparent 1px 5px), var(--kb-panel) !important;
   border: 1px solid var(--kb-line);
   border-radius: 0;
   box-shadow: var(--kb-hard-shadow-sm);
@@ -309,14 +310,13 @@ button,
 }
 
 .parameter-slider-input::-webkit-slider-runnable-track {
-  background:
-    linear-gradient(
-      to right,
-      var(--kb-dirty-yellow) 0%,
-      var(--kb-dirty-yellow) var(--parameter-slider-progress),
-      var(--kb-line) var(--parameter-slider-progress),
-      var(--kb-line) 100%
-    );
+  background: linear-gradient(
+    to right,
+    var(--kb-dirty-yellow) 0%,
+    var(--kb-dirty-yellow) var(--parameter-slider-progress),
+    var(--kb-line) var(--parameter-slider-progress),
+    var(--kb-line) 100%
+  );
   border-radius: 0;
   height: 3px;
 }
@@ -370,8 +370,7 @@ button,
 .grunge-card {
   background:
     repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.025) 0 1px, transparent 1px 5px),
-    repeating-linear-gradient(90deg, rgba(25, 31, 35, 0.018) 0 1px, transparent 1px 5px),
-    var(--kb-panel);
+    repeating-linear-gradient(90deg, rgba(25, 31, 35, 0.018) 0 1px, transparent 1px 5px), var(--kb-panel);
   border: 1px solid var(--kb-line);
   border-radius: 0;
   box-shadow: var(--kb-hard-shadow);
@@ -382,14 +381,11 @@ button,
 .audit-page-surface {
   background:
     repeating-linear-gradient(0deg, rgba(25, 31, 35, 0.03) 0 1px, transparent 1px 8px),
-    radial-gradient(circle at 18% 14%, rgba(201, 85, 47, 0.08), transparent 28%),
-    var(--kb-old-paper);
+    radial-gradient(circle at 18% 14%, rgba(201, 85, 47, 0.08), transparent 28%), var(--kb-old-paper);
 }
 
 .audit-metric-card {
-  background:
-    linear-gradient(135deg, rgba(255, 248, 233, 0.92), rgba(255, 244, 221, 0.96)),
-    var(--kb-panel-soft);
+  background: linear-gradient(135deg, rgba(255, 248, 233, 0.92), rgba(255, 244, 221, 0.96)), var(--kb-panel-soft);
   border: 1px solid var(--kb-line);
   box-shadow: var(--kb-hard-shadow-sm);
   color: var(--kb-ink);
@@ -397,9 +393,7 @@ button,
 }
 
 .audit-chart-card {
-  background:
-    linear-gradient(180deg, rgba(255, 248, 233, 0.94), rgba(255, 244, 221, 0.98)),
-    var(--kb-panel-soft);
+  background: linear-gradient(180deg, rgba(255, 248, 233, 0.94), rgba(255, 244, 221, 0.98)), var(--kb-panel-soft);
   border: 1px solid var(--kb-line);
   box-shadow: var(--kb-hard-shadow-sm);
   min-height: 260px;

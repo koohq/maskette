@@ -19,9 +19,7 @@ export function detectBrowserLocale(): AppLocale {
   if (typeof navigator === "undefined") return DEFAULT_LOCALE;
 
   const browserLanguages =
-    Array.isArray(navigator.languages) && navigator.languages.length > 0
-      ? navigator.languages
-      : [navigator.language];
+    Array.isArray(navigator.languages) && navigator.languages.length > 0 ? navigator.languages : [navigator.language];
   for (const language of browserLanguages) {
     const locale = resolveSupportedLocale(language);
     if (locale) return locale;

@@ -13,13 +13,13 @@ import {
   moveAnnotationMark,
   normalizeEditRecipe,
   removeAnnotationMark,
-  updateLiquifyScaleBrush,
   updateAnnotationNote,
   updateDetailSetting,
   updateEyeControl,
   updateFaceControl,
   updateLiquifyBrush,
   updateLiquifyBrushPair,
+  updateLiquifyScaleBrush,
   updateManualLandmark,
   updateMouthControl,
 } from "./recipe";
@@ -53,10 +53,12 @@ describe("editor recipe", () => {
       "keep eyelash angle",
     );
 
-    expect(recipe.annotations[0]).toEqual(expect.objectContaining({
-      id: "annotation-1",
-      note: "keep eyelash angle",
-    }));
+    expect(recipe.annotations[0]).toEqual(
+      expect.objectContaining({
+        id: "annotation-1",
+        note: "keep eyelash angle",
+      }),
+    );
   });
 
   it("moves annotation pins by id and keeps them inside image bounds", () => {
@@ -69,11 +71,13 @@ describe("editor recipe", () => {
       { x: 1.4, y: -0.2 },
     );
 
-    expect(recipe.annotations[0]).toEqual(expect.objectContaining({
-      id: "annotation-1",
-      x: 1,
-      y: 0,
-    }));
+    expect(recipe.annotations[0]).toEqual(
+      expect.objectContaining({
+        id: "annotation-1",
+        x: 1,
+        y: 0,
+      }),
+    );
   });
 
   it("removes annotation pins by id", () => {
@@ -139,9 +143,7 @@ describe("editor recipe", () => {
       ),
     );
 
-    expect(buildAnnotationPrompt(recipe.annotations)).toBe(
-      "1. (x: 25.0%, y: 50.0%) preserve the left eyelash curve",
-    );
+    expect(buildAnnotationPrompt(recipe.annotations)).toBe("1. (x: 25.0%, y: 50.0%) preserve the left eyelash curve");
   });
 
   it("uses the center point for boxed annotation prompt coordinates", () => {
@@ -159,9 +161,7 @@ describe("editor recipe", () => {
       ),
     );
 
-    expect(buildAnnotationPrompt(recipe.annotations)).toBe(
-      "1. (x: 60.0%, y: 40.0%) replace this accessory",
-    );
+    expect(buildAnnotationPrompt(recipe.annotations)).toBe("1. (x: 60.0%, y: 40.0%) replace this accessory");
   });
 
   it("clamps manual liquify strokes to the image bounds", () => {
@@ -208,15 +208,17 @@ describe("editor recipe", () => {
       to: { x: 0.3, y: 0.55 },
     });
 
-    expect(mirrorLiquifyWarpStroke(stroke, 0.52)).toEqual(expect.objectContaining({
-      deltaX: -0.1,
-      deltaY: -0.05,
-      mode: "warp",
-      radius: 80,
-      strength: 0.2,
-      x: 0.79,
-      y: 0.575,
-    }));
+    expect(mirrorLiquifyWarpStroke(stroke, 0.52)).toEqual(
+      expect.objectContaining({
+        deltaX: -0.1,
+        deltaY: -0.05,
+        mode: "warp",
+        radius: 80,
+        strength: 0.2,
+        x: 0.79,
+        y: 0.575,
+      }),
+    );
   });
 
   it("appends original and mirrored warp strokes as one symmetric brush update", () => {
@@ -355,11 +357,7 @@ describe("editor recipe", () => {
     const faceRecipe = updateFaceControl(
       updateFaceControl(
         updateFaceControl(
-          updateFaceControl(
-            updateFaceControl(createEmptyRecipe(), "faceWidth", 1),
-            "faceLength",
-            -1,
-          ),
+          updateFaceControl(updateFaceControl(createEmptyRecipe(), "faceWidth", 1), "faceLength", -1),
           "smallFace",
           1,
         ),
@@ -385,7 +383,12 @@ describe("editor recipe", () => {
     expect(finalRecipe.eyes.eyeTilt).toBe(1);
   });
 
-  it.each([[0.3, 0.3], [-0.2, -0.2], [7.5, 0.6], [-7.5, -0.6]])("maps legacy eyeHeight %s once into the supported eyeSize range", (legacyValue, expected) => {
+  it.each([
+    [0.3, 0.3],
+    [-0.2, -0.2],
+    [7.5, 0.6],
+    [-7.5, -0.6],
+  ])("maps legacy eyeHeight %s once into the supported eyeSize range", (legacyValue, expected) => {
     const legacyRecipe = {
       eyes: {
         eyeDistance: 0,
@@ -403,4 +406,3 @@ describe("editor recipe", () => {
     expect(normalizeEditRecipe(edited)).toEqual(edited);
   });
 });
-

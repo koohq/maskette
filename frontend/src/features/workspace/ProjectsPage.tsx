@@ -1,18 +1,26 @@
-import { IconDots, IconDownload, IconFolderPlus, IconPencil, IconPhoto, IconTrash, IconUpload } from "@tabler/icons-react";
+import {
+  IconDots,
+  IconDownload,
+  IconFolderPlus,
+  IconPencil,
+  IconPhoto,
+  IconTrash,
+  IconUpload,
+} from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRef, useState, type FormEvent } from "react";
+import { type FormEvent, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { normalizeLocale } from "../../i18n/locales";
 import { ConfirmDialog, PromptDialog } from "../../ui/IdeDialog";
 import {
+  type ConversationSummary,
   createConversation,
   deleteConversation,
   exportProjectUrl,
   importProject,
   listConversations,
   renameConversation,
-  type ConversationSummary,
 } from "../agent/agentApi";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
@@ -83,7 +91,12 @@ export function ProjectsPage() {
         <div className="mb-6 flex items-center gap-3">
           <h1 className="text-xl font-semibold">{t("workspace.projects")}</h1>
           <span className="flex-1" />
-          <button className="ide-button" disabled={importing} onClick={() => fileInputRef.current?.click()} type="button">
+          <button
+            className="ide-button"
+            disabled={importing}
+            onClick={() => fileInputRef.current?.click()}
+            type="button"
+          >
             <IconUpload size={15} />
             {importing ? t("workspace.importing") : t("workspace.importProject")}
           </button>
@@ -129,7 +142,11 @@ export function ProjectsPage() {
                       <span>{t("workspace.versionCount", { count: project.version_count })}</span>
                       <span>·</span>
                       <span>{new Date(project.created_at).toLocaleDateString(i18n.language)}</span>
-                      {project.status === "running" ? <span className="ide-badge" data-tone="accent">●</span> : null}
+                      {project.status === "running" ? (
+                        <span className="ide-badge" data-tone="accent">
+                          ●
+                        </span>
+                      ) : null}
                     </div>
                   </div>
                 </button>
@@ -156,7 +173,12 @@ export function ProjectsPage() {
                         <IconPencil size={14} />
                         {t("workspace.rename")}
                       </button>
-                      <a className="ide-tree-item" download href={exportProjectUrl(project.id)} onClick={() => setMenuFor(null)}>
+                      <a
+                        className="ide-tree-item"
+                        download
+                        href={exportProjectUrl(project.id)}
+                        onClick={() => setMenuFor(null)}
+                      >
                         <IconDownload size={14} />
                         {t("workspace.exportProject")}
                       </a>
@@ -208,7 +230,13 @@ export function ProjectsPage() {
   );
 }
 
-function CreateProjectDialog({ onCancel, onCreate }: { onCancel: () => void; onCreate: (name: string) => Promise<void> }) {
+function CreateProjectDialog({
+  onCancel,
+  onCreate,
+}: {
+  onCancel: () => void;
+  onCreate: (name: string) => Promise<void>;
+}) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -225,7 +253,11 @@ function CreateProjectDialog({ onCancel, onCreate }: { onCancel: () => void; onC
 
   return (
     <div className="ide-dialog-backdrop" onClick={onCancel} role="presentation">
-      <form className="ide-dialog" onClick={(event) => event.stopPropagation()} onSubmit={(event) => void submit(event)}>
+      <form
+        className="ide-dialog"
+        onClick={(event) => event.stopPropagation()}
+        onSubmit={(event) => void submit(event)}
+      >
         <h2 className="text-base font-semibold">{t("workspace.newProject")}</h2>
         <input
           autoFocus

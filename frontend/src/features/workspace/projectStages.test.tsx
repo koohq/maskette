@@ -12,7 +12,17 @@ beforeAll(async () => {
 });
 
 function image(id: string, role: DesignImage["role"], parent: string | null = null): DesignImage {
-  return { id, role, job_id: "", url: `/api/generated/${id}.webp`, width: 800, height: 1100, instructions: "", parent_id: parent, source: "agent" };
+  return {
+    id,
+    role,
+    job_id: "",
+    url: `/api/generated/${id}.webp`,
+    width: 800,
+    height: 1100,
+    instructions: "",
+    parent_id: parent,
+    source: "agent",
+  };
 }
 
 function conversation(images: DesignImage[], ids: Partial<Conversation["state"]> = {}): Conversation {
@@ -67,12 +77,24 @@ describe("projectStages", () => {
 
 describe("ChatTimeline approvals", () => {
   function imageEvent(seq: number, imageId: string, role: string): AgentEvent {
-    return { seq, type: "image", image_id: imageId, role, url: `/x/${imageId}.webp`, width: 800, height: 1100 } as AgentEvent;
+    return {
+      seq,
+      type: "image",
+      image_id: imageId,
+      role,
+      url: `/x/${imageId}.webp`,
+      width: 800,
+      height: 1100,
+    } as AgentEvent;
   }
 
   it("offers 确认设定图 on the newest design and the normal approve on the newest head shell front", () => {
     const onApprove = vi.fn();
-    const events = [imageEvent(1, "design-1", "design"), imageEvent(2, "design-2", "design"), imageEvent(3, "front-1", "front")];
+    const events = [
+      imageEvent(1, "design-1", "design"),
+      imageEvent(2, "design-2", "design"),
+      imageEvent(3, "front-1", "front"),
+    ];
     render(
       <ChatTimeline
         conversation={conversation([], { approved_design_id: null })}

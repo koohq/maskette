@@ -2,9 +2,9 @@ import type { ImageCoordinates } from "../core/imageCoordinates";
 import {
   completeLandmarks,
   createDefaultLandmarks,
-  setManualLandmarkPoint,
   type ManualLandmarkKey,
   type ManualLandmarks,
+  setManualLandmarkPoint,
 } from "./landmarks";
 
 export type FaceControlKey =
@@ -41,12 +41,7 @@ export type BrowControlKey =
   | "browTilt"
   | "browPeak";
 
-export type MouthControlKey =
-  | "mouthHorizontal"
-  | "mouthVertical"
-  | "mouthWidth"
-  | "mouthSize"
-  | "mouthSmile";
+export type MouthControlKey = "mouthHorizontal" | "mouthVertical" | "mouthWidth" | "mouthSize" | "mouthSmile";
 
 export type LiquifyMode = "expand" | "shrink" | "push-left" | "push-right" | "push-up" | "push-down" | "warp" | "scale";
 
@@ -252,8 +247,7 @@ export function normalizeEditRecipe(recipe: EditRecipe | Partial<EditRecipe> | u
   const emptyRecipe = createEmptyRecipe();
   if (!recipe) return emptyRecipe;
   const incomingEyes = recipe.eyes as Partial<Record<EyeControlKey, number>> | undefined;
-  const shouldMapLegacyEyeHeight =
-    incomingEyes?.eyeSize === undefined && typeof incomingEyes?.eyeHeight === "number";
+  const shouldMapLegacyEyeHeight = incomingEyes?.eyeSize === undefined && typeof incomingEyes?.eyeHeight === "number";
   const mergedEyes = shouldMapLegacyEyeHeight
     ? {
         ...emptyRecipe.eyes,
@@ -462,9 +456,13 @@ export function updateLiquifyBrushPair(recipe: EditRecipe, stroke: LiquifyStroke
 
   return {
     ...recipe,
-    liquify: [...recipe.liquify, ...[stroke, mirrorLiquifyWarpStroke(stroke, axisX)].map(item => ({
-      ...item, radius: item.radius * (recipe.imageCoordinates?.effectScale ?? 1),
-    }))],
+    liquify: [
+      ...recipe.liquify,
+      ...[stroke, mirrorLiquifyWarpStroke(stroke, axisX)].map((item) => ({
+        ...item,
+        radius: item.radius * (recipe.imageCoordinates?.effectScale ?? 1),
+      })),
+    ],
   };
 }
 
@@ -484,9 +482,13 @@ export function updateLiquifyScaleBrush(
 
   return {
     ...recipe,
-    liquify: [...recipe.liquify.filter((stroke) => stroke.mode !== "scale"), {
-      ...nextStroke, radius: nextStroke.radius * (recipe.imageCoordinates?.effectScale ?? 1),
-    }],
+    liquify: [
+      ...recipe.liquify.filter((stroke) => stroke.mode !== "scale"),
+      {
+        ...nextStroke,
+        radius: nextStroke.radius * (recipe.imageCoordinates?.effectScale ?? 1),
+      },
+    ],
   };
 }
 

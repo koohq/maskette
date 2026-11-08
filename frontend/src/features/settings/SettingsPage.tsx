@@ -1,22 +1,22 @@
 import { IconAlertTriangle, IconArrowLeft, IconCircleCheck, IconCircleX, IconPlugConnected } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState, type ReactNode } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
-import { LanguageSelector } from "../i18n/LanguageSelector";
 import { ConfirmDialog } from "../../ui/IdeDialog";
+import { LanguageSelector } from "../i18n/LanguageSelector";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import {
+  type BackendSettings,
   backendRequirement,
   getBackendSettings,
   isRecommendedBackend,
+  type ProbeResult,
+  type ProbeRole,
   probeBackend,
   resetBackendSettings,
   updateBackendSettings,
   usesSubscriptionCli,
-  type BackendSettings,
-  type ProbeResult,
-  type ProbeRole,
 } from "./settingsApi";
 
 const settingsQueryKey = ["backend-settings"];
@@ -62,7 +62,10 @@ export function SettingsPage() {
       queryClient.setQueryData(settingsQueryKey, await action());
       setNotice({ tone: "success", text: t("settings.saved") });
     } catch (error) {
-      setNotice({ tone: "error", text: t("settings.saveFailed", { error: error instanceof Error ? error.message : String(error) }) });
+      setNotice({
+        tone: "error",
+        text: t("settings.saveFailed", { error: error instanceof Error ? error.message : String(error) }),
+      });
     } finally {
       setBusy(false);
     }
@@ -124,11 +127,27 @@ export function SettingsPage() {
               value={form.agent_llm_provider}
             >
               {form.agent_llm_provider === "claude_code" ? (
-                <TextField disabled={disabled} label={t("settings.model")} onChange={set("agent_claude_code_model")} placeholder={t("settings.modelDefault")} value={form.agent_claude_code_model} />
+                <TextField
+                  disabled={disabled}
+                  label={t("settings.model")}
+                  onChange={set("agent_claude_code_model")}
+                  placeholder={t("settings.modelDefault")}
+                  value={form.agent_claude_code_model}
+                />
               ) : (
                 <>
-                  <TextField disabled={disabled} label={t("settings.baseUrl")} onChange={set("agent_llm_base_url")} value={form.agent_llm_base_url} />
-                  <TextField disabled={disabled} label={t("settings.model")} onChange={set("agent_llm_model")} value={form.agent_llm_model} />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.baseUrl")}
+                    onChange={set("agent_llm_base_url")}
+                    value={form.agent_llm_base_url}
+                  />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.model")}
+                    onChange={set("agent_llm_model")}
+                    value={form.agent_llm_model}
+                  />
                   {secretField("agent_llm_api_key", t("settings.agentKeyHint"))}
                   <TextField
                     disabled={disabled}
@@ -205,7 +224,12 @@ export function SettingsPage() {
               ) : null}
               {form.image_provider === "openrouter" ? (
                 <>
-                  <TextField disabled={disabled} label={t("settings.baseUrl")} onChange={set("openrouter_base_url")} value={form.openrouter_base_url} />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.baseUrl")}
+                    onChange={set("openrouter_base_url")}
+                    value={form.openrouter_base_url}
+                  />
                   <TextField
                     disabled={disabled}
                     hint={t("settings.openrouterModelHint")}
@@ -226,28 +250,62 @@ export function SettingsPage() {
               ) : null}
               {form.image_provider === "siliconflow" ? (
                 <>
-                  <TextField disabled={disabled} label={t("settings.baseUrl")} onChange={set("siliconflow_base_url")} value={form.siliconflow_base_url} />
-                  <TextField disabled={disabled} label={t("settings.model")} onChange={set("siliconflow_image_model")} value={form.siliconflow_image_model} />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.baseUrl")}
+                    onChange={set("siliconflow_base_url")}
+                    value={form.siliconflow_base_url}
+                  />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.model")}
+                    onChange={set("siliconflow_image_model")}
+                    value={form.siliconflow_image_model}
+                  />
                   {secretField("siliconflow_api_key")}
                 </>
               ) : null}
               {form.image_provider === "ark" ? (
                 <>
-                  <TextField disabled={disabled} label={t("settings.baseUrl")} onChange={set("ark_base_url")} value={form.ark_base_url} />
-                  <TextField disabled={disabled} label={t("settings.model")} onChange={set("ark_image_model")} value={form.ark_image_model} />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.baseUrl")}
+                    onChange={set("ark_base_url")}
+                    value={form.ark_base_url}
+                  />
+                  <TextField
+                    disabled={disabled}
+                    label={t("settings.model")}
+                    onChange={set("ark_image_model")}
+                    value={form.ark_image_model}
+                  />
                   {secretField("ark_api_key")}
                 </>
               ) : null}
             </BackendSection>
             <div className="flex items-center gap-3">
-              <button className="ide-button ide-button-primary" disabled={disabled || changed.length + changedSecrets.length === 0} onClick={save} type="button">
+              <button
+                className="ide-button ide-button-primary"
+                disabled={disabled || changed.length + changedSecrets.length === 0}
+                onClick={save}
+                type="button"
+              >
                 {t("settings.save")}
               </button>
-              <button className="ide-button" disabled={disabled || data.overridden.length === 0} onClick={() => setConfirmingReset(true)} type="button">
+              <button
+                className="ide-button"
+                disabled={disabled || data.overridden.length === 0}
+                onClick={() => setConfirmingReset(true)}
+                type="button"
+              >
                 {t("settings.reset")}
               </button>
               {notice ? (
-                <span className="text-sm" role="status" style={{ color: notice.tone === "error" ? "var(--ide-danger)" : "var(--ide-success)" }}>
+                <span
+                  className="text-sm"
+                  role="status"
+                  style={{ color: notice.tone === "error" ? "var(--ide-danger)" : "var(--ide-success)" }}
+                >
                   {notice.text}
                 </span>
               ) : null}
@@ -294,7 +352,11 @@ function BackendSection({
     <section className="rounded-md border border-(--ide-border) bg-(--ide-panel) p-4">
       <div className="flex items-center gap-2">
         <h2 className="text-sm font-semibold">{title}</h2>
-        {data.overridden.includes(settingKey) ? <span className="ide-badge" data-tone="accent">{t("settings.overridden")}</span> : null}
+        {data.overridden.includes(settingKey) ? (
+          <span className="ide-badge" data-tone="accent">
+            {t("settings.overridden")}
+          </span>
+        ) : null}
       </div>
       <p className="mb-3 mt-1 text-xs text-(--ide-text-muted)">{hint}</p>
       <div className="flex flex-col gap-1" role="radiogroup" aria-label={title}>
@@ -303,12 +365,31 @@ function BackendSection({
           const ready = !requirement || data.status[requirement] !== false;
           const label = t(`settings.providers.${option}`, { defaultValue: option });
           return (
-            <label className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-(--ide-hover)" key={option}>
-              <input aria-label={label} checked={value === option} disabled={disabled} name={settingKey} onChange={() => onChange(option)} type="radio" value={option} />
+            <label
+              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-(--ide-hover)"
+              key={option}
+            >
+              <input
+                aria-label={label}
+                checked={value === option}
+                disabled={disabled}
+                name={settingKey}
+                onChange={() => onChange(option)}
+                type="radio"
+                value={option}
+              />
               <span className="flex-1">{label}</span>
-              {isRecommendedBackend(settingKey, option) ? <span className="ide-badge" data-tone="accent">{t("settings.recommended")}</span> : null}
+              {isRecommendedBackend(settingKey, option) ? (
+                <span className="ide-badge" data-tone="accent">
+                  {t("settings.recommended")}
+                </span>
+              ) : null}
               {requirement ? (
-                <span className="ide-badge" data-tone={ready ? "success" : undefined} title={ready ? undefined : t(`settings.status.${requirement}`)}>
+                <span
+                  className="ide-badge"
+                  data-tone={ready ? "success" : undefined}
+                  title={ready ? undefined : t(`settings.status.${requirement}`)}
+                >
                   {ready ? t("settings.ready") : t("settings.missing")}
                 </span>
               ) : null}
@@ -348,7 +429,13 @@ function TextField({
   return (
     <label className="flex flex-col gap-1 text-xs text-(--ide-text-muted)">
       {label}
-      <input className="ide-input text-sm" disabled={disabled} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} value={value ?? ""} />
+      <input
+        className="ide-input text-sm"
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        value={value ?? ""}
+      />
       {hint ? <span>{hint}</span> : null}
     </label>
   );
@@ -391,7 +478,12 @@ function ProbePanel({ role, unsaved, disabled }: { role: ProbeRole; unsaved: boo
   return (
     <div className="flex flex-col gap-2" data-testid={`probe-${role}`}>
       <div className="flex items-center gap-2">
-        <button className="ide-button" disabled={disabled || running || unsaved} onClick={() => void run()} type="button">
+        <button
+          className="ide-button"
+          disabled={disabled || running || unsaved}
+          onClick={() => void run()}
+          type="button"
+        >
           <IconPlugConnected size={14} />
           {running ? t("settings.probing") : t("settings.probe")}
         </button>

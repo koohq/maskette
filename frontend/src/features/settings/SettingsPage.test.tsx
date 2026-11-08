@@ -3,8 +3,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import type { BackendSettings } from "./settingsApi";
 import { SettingsPage } from "./SettingsPage";
+import type { BackendSettings } from "./settingsApi";
 
 const initial: BackendSettings = {
   writable: true,
@@ -38,7 +38,15 @@ const initial: BackendSettings = {
     ark_api_key: { set: false, source: "", hint: "" },
     openrouter_api_key: { set: false, source: "", hint: "" },
   },
-  status: { agent_llm_key: true, analysis_llm_key: false, claude_cli: true, codex_cli: true, siliconflow_key: true, ark_key: false, openrouter_key: true },
+  status: {
+    agent_llm_key: true,
+    analysis_llm_key: false,
+    claude_cli: true,
+    codex_cli: true,
+    siliconflow_key: true,
+    ark_key: false,
+    openrouter_key: true,
+  },
 };
 
 function renderPage() {
@@ -64,7 +72,11 @@ describe("SettingsPage", () => {
   it("saves only the changed backend values", async () => {
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === "PUT") {
-        const saved = { ...initial, values: { ...initial.values, image_provider: "siliconflow" }, overridden: ["image_provider"] };
+        const saved = {
+          ...initial,
+          values: { ...initial.values, image_provider: "siliconflow" },
+          overridden: ["image_provider"],
+        };
         return new Response(JSON.stringify(saved));
       }
       return new Response(JSON.stringify(initial));
@@ -102,7 +114,10 @@ describe("SettingsPage", () => {
     fireEvent.click(await screen.findByRole("radio", { name: "OpenRouter" }));
     expect(screen.getByDisplayValue("https://openrouter.ai/api/v1")).toBeTruthy();
     // The model field is the one whose hint points at the image model list.
-    const modelInput = screen.getByText(/images\/models/).closest("label")?.querySelector("input");
+    const modelInput = screen
+      .getByText(/images\/models/)
+      .closest("label")
+      ?.querySelector("input");
     expect(modelInput).toBeTruthy();
     fireEvent.change(modelInput as HTMLInputElement, { target: { value: "vendor/image-model" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -133,12 +148,16 @@ describe("SettingsPage", () => {
 
     fireEvent.click(await screen.findByRole("radio", { name: "火山方舟 Seedream" }));
     expect(screen.getByText("需要填写方舟 API Key")).toBeTruthy();
-    fireEvent.change(screen.getAllByPlaceholderText("粘贴 API Key").at(-1)!, { target: { value: " ark-new-key-9999 " } });
+    fireEvent.change(screen.getAllByPlaceholderText("粘贴 API Key").at(-1)!, {
+      target: { value: " ark-new-key-9999 " },
+    });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
     await screen.findByText(/已配置 …9999（在本页保存）/);
     const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
-    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ values: { image_provider: "ark", ark_api_key: "ark-new-key-9999" } });
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      values: { image_provider: "ark", ark_api_key: "ark-new-key-9999" },
+    });
     expect((screen.getByPlaceholderText("留空保持不变，输入新 Key 则替换") as HTMLInputElement).value).toBe("");
 
     fireEvent.click(screen.getByRole("button", { name: "清除本页保存的 Key" }));
@@ -164,7 +183,10 @@ describe("SettingsPage", () => {
   });
 
   it("reuses the chat assistant's extra fields only while analysis shares its URL", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(initial))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(initial))),
+    );
     renderPage();
 
     const analysis = await screen.findByRole("radiogroup", { name: "参考图分析 LLM" });
@@ -219,7 +241,13 @@ describe("SettingsPage", () => {
       vi.fn(async (url: string) =>
         url === "/api/settings/probe/agent"
           ? new Response(
-              JSON.stringify({ ok: false, model: "glm-5", base_url: "x", latency_ms: null, checks: [{ id: "connection", status: "fail", detail: "auth: HTTP 401: bad key" }] }),
+              JSON.stringify({
+                ok: false,
+                model: "glm-5",
+                base_url: "x",
+                latency_ms: null,
+                checks: [{ id: "connection", status: "fail", detail: "auth: HTTP 401: bad key" }],
+              }),
             )
           : new Response(JSON.stringify(initial)),
       ),
@@ -233,7 +261,10 @@ describe("SettingsPage", () => {
   });
 
   it("recommends the API-key backends and notes the subscription CLIs are for personal use", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(initial))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(initial))),
+    );
     renderPage();
 
     await screen.findAllByText("推荐");
@@ -250,7 +281,10 @@ describe("SettingsPage", () => {
 
   it("says a saved Codex Bridge is gone and offers no Bridge fields", async () => {
     const saved = { ...initial, values: { ...initial.values, image_provider: "codex_bridge" } };
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(saved))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(saved))),
+    );
     renderPage();
 
     expect((await screen.findByRole("alert")).textContent).toBe("Codex Bridge 已不再提供，请选择 Codex 或其他后端。");
@@ -261,11 +295,16 @@ describe("SettingsPage", () => {
 
   it("warns when the selected backend is not configured and disables editing when read-only", async () => {
     const readOnly = { ...initial, writable: false, values: { ...initial.values, image_provider: "ark" } };
-    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(readOnly))));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(readOnly))),
+    );
     renderPage();
 
     await screen.findByText("需要填写方舟 API Key");
     expect(screen.getByText("生产环境下设置为只读，请修改 .env。")).toBeTruthy();
-    await waitFor(() => expect(screen.getAllByRole("radio").every((radio) => (radio as HTMLInputElement).disabled)).toBe(true));
+    await waitFor(() =>
+      expect(screen.getAllByRole("radio").every((radio) => (radio as HTMLInputElement).disabled)).toBe(true),
+    );
   });
 });

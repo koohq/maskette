@@ -3,23 +3,23 @@ import MuiBox from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
 import MuiCard from "@mui/material/Card";
 import MuiChip from "@mui/material/Chip";
-import MuiContainer from "@mui/material/Container";
 import MuiCircularProgress from "@mui/material/CircularProgress";
+import MuiContainer from "@mui/material/Container";
 import MuiDivider from "@mui/material/Divider";
 import MuiIconButton from "@mui/material/IconButton";
+import MuiLinearProgress from "@mui/material/LinearProgress";
 import MuiMenu from "@mui/material/Menu";
 import MuiMenuItem from "@mui/material/MenuItem";
 import MuiPaper from "@mui/material/Paper";
-import MuiLinearProgress from "@mui/material/LinearProgress";
 import MuiSkeleton from "@mui/material/Skeleton";
 import MuiSlider from "@mui/material/Slider";
 import MuiStack from "@mui/material/Stack";
 import MuiSwitch from "@mui/material/Switch";
+import MuiTab from "@mui/material/Tab";
+import MuiTabs from "@mui/material/Tabs";
 import MuiTextField from "@mui/material/TextField";
 import MuiTooltip from "@mui/material/Tooltip";
 import MuiTypography from "@mui/material/Typography";
-import MuiTabs from "@mui/material/Tabs";
-import MuiTab from "@mui/material/Tab";
 import useMuiMediaQuery from "@mui/material/useMediaQuery";
 import type { CSSProperties, ElementType, ReactElement, ReactNode, SyntheticEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -253,7 +253,13 @@ export function Box({
 }) {
   const Component = MuiBox as any;
   const language = useLiteralLanguage();
-  return <Component component={component} sx={sxFromProps(props)} {...translateCommonProps(stripCommonProps(props), language)} />;
+  return (
+    <Component
+      component={component}
+      sx={sxFromProps(props)}
+      {...translateCommonProps(stripCommonProps(props), language)}
+    />
+  );
 }
 
 export function Stack({
@@ -325,7 +331,15 @@ export function Text({
 }) {
   const language = useLiteralLanguage();
   const fontSize =
-    size === "xs" ? "0.75rem" : size === "sm" ? "0.875rem" : size === "lg" ? "1.125rem" : size === "xl" ? "1.25rem" : size;
+    size === "xs"
+      ? "0.75rem"
+      : size === "sm"
+        ? "0.875rem"
+        : size === "lg"
+          ? "1.125rem"
+          : size === "xl"
+            ? "1.25rem"
+            : size;
   return (
     <MuiTypography
       component={(component as ElementType | undefined) ?? "p"}
@@ -450,14 +464,14 @@ export function ActionIcon({
   size,
   variant,
   ...props
-  }: CommonStyleProps & {
-    [key: string]: unknown;
-    children?: ReactNode;
-    color?: string;
-    disabled?: boolean;
-    size?: "sm" | "md" | "lg" | "xl" | string;
-    variant?: string;
-  }) {
+}: CommonStyleProps & {
+  [key: string]: unknown;
+  children?: ReactNode;
+  color?: string;
+  disabled?: boolean;
+  size?: "sm" | "md" | "lg" | "xl" | string;
+  variant?: string;
+}) {
   const language = useLiteralLanguage();
   const muiSize = size === "sm" ? "small" : size === "lg" || size === "xl" ? "large" : "medium";
   const iconSize = size === "sm" ? 32 : size === "lg" ? 44 : size === "xl" ? 52 : 38;
@@ -553,7 +567,15 @@ export function Badge({
   const propSx = sxFromProps(props);
   return (
     <MuiChip
-      color={color === "cyan" ? "primary" : color === "green" || color === "teal" ? "success" : color === "yellow" ? "warning" : "default"}
+      color={
+        color === "cyan"
+          ? "primary"
+          : color === "green" || color === "teal"
+            ? "success"
+            : color === "yellow"
+              ? "warning"
+              : "default"
+      }
       icon={leftSection as ReactElement | undefined}
       label={translateLiteralNode(children, language)}
       size="small"
@@ -582,7 +604,13 @@ export function Divider(props: CommonStyleProps & { [key: string]: unknown; orie
 
 export function Slider(props: CommonStyleProps & { [key: string]: unknown }) {
   const language = useLiteralLanguage();
-  const { label: _label, onChange, onChangeCommitted, thumbLabel: _thumbLabel, ...rest } = stripCommonProps(props) as {
+  const {
+    label: _label,
+    onChange,
+    onChangeCommitted,
+    thumbLabel: _thumbLabel,
+    ...rest
+  } = stripCommonProps(props) as {
     [key: string]: unknown;
     label?: unknown;
     onChange?: (value: number) => void;
@@ -842,13 +870,7 @@ export function Container({
   );
 }
 
-export function Tooltip({
-  children,
-  label,
-}: {
-  children: ReactElement;
-  label: ReactNode;
-}) {
+export function Tooltip({ children, label }: { children: ReactElement; label: ReactNode }) {
   const language = useLiteralLanguage();
   return (
     <MuiTooltip title={translateLiteralNode(label, language)}>
@@ -917,7 +939,7 @@ export function ThemeIcon({
     border: "1px solid var(--kb-line)",
     borderRadius: 0,
     boxShadow: "var(--kb-hard-shadow-sm)",
-    color: variant === "light" ? mapColor(color) ?? "primary.main" : "primary.contrastText",
+    color: variant === "light" ? (mapColor(color) ?? "primary.main") : "primary.contrastText",
     display: "inline-flex",
     height: size,
     justifyContent: "center",
@@ -925,22 +947,13 @@ export function ThemeIcon({
     width: size,
   };
   return (
-    <MuiBox
-      sx={iconSx}
-      {...translateCommonProps(stripCommonProps(props), language)}
-    >
+    <MuiBox sx={iconSx} {...translateCommonProps(stripCommonProps(props), language)}>
       {translateLiteralNode(children, language)}
     </MuiBox>
   );
 }
 
-export function AppShell({
-  children,
-}: {
-  children: ReactNode;
-  header?: { height: number };
-  padding?: number;
-}) {
+export function AppShell({ children }: { children: ReactNode; header?: { height: number }; padding?: number }) {
   const language = useLiteralLanguage();
   return <MuiBox>{translateLiteralNode(children, language)}</MuiBox>;
 }
@@ -961,7 +974,9 @@ AppShell.Header = function AppShellHeader(props: CommonStyleProps & { [key: stri
 
 AppShell.Main = function AppShellMain(props: CommonStyleProps & { [key: string]: unknown; children?: ReactNode }) {
   const language = useLiteralLanguage();
-  return <MuiBox component="main" sx={sxFromProps(props)} {...translateCommonProps(stripCommonProps(props), language)} />;
+  return (
+    <MuiBox component="main" sx={sxFromProps(props)} {...translateCommonProps(stripCommonProps(props), language)} />
+  );
 };
 
 export const Menu = MuiMenu;
@@ -1028,4 +1043,3 @@ export function Skeleton({
     />
   );
 }
-

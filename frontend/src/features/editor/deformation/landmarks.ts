@@ -76,7 +76,11 @@ export function getManualLandmarkPoint(landmarks: ManualLandmarks, key: ManualLa
 }
 
 /** Moves one landmark. Moving an estimated brow point keeps the other estimated brow points where they show. */
-export function setManualLandmarkPoint(landmarks: ManualLandmarks, key: ManualLandmarkKey, point: LandmarkPoint): ManualLandmarks {
+export function setManualLandmarkPoint(
+  landmarks: ManualLandmarks,
+  key: ManualLandmarkKey,
+  point: LandmarkPoint,
+): ManualLandmarks {
   if (!isBrowLandmarkKey(key)) return { ...landmarks, [key]: point };
   const [side, part] = browLandmarkParts[key];
   const brows = resolveBrowLandmarks(landmarks);
@@ -214,4 +218,3 @@ export function deriveDeformationRegions(landmarks: ManualLandmarks): Deformatio
     eyeDistance: Math.abs(landmarks.rightEye.x - landmarks.leftEye.x),
   };
 }
-

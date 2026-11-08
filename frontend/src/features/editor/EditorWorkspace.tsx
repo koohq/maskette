@@ -1,91 +1,112 @@
-import { ActionIcon, Alert, Box, Button, Divider, Group, Paper, Slider, Stack, Text, Textarea, TextInput, Title, Tooltip, useMediaQuery } from "../../ui/mui";
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
   IconArrowUpRight,
   IconCircleDot,
-  IconRectangle,
   IconPhoto,
+  IconRectangle,
   IconTrash,
   IconTypography,
 } from "@tabler/icons-react";
 import {
+  type ChangeEvent,
   forwardRef,
+  type MouseEvent,
+  type PointerEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  type SyntheticEvent,
   useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
-  type MouseEvent,
-  type PointerEvent,
-  type ReactNode,
-  type SyntheticEvent,
 } from "react";
 import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { translateLiteralString } from "../../i18n/literalTranslations";
+import {
+  ActionIcon,
+  Alert,
+  Box,
+  Button,
+  Divider,
+  Group,
+  Paper,
+  Slider,
+  Stack,
+  Text,
+  Textarea,
+  TextInput,
+  Title,
+  Tooltip,
+  useMediaQuery,
+} from "../../ui/mui";
 import { AnnotationLayer } from "./components/AnnotationLayer";
-import { EditorToolbar } from "./components/EditorToolbar";
-import { EditorToolRail, type EditorTool } from "./components/EditorToolRail";
 import { BrowControls } from "./components/BrowControls";
+import { EditorToolbar } from "./components/EditorToolbar";
+import { type EditorTool, EditorToolRail } from "./components/EditorToolRail";
 import { EyeControls } from "./components/EyeControls";
 import { FaceControls } from "./components/FaceControls";
-import { LocalMaskLayer } from "./components/LocalMaskLayer";
 import { LiquifyControls, type LiquifyToolMode } from "./components/LiquifyControls";
+import { LocalMaskLayer } from "./components/LocalMaskLayer";
 import { MouthControls } from "./components/MouthControls";
+import { anchorRecipeToImage, type ImageCoordinates, validImageCoordinates } from "./core/imageCoordinates";
+import {
+  type AnimeLandmarkDebugBox,
+  type AnimeLandmarkDebugInfo,
+  detectAnimeLandmarks,
+  warmupAnimeLandmarkDetector,
+} from "./deformation/animeLandmarkDetector";
 import { drawAnnotationsToCanvas } from "./deformation/annotationExport";
 import {
+  createDefaultLandmarks,
+  type LandmarkPoint,
+  type ManualLandmarkKey,
+  type ManualLandmarks,
+} from "./deformation/landmarks";
+import { calculateRecipePreview, mountPixiStage, type PixiStageHandle } from "./deformation/pixiStage";
+import {
+  type AnnotationMark,
   addAnnotationMark,
+  type BrowControlKey,
   buildAnnotationPrompt,
   compactRecipeAnnotations,
-  createLiquifyWarpStrokeFromDrag,
   createEmptyRecipe,
+  createLiquifyWarpStrokeFromDrag,
   defaultEyeControlValues,
+  type EditRecipe,
+  type EyeControlKey,
   estimateLiquifySymmetryAxis,
+  type LiquifyStroke,
+  type MouthControlKey,
   moveAnnotationMark,
   normalizeEditRecipe,
   removeAnnotationMark,
   updateAnnotationMark,
   updateAnnotationNote,
+  updateBrowControl,
   updateEyeControl,
   updateFaceControl,
   updateLiquifyBrush,
   updateLiquifyBrushPair,
   updateLiquifyScaleBrush,
   updateManualLandmark,
-  updateBrowControl,
   updateMouthControl,
-  type EditRecipe,
-  type AnnotationMark,
-  type BrowControlKey,
-  type EyeControlKey,
-  type LiquifyStroke,
-  type MouthControlKey,
 } from "./deformation/recipe";
-import { createDefaultLandmarks, type LandmarkPoint, type ManualLandmarkKey, type ManualLandmarks } from "./deformation/landmarks";
-import {
-  detectAnimeLandmarks,
-  warmupAnimeLandmarkDetector,
-  type AnimeLandmarkDebugBox,
-  type AnimeLandmarkDebugInfo,
-} from "./deformation/animeLandmarkDetector";
-import { anchorRecipeToImage, type ImageCoordinates, validImageCoordinates } from "./core/imageCoordinates";
-import { calculateRecipePreview, mountPixiStage, type PixiStageHandle } from "./deformation/pixiStage";
 import type { EditorDraftState } from "./drafts/localDrafts";
 import {
-  exportLocalMaskBlob,
-  hasLocalMaskPaint,
   type EditorLocalGeneratePayload,
   type EditorLocalReferenceOption,
+  exportLocalMaskBlob,
+  hasLocalMaskPaint,
   type LocalMaskMode,
   type LocalMaskStroke,
 } from "./localGeneration";
 
-export type { EditorLocalGeneratePayload, EditorLocalReferenceOption } from "./localGeneration";
 export type { EditorDraftState } from "./drafts/localDrafts";
+export type { EditorLocalGeneratePayload, EditorLocalReferenceOption } from "./localGeneration";
 
 export type EditorWorkspaceProps = {
   availableTools?: EditorTool[];
@@ -283,19 +304,17 @@ const emptyRecipeSignature = stableStringify({ ...normalizeEditRecipe(createEmpt
  * count as an edit.
  */
 export function recipeHasEdits(recipe: EditRecipe) {
-  return stableStringify({ ...normalizeEditRecipe(recipe), imageCoordinates: undefined, landmarks: undefined }) !==
-    emptyRecipeSignature;
+  return (
+    stableStringify({ ...normalizeEditRecipe(recipe), imageCoordinates: undefined, landmarks: undefined }) !==
+    emptyRecipeSignature
+  );
 }
 
 /**
  * Source pixels per legacy deformation unit when anchoring a recipe. A fresh recipe gets the standard scale (the long
  * side shown at 720 px). A recipe that already has edits was made in preview pixels, so freeze what is on screen now.
  */
-export function anchorEffectScale(
-  recipe: EditRecipe,
-  image: { height: number; width: number },
-  previewWidth: number,
-) {
+export function anchorEffectScale(recipe: EditRecipe, image: { height: number; width: number }, previewWidth: number) {
   return recipeHasEdits(recipe) ? image.width / previewWidth : Math.max(image.width, image.height) / 720;
 }
 
@@ -407,37 +426,40 @@ function loadBlobImage(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
-export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspaceProps>(function EditorWorkspace({
-  availableTools,
-  candidateIndex,
-  imageHeight,
-  imageCoordinateEditing = false,
-  initialLandmarks,
-  imageUrl,
-  imageWidth,
-  isRegenerating = false,
-  localReferenceOptions = [],
-  recipe: controlledRecipe,
-  regenerateLabel,
-  secondaryRegenerateLabel,
-  showRegenerateActions = true,
-  onRecipeChange,
-  onClearImage,
-  onLocalGenerate,
-  onRegenerate,
-  onSecondaryRegenerate,
-  onSave,
-  layout = "card",
-  activeTool: controlledActiveTool,
-  onActiveToolChange,
-  panelTarget,
-  toolbarTarget,
-  downloadOnSave = true,
-  onStatusChange,
-  initialMaskStrokes,
-  initialLocalEditNote,
-  onDraftChange,
-}: EditorWorkspaceProps, ref) {
+export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspaceProps>(function EditorWorkspace(
+  {
+    availableTools,
+    candidateIndex,
+    imageHeight,
+    imageCoordinateEditing = false,
+    initialLandmarks,
+    imageUrl,
+    imageWidth,
+    isRegenerating = false,
+    localReferenceOptions = [],
+    recipe: controlledRecipe,
+    regenerateLabel,
+    secondaryRegenerateLabel,
+    showRegenerateActions = true,
+    onRecipeChange,
+    onClearImage,
+    onLocalGenerate,
+    onRegenerate,
+    onSecondaryRegenerate,
+    onSave,
+    layout = "card",
+    activeTool: controlledActiveTool,
+    onActiveToolChange,
+    panelTarget,
+    toolbarTarget,
+    downloadOnSave = true,
+    onStatusChange,
+    initialMaskStrokes,
+    initialLocalEditNote,
+    onDraftChange,
+  }: EditorWorkspaceProps,
+  ref,
+) {
   const { i18n } = useTranslation();
   const isIdeLayout = layout === "ide";
   const isMobileEditor = useMediaQuery("(max-width: 768px)", false) && !isIdeLayout;
@@ -492,7 +514,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const [localMaskRadius, setLocalMaskRadius] = useState(36);
   const [localMaskStrokes, setLocalMaskStrokes] = useState<LocalMaskStroke[]>(() => initialMaskStrokes ?? []);
   const restoredMaskStrokesRef = useRef<LocalMaskStroke[] | null>(initialMaskStrokes ?? null);
-  const [localMaskBrushPreview, setLocalMaskBrushPreview] = useState<{ radius: number; x: number; y: number } | null>(null);
+  const [localMaskBrushPreview, setLocalMaskBrushPreview] = useState<{ radius: number; x: number; y: number } | null>(
+    null,
+  );
   const [localEditNote, setLocalEditNote] = useState(initialLocalEditNote ?? "");
   const [localLockOutside, setLocalLockOutside] = useState(false);
   const [selectedLocalReferenceKeys, setSelectedLocalReferenceKeys] = useState<string[]>([]);
@@ -616,8 +640,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   /** Preview CSS pixels per source-image pixel, before the viewport zoom. */
   const imageToPreviewScale = imageViewportRect.width > 0 ? imageViewportRect.width / stageWidth : 1;
   /** Preview CSS pixels per brush-radius unit: anchored recipes keep radii in effect units times `effectScale`. */
-  const effectToPreviewScale = recipe.imageCoordinates
-    ? recipe.imageCoordinates.effectScale * imageToPreviewScale : 1;
+  const effectToPreviewScale = recipe.imageCoordinates ? recipe.imageCoordinates.effectScale * imageToPreviewScale : 1;
   const hasImage = Boolean(imageUrl);
   const currentLandmarks = recipe.landmarks;
   const normalizedDebugFaceBox = landmarkDebugInfo
@@ -648,7 +671,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
             x: scaleBrushPoint.x,
             y: scaleBrushPoint.y,
           }
-        : liquifyBrushPreview ??
+        : (liquifyBrushPreview ??
           (pendingScaleStroke
             ? {
                 active: false,
@@ -657,15 +680,16 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 x: pendingScaleStroke.x,
                 y: pendingScaleStroke.y,
               }
-            : null)
+            : null))
       : null;
   const displayLiquifyBrushPreview = visibleLiquifyBrushPreview
     ? { ...visibleLiquifyBrushPreview, radius: visibleLiquifyBrushPreview.radius * effectToPreviewScale }
     : null;
   const displayLiquifyStrokes = useMemo(
-    () => recipe.imageCoordinates
-      ? recipe.liquify.map((stroke) => ({ ...stroke, radius: stroke.radius * imageToPreviewScale }))
-      : recipe.liquify,
+    () =>
+      recipe.imageCoordinates
+        ? recipe.liquify.map((stroke) => ({ ...stroke, radius: stroke.radius * imageToPreviewScale }))
+        : recipe.liquify,
     [imageToPreviewScale, recipe.imageCoordinates, recipe.liquify],
   );
   const recipePreview = calculateRecipePreview(previewRecipe);
@@ -800,7 +824,14 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
             anchorEffectScale(current, { height: stageHeight, width: stageWidth }, imageViewportRect.width),
           ),
     );
-  }, [imageCoordinateEditing, imageViewportReady, stageWidth, stageHeight, imageViewportRect.width, recipe.imageCoordinates]);
+  }, [
+    imageCoordinateEditing,
+    imageViewportReady,
+    stageWidth,
+    stageHeight,
+    imageViewportRect.width,
+    recipe.imageCoordinates,
+  ]);
 
   useEffect(() => {
     if (enabledToolSet.has(activeTool)) return;
@@ -1042,7 +1073,10 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       return;
     }
 
-    undoStackRef.current = [...undoStackRef.current, { after: nextLiquify, before: previousLiquify, key: historyKey }].slice(-100);
+    undoStackRef.current = [
+      ...undoStackRef.current,
+      { after: nextLiquify, before: previousLiquify, key: historyKey },
+    ].slice(-100);
     redoStackRef.current = [];
     activeHistoryKeyRef.current = historyKey ?? null;
     syncLiquifyHistoryAvailability();
@@ -1058,7 +1092,11 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     const before = previousAnnotations.map((annotation) => ({ ...annotation }));
     const after = nextAnnotations.map((annotation) => ({ ...annotation }));
 
-    if (historyKey && activeAnnotationHistoryKeyRef.current === historyKey && annotationUndoStackRef.current.length > 0) {
+    if (
+      historyKey &&
+      activeAnnotationHistoryKeyRef.current === historyKey &&
+      annotationUndoStackRef.current.length > 0
+    ) {
       const previousEntries = annotationUndoStackRef.current;
       const lastEntry = previousEntries[previousEntries.length - 1];
       annotationUndoStackRef.current = [...previousEntries.slice(0, -1), { ...lastEntry, after }];
@@ -1067,7 +1105,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       return;
     }
 
-    annotationUndoStackRef.current = [...annotationUndoStackRef.current, { after, before, key: historyKey }].slice(-100);
+    annotationUndoStackRef.current = [...annotationUndoStackRef.current, { after, before, key: historyKey }].slice(
+      -100,
+    );
     annotationRedoStackRef.current = [];
     activeAnnotationHistoryKeyRef.current = historyKey ?? null;
     syncAnnotationHistoryAvailability();
@@ -1304,14 +1344,8 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       y: stageRect.top + stageRect.height / 2,
     };
     const nextPan = {
-      x:
-        metrics.center.x -
-        stageCenter.x -
-        zoomRatio * (gesture.startCenter.x - stageCenter.x - gesture.startPan.x),
-      y:
-        metrics.center.y -
-        stageCenter.y -
-        zoomRatio * (gesture.startCenter.y - stageCenter.y - gesture.startPan.y),
+      x: metrics.center.x - stageCenter.x - zoomRatio * (gesture.startCenter.x - stageCenter.x - gesture.startPan.x),
+      y: metrics.center.y - stageCenter.y - zoomRatio * (gesture.startCenter.y - stageCenter.y - gesture.startPan.y),
     };
     setViewportTransform(nextZoom, nextPan);
     return true;
@@ -1343,7 +1377,10 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   }
 
   function hasTouchMoved(pendingTouchAction: PendingTouchAction, event: PointerEvent<HTMLElement>) {
-    return Math.hypot(event.clientX - pendingTouchAction.clientX, event.clientY - pendingTouchAction.clientY) > touchMoveTolerance;
+    return (
+      Math.hypot(event.clientX - pendingTouchAction.clientX, event.clientY - pendingTouchAction.clientY) >
+      touchMoveTolerance
+    );
   }
 
   function clampAnnotationPoint(point: { x: number; y: number }) {
@@ -1503,12 +1540,17 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
 
   function resetAllAdjustments() {
     clearRecipeHistory();
-    setRecipeWithoutHistory({
-      ...createEmptyRecipe(),
-      annotations: latestRecipeRef.current.annotations,
-      ...(latestRecipeRef.current.imageCoordinates ? { imageCoordinates: latestRecipeRef.current.imageCoordinates } : {}),
-      landmarks: latestRecipeRef.current.landmarks,
-    }, { notify: true });
+    setRecipeWithoutHistory(
+      {
+        ...createEmptyRecipe(),
+        annotations: latestRecipeRef.current.annotations,
+        ...(latestRecipeRef.current.imageCoordinates
+          ? { imageCoordinates: latestRecipeRef.current.imageCoordinates }
+          : {}),
+        landmarks: latestRecipeRef.current.landmarks,
+      },
+      { notify: true },
+    );
   }
 
   function handleZoomChange(value: number) {
@@ -1602,7 +1644,12 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     const imageBlob = await exportEditedBlob(false);
     const fileName = `maskette-edit-${Date.now()}.png`;
     if (downloadOnSave) downloadBlob(imageBlob, fileName);
-    await onSave?.({ annotationPrompt: buildAnnotationPrompt(compactRecipe.annotations), fileName, imageBlob, recipe: compactRecipe });
+    await onSave?.({
+      annotationPrompt: buildAnnotationPrompt(compactRecipe.annotations),
+      fileName,
+      imageBlob,
+      recipe: compactRecipe,
+    });
   }
 
   async function handleRegenerate() {
@@ -1617,7 +1664,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       annotatedImageBlob,
       editedImageBlob,
       promptNote: promptNote || undefined,
-      extraReference: extraReferenceFile ? { description: extraReferenceDescription.trim(), file: extraReferenceFile } : undefined,
+      extraReference: extraReferenceFile
+        ? { description: extraReferenceDescription.trim(), file: extraReferenceFile }
+        : undefined,
       recipe: compactRecipe,
     });
   }
@@ -1634,7 +1683,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       annotatedImageBlob,
       editedImageBlob,
       promptNote: promptNote || undefined,
-      extraReference: extraReferenceFile ? { description: extraReferenceDescription.trim(), file: extraReferenceFile } : undefined,
+      extraReference: extraReferenceFile
+        ? { description: extraReferenceDescription.trim(), file: extraReferenceFile }
+        : undefined,
       recipe: compactRecipe,
     });
   }
@@ -1757,15 +1808,19 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     setLiquifyScaleAmount(value);
     const point = scaleBrushPoint ?? lastStagePointRef.current;
     if (!point || value === 0) return;
-    updateRecipe((currentRecipe) => updateLiquifyScaleBrush(currentRecipe, {
-      radius: brushRadius,
-      scale: value / 10,
-      x: point.x,
-      y: point.y,
-    }), {
-      history: "liquify",
-      historyKey: `scale:${liquifyOperationIdRef.current}`,
-    });
+    updateRecipe(
+      (currentRecipe) =>
+        updateLiquifyScaleBrush(currentRecipe, {
+          radius: brushRadius,
+          scale: value / 10,
+          x: point.x,
+          y: point.y,
+        }),
+      {
+        history: "liquify",
+        historyKey: `scale:${liquifyOperationIdRef.current}`,
+      },
+    );
   }
 
   function handleLiquifyScaleAmountReset() {
@@ -1928,7 +1983,12 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
 
     if (liquifyDrawingRef.current && lastLiquifyStrokePointRef.current) {
       const from = lastLiquifyStrokePointRef.current;
-      const stroke = createLiquifyWarpStrokeFromDrag({ from, radius: brushRadius, strength: liquifyWarpStrength, to: point });
+      const stroke = createLiquifyWarpStrokeFromDrag({
+        from,
+        radius: brushRadius,
+        strength: liquifyWarpStrength,
+        to: point,
+      });
       if (stroke.strength > 0) {
         updateRecipe(
           (currentRecipe) =>
@@ -1965,7 +2025,12 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     const pendingTouchAction = pendingTouchActionRef.current;
     if (pendingTouchAction?.pointerId === event.pointerId) {
       window.clearTimeout(pendingTouchAction.longPressTimer);
-      if (!hadViewportGesture && !pendingTouchAction.menuOpened && !pendingTouchAction.moved && !pendingTouchAction.startedEdit) {
+      if (
+        !hadViewportGesture &&
+        !pendingTouchAction.menuOpened &&
+        !pendingTouchAction.moved &&
+        !pendingTouchAction.startedEdit
+      ) {
         startStageToolAction(getStagePoint(event), event.pointerId);
       }
       pendingTouchActionRef.current = null;
@@ -2031,7 +2096,11 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     lastStagePointRef.current = point;
   }
 
-  function handleAnnotationHandlePointerDown(annotationId: string, handle: string, event: PointerEvent<HTMLDivElement>) {
+  function handleAnnotationHandlePointerDown(
+    annotationId: string,
+    handle: string,
+    event: PointerEvent<HTMLDivElement>,
+  ) {
     event.stopPropagation();
     setShowLandmarkHint(false);
     const annotation = latestRecipeRef.current.annotations.find((mark) => mark.id === annotationId);
@@ -2109,7 +2178,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
 
   function renderToolControls() {
     if (activeTool === "annotation") {
-      const selectedAnnotationIndex = recipe.annotations.findIndex((annotation) => annotation.id === selectedAnnotationId);
+      const selectedAnnotationIndex = recipe.annotations.findIndex(
+        (annotation) => annotation.id === selectedAnnotationId,
+      );
       const selectedAnnotation = selectedAnnotationIndex >= 0 ? recipe.annotations[selectedAnnotationIndex] : null;
       const annotationModes: Array<{ icon: typeof IconCircleDot; label: string; value: AnnotationToolMode }> = [
         { icon: IconCircleDot, label: "标注", value: "pin" },
@@ -2247,7 +2318,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                     onChange={(event: ChangeEvent<HTMLInputElement>) =>
                       updateRecipe(
                         (currentRecipe) =>
-                          updateAnnotationMark(currentRecipe, selectedAnnotation.id, { text: event.currentTarget.value }),
+                          updateAnnotationMark(currentRecipe, selectedAnnotation.id, {
+                            text: event.currentTarget.value,
+                          }),
                         { history: "annotation", historyKey: `annotation-text:${selectedAnnotation.id}` },
                       )
                     }
@@ -2264,7 +2337,8 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                       onChange={(value: number) => {
                         setAnnotationFontSize(value);
                         updateRecipe(
-                          (currentRecipe) => updateAnnotationMark(currentRecipe, selectedAnnotation.id, { fontSize: value }),
+                          (currentRecipe) =>
+                            updateAnnotationMark(currentRecipe, selectedAnnotation.id, { fontSize: value }),
                           { history: "annotation", historyKey: `annotation-font:${selectedAnnotation.id}` },
                         );
                       }}
@@ -2664,8 +2738,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       : [];
     const formatNormalizedPoint = (point: { x: number; y: number }) =>
       `${Math.round(point.x * stageWidth)}, ${Math.round(point.y * stageHeight)}`;
-    const formatImagePoint = (point: { x: number; y: number }) =>
-      `${Math.round(point.x)}, ${Math.round(point.y)}`;
+    const formatImagePoint = (point: { x: number; y: number }) => `${Math.round(point.x)}, ${Math.round(point.y)}`;
     const formatBox = (box: AnimeLandmarkDebugBox | null | undefined) =>
       box
         ? `x=${Math.round(box.x)} y=${Math.round(box.y)} w=${Math.round(box.width)} h=${Math.round(box.height)}${
@@ -2826,7 +2899,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
         ) : null}
         <Textarea
           minRows={2}
-          onChange={(event: ChangeEvent<HTMLTextAreaElement>) => setExtraReferenceDescription(event.currentTarget.value)}
+          onChange={(event: ChangeEvent<HTMLTextAreaElement>) =>
+            setExtraReferenceDescription(event.currentTarget.value)
+          }
           placeholder="例如：嘴型更委屈，眼神更柔和；上传图片时也会作为参考图说明"
           value={extraReferenceDescription}
         />
@@ -2835,335 +2910,332 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   }
 
   const editorPanelStyle = {
-    background:
-      "repeating-linear-gradient(0deg, rgba(25,31,35,0.025) 0 1px, transparent 1px 5px), var(--kb-panel)",
+    background: "repeating-linear-gradient(0deg, rgba(25,31,35,0.025) 0 1px, transparent 1px 5px), var(--kb-panel)",
     border: "1px solid var(--kb-line)",
     borderRadius: 0,
     boxShadow: "var(--kb-hard-shadow)",
   };
 
   const viewportToolbar = (
-              <EditorToolbar
-                isComparingOriginal={compareOriginal}
-                landmarkDebugMode={landmarkDebugMode}
-                landmarksVisible={showLandmarkControls}
-                onCompareEnd={() => setCompareOriginal(false)}
-                onCompareStart={() => setCompareOriginal(true)}
-                onFit={() => {
-                  setZoom(1);
-                  setPan({ x: 0, y: 0 });
-                }}
-                onToggleLandmarks={
-                  canShowLandmarkToggle
-                    ? () => {
-                        setTemporarilyHideLandmarks(false);
-                        setShowLandmarkControls((current) => !current);
-                      }
-                    : undefined
-                }
-                onToggleLandmarkDebugMode={
-                  canShowLandmarkToggle
-                    ? () => {
-                        setTemporarilyHideLandmarks(false);
-                        setLandmarkDebugMode((current) => !current);
-                      }
-                    : undefined
-                }
-                onZoomChange={handleZoomChange}
-                showCompareAction={false}
-                showLandmarkToggle={canShowLandmarkToggle}
-                showPrimaryActions={false}
-                zoomPercent={zoomPercent}
-              />
+    <EditorToolbar
+      isComparingOriginal={compareOriginal}
+      landmarkDebugMode={landmarkDebugMode}
+      landmarksVisible={showLandmarkControls}
+      onCompareEnd={() => setCompareOriginal(false)}
+      onCompareStart={() => setCompareOriginal(true)}
+      onFit={() => {
+        setZoom(1);
+        setPan({ x: 0, y: 0 });
+      }}
+      onToggleLandmarks={
+        canShowLandmarkToggle
+          ? () => {
+              setTemporarilyHideLandmarks(false);
+              setShowLandmarkControls((current) => !current);
+            }
+          : undefined
+      }
+      onToggleLandmarkDebugMode={
+        canShowLandmarkToggle
+          ? () => {
+              setTemporarilyHideLandmarks(false);
+              setLandmarkDebugMode((current) => !current);
+            }
+          : undefined
+      }
+      onZoomChange={handleZoomChange}
+      showCompareAction={false}
+      showLandmarkToggle={canShowLandmarkToggle}
+      showPrimaryActions={false}
+      zoomPercent={zoomPercent}
+    />
   );
 
   const stageElement = (
-            <Box
-              aria-label={imageUrl ? `候选 ${candidateIndex} 编辑画布` : "图像编辑画布"}
-              data-testid="editor-stage"
-              onContextMenu={handleStageContextMenu}
-              onPointerCancel={handleStagePointerCancel}
-              onPointerDown={handleStagePointerDown}
-              onPointerLeave={handleStagePointerLeave}
-              onPointerMove={handleStagePointerMove}
-              onPointerUp={handleStagePointerUp}
-              ref={stageRef}
-              role="img"
+    <Box
+      aria-label={imageUrl ? `候选 ${candidateIndex} 编辑画布` : "图像编辑画布"}
+      data-testid="editor-stage"
+      onContextMenu={handleStageContextMenu}
+      onPointerCancel={handleStagePointerCancel}
+      onPointerDown={handleStagePointerDown}
+      onPointerLeave={handleStagePointerLeave}
+      onPointerMove={handleStagePointerMove}
+      onPointerUp={handleStagePointerUp}
+      ref={stageRef}
+      role="img"
+      style={{
+        alignItems: "center",
+        background:
+          "repeating-linear-gradient(0deg, rgba(25,31,35,0.018) 0 1px, transparent 1px 5px), var(--kb-panel-soft)",
+        border: "1px solid var(--kb-line)",
+        borderRadius: 0,
+        boxShadow: "var(--kb-hard-shadow)",
+        cursor: landmarkTools.has(activeTool) ? "grab" : "crosshair",
+        display: "flex",
+        flex: 1,
+        aspectRatio: isMobileEditor ? stageAspectRatio : undefined,
+        height: isMobileEditor ? "auto" : "100%",
+        justifyContent: "center",
+        maxHeight: isMobileEditor ? "min(58dvh, 560px)" : undefined,
+        minHeight: isMobileEditor ? 280 : 520,
+        overflow: "hidden",
+        position: "relative",
+        touchAction: "none",
+        userSelect: "none",
+        width: "100%",
+      }}
+    >
+      {imageUrl ? (
+        <>
+          {showLandmarkHint && effectiveShowLandmarks && currentLandmarks ? (
+            <Alert
+              color="blue"
+              className="landmark-correction-hint"
+              data-testid="landmark-correction-hint"
+              style={{
+                left: isMobileEditor ? 10 : "50%",
+                maxWidth: isMobileEditor ? "min(50%, 176px)" : "min(92%, 520px)",
+                pointerEvents: "none",
+                position: "absolute",
+                top: isMobileEditor ? 10 : 12,
+                transform: isMobileEditor ? undefined : "translateX(-50%)",
+                zIndex: 8,
+              }}
+              variant="light"
+            >
+              {isMobileEditor ? "可拖动关键点修正。" : "如果关键点识别不准，可以直接拖动关键点自行修正。"}
+            </Alert>
+          ) : null}
+          {isDetectingLandmarks ? (
+            <Paper
+              className="landmark-loading-card"
+              data-testid="landmark-loading-indicator"
               style={{
                 alignItems: "center",
-                background:
-                  "repeating-linear-gradient(0deg, rgba(25,31,35,0.018) 0 1px, transparent 1px 5px), var(--kb-panel-soft)",
-                border: "1px solid var(--kb-line)",
-                borderRadius: 0,
-                boxShadow: "var(--kb-hard-shadow)",
-                cursor: landmarkTools.has(activeTool) ? "grab" : "crosshair",
                 display: "flex",
-                flex: 1,
-                aspectRatio: isMobileEditor ? stageAspectRatio : undefined,
-                height: isMobileEditor ? "auto" : "100%",
-                justifyContent: "center",
-                maxHeight: isMobileEditor ? "min(58dvh, 560px)" : undefined,
-                minHeight: isMobileEditor ? 280 : 520,
-                overflow: "hidden",
-                position: "relative",
-                touchAction: "none",
-                userSelect: "none",
-                width: "100%",
+                gap: 10,
+                left: "50%",
+                maxWidth: "min(92%, 360px)",
+                pointerEvents: "none",
+                position: "absolute",
+                top: showLandmarkHint && effectiveShowLandmarks && currentLandmarks ? 68 : 12,
+                transform: "translateX(-50%)",
+                zIndex: 9,
               }}
             >
-              {imageUrl ? (
-                <>
-                  {showLandmarkHint && effectiveShowLandmarks && currentLandmarks ? (
-                    <Alert
-                      color="blue"
-                      className="landmark-correction-hint"
-                      data-testid="landmark-correction-hint"
-                      style={{
-                        left: isMobileEditor ? 10 : "50%",
-                        maxWidth: isMobileEditor ? "min(50%, 176px)" : "min(92%, 520px)",
-                        pointerEvents: "none",
-                        position: "absolute",
-                        top: isMobileEditor ? 10 : 12,
-                        transform: isMobileEditor ? undefined : "translateX(-50%)",
-                        zIndex: 8,
-                      }}
-                      variant="light"
-                    >
-                      {isMobileEditor ? "可拖动关键点修正。" : "如果关键点识别不准，可以直接拖动关键点自行修正。"}
-                    </Alert>
-                  ) : null}
-                  {isDetectingLandmarks ? (
-                    <Paper
-                      className="landmark-loading-card"
-                      data-testid="landmark-loading-indicator"
-                      style={{
-                        alignItems: "center",
-                        display: "flex",
-                        gap: 10,
-                        left: "50%",
-                        maxWidth: "min(92%, 360px)",
-                        pointerEvents: "none",
-                        position: "absolute",
-                        top: showLandmarkHint && effectiveShowLandmarks && currentLandmarks ? 68 : 12,
-                        transform: "translateX(-50%)",
-                        zIndex: 9,
-                      }}
-                    >
-                      <span aria-hidden="true" className="landmark-loading-spinner" />
-                      <Text c="var(--kb-ink)" fw={900} size="sm">
-                        正在识别关键点
-                      </Text>
-                    </Paper>
-                  ) : null}
-                  <Box
-                    data-testid="editor-transform-layer"
-                    style={{
-                      inset: 0,
-                      position: "absolute",
-                      transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
-                      transformOrigin: "center",
-                      transition: "transform 120ms ease",
-                    }}
-                  >
-                    <Box
-                      data-testid="editor-image-viewport"
-                      ref={imageViewportRef}
-                      style={{
-                        height: imageViewportRect.height > 0 ? imageViewportRect.height : "100%",
-                        left: imageViewportRect.width > 0 ? imageViewportRect.left : 0,
-                        position: "absolute",
-                        top: imageViewportRect.height > 0 ? imageViewportRect.top : 0,
-                        visibility: imageViewportReady ? "visible" : "hidden",
-                        width: imageViewportRect.width > 0 ? imageViewportRect.width : "100%",
-                      }}
-                    >
-                      <Box
-                        alt=""
-                        component="img"
-                        // The face detector reads this image's pixels; the API is on another origin in the app window.
-                        crossOrigin={isLocalImageUrl(imageUrl) ? undefined : "anonymous"}
-                        data-testid="editor-base-image"
-                        onLoad={handleBaseImageLoad}
-                        ref={baseImageRef}
-                        src={imageUrl}
-                        style={{
-                          filter: compareOriginal ? undefined : `saturate(${1 + recipePreview.liquifyIntensity * 0.04})`,
-                          height: "100%",
-                          inset: 0,
-                          objectFit: "contain",
-                          opacity: compareOriginal || pixiStageFailed || !pixiVisualReady ? 1 : 0,
-                          pointerEvents: "none",
-                          position: "absolute",
-                          transform: compareOriginal ? undefined : fallbackPreviewTransform,
-                          transition: "filter 120ms ease, opacity 80ms ease, transform 120ms ease",
-                          width: "100%",
-                        }}
-                      />
-                      <Box
-                        data-testid="pixi-host"
-                        ref={setPixiHostElement}
-                        style={{
-                          height: "100%",
-                          inset: 0,
-                          opacity: compareOriginal || pixiStageFailed ? 0 : 1,
-                          pointerEvents: "none",
-                          position: "absolute",
-                          transition: "opacity 80ms ease",
-                          width: "100%",
-                        }}
-                      />
-                      <AnnotationLayer
-                        annotations={activeTool === "annotation" ? recipe.annotations : []}
-                        brushPreview={displayLiquifyBrushPreview}
-                        exactBrushRadius={Boolean(recipe.imageCoordinates)}
-                        debugFaceBox={normalizedDebugFaceBox}
-                        debugHrnetBox={normalizedDebugHrnetBox}
-                        debugLandmarks={landmarkDebugInfo?.points}
-                        eyeRegionScale={recipe.eyes.eyeRegionScale}
-                        height={stageHeight}
-                        landmarks={currentLandmarks}
-                        liquifySymmetryAxis={liquifySymmetryAxis}
-                        liquifyStrokes={displayLiquifyStrokes}
-                        onAnnotationDelete={handleAnnotationDelete}
-                        onAnnotationHandlePointerDown={handleAnnotationHandlePointerDown}
-                        onAnnotationPointerDown={handleAnnotationPointerDown}
-                        onLandmarkPointerDown={handleLandmarkPointerDown}
-                        selectedAnnotationId={selectedAnnotationId}
-                        selectedLandmarkKey={selectedLandmarkKey}
-                        secondaryLandmarks={secondaryLandmarks}
-                        showLandmarkDebug={landmarkDebugMode}
-                        showLandmarks={effectiveShowLandmarks || landmarkDebugMode}
-                        showLiquifySymmetryAxis={
-                          activeTool === "liquify" && liquifyToolMode === "warp" && liquifySymmetryEnabled
-                        }
-                        showSecondaryLandmarks={landmarkDebugMode && !landmarkDebugInfo}
-                        showLiquifyStrokes={activeTool === "liquify"}
-                        visible={
-                          activeTool === "annotation" || landmarkTools.has(activeTool) || activeTool === "liquify"
-                        }
-                        width={stageWidth}
-                      />
-                      {activeTool === "local-generate" ? (
-                        <LocalMaskLayer
-                          brushPreview={localMaskBrushPreview}
-                          height={stageHeight}
-                          strokes={localMaskStrokes}
-                          width={stageWidth}
-                        />
-                      ) : null}
-                    </Box>
-                  </Box>
-                  <Tooltip label="按住对比原图">
-                    <ActionIcon
-                      aria-label="按住对比原图"
-                      color={compareOriginal ? "cyan" : "gray"}
-                      data-testid="editor-compare-floating"
-                      onBlur={() => setCompareOriginal(false)}
-                      onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
-                        if (event.key !== " " && event.key !== "Enter") return;
-                        event.preventDefault();
-                        setCompareOriginal(true);
-                      }}
-                      onKeyUp={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
-                        if (event.key !== " " && event.key !== "Enter") return;
-                        event.preventDefault();
-                        setCompareOriginal(false);
-                      }}
-                      onPointerCancel={() => setCompareOriginal(false)}
-                      onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        event.currentTarget.setPointerCapture?.(event.pointerId);
-                        setCompareOriginal(true);
-                      }}
-                      onPointerUp={(event: PointerEvent<HTMLButtonElement>) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        event.currentTarget.releasePointerCapture?.(event.pointerId);
-                        setCompareOriginal(false);
-                      }}
-                      size="lg"
-                      style={{
-                        background: compareOriginal ? "var(--kb-dirty-yellow)" : "var(--kb-paper)",
-                        border: "1px solid var(--kb-line)",
-                        borderRadius: 0,
-                        bottom: 12,
-                        boxShadow: "var(--kb-hard-shadow-sm)",
-                        color: "var(--kb-ink)",
-                        position: "absolute",
-                        right: 12,
-                        zIndex: 12,
-                      }}
-                      variant={compareOriginal ? "filled" : "light"}
-                    >
-                      <CompareOriginalIcon size={20} />
-                    </ActionIcon>
-                  </Tooltip>
-                  {renderLandmarkDebugPanel()}
-                  {saveMenuPosition ? (
-                    <Paper
-                      data-testid="editor-save-menu"
-                      onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
-                        event.stopPropagation();
-                      }}
-                      role="menu"
-                      shadow="sm"
-                      style={{
-                        background: "var(--kb-panel)",
-                        border: "1px solid var(--kb-line)",
-                        borderRadius: 0,
-                        boxShadow: "var(--kb-hard-shadow-sm)",
-                        left: saveMenuPosition.x,
-                        minWidth: 176,
-                        padding: 8,
-                        position: "absolute",
-                        top: saveMenuPosition.y,
-                        zIndex: 20,
-                      }}
-                      withBorder
-                    >
-                      <Stack gap={0.75}>
-                        <Button
-                          data-testid="editor-save-menu-save"
-                          fullWidth
-                          leftSection={<IconPhoto size={16} />}
-                          onClick={() => {
-                            setSaveMenuPosition(null);
-                            void handleSave();
-                          }}
-                          role="menuitem"
-                          size="sm"
-                          variant="filled"
-                        >
-                          保存图像
-                        </Button>
-                        <Button
-                          color="gray"
-                          data-testid="editor-save-menu-cancel"
-                          fullWidth
-                          onClick={() => setSaveMenuPosition(null)}
-                          role="menuitem"
-                          size="sm"
-                          variant="light"
-                        >
-                          取消
-                        </Button>
-                      </Stack>
-                    </Paper>
-                  ) : null}
-                </>
-              ) : (
-                <Stack align="center" gap="sm" p="xl" ta="center">
-                  <IconPhoto color="#64748b" size={48} />
-                  <Title c="white" order={3} size="h4">
-                    暂无候选图像
-                  </Title>
-                  <Text c="dimmed" maw={360} size="sm">
-                    选择生成候选后，真实图像会显示在这里。
-                  </Text>
-                </Stack>
-              )}
+              <span aria-hidden="true" className="landmark-loading-spinner" />
+              <Text c="var(--kb-ink)" fw={900} size="sm">
+                正在识别关键点
+              </Text>
+            </Paper>
+          ) : null}
+          <Box
+            data-testid="editor-transform-layer"
+            style={{
+              inset: 0,
+              position: "absolute",
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: "center",
+              transition: "transform 120ms ease",
+            }}
+          >
+            <Box
+              data-testid="editor-image-viewport"
+              ref={imageViewportRef}
+              style={{
+                height: imageViewportRect.height > 0 ? imageViewportRect.height : "100%",
+                left: imageViewportRect.width > 0 ? imageViewportRect.left : 0,
+                position: "absolute",
+                top: imageViewportRect.height > 0 ? imageViewportRect.top : 0,
+                visibility: imageViewportReady ? "visible" : "hidden",
+                width: imageViewportRect.width > 0 ? imageViewportRect.width : "100%",
+              }}
+            >
+              <Box
+                alt=""
+                component="img"
+                // The face detector reads this image's pixels; the API is on another origin in the app window.
+                crossOrigin={isLocalImageUrl(imageUrl) ? undefined : "anonymous"}
+                data-testid="editor-base-image"
+                onLoad={handleBaseImageLoad}
+                ref={baseImageRef}
+                src={imageUrl}
+                style={{
+                  filter: compareOriginal ? undefined : `saturate(${1 + recipePreview.liquifyIntensity * 0.04})`,
+                  height: "100%",
+                  inset: 0,
+                  objectFit: "contain",
+                  opacity: compareOriginal || pixiStageFailed || !pixiVisualReady ? 1 : 0,
+                  pointerEvents: "none",
+                  position: "absolute",
+                  transform: compareOriginal ? undefined : fallbackPreviewTransform,
+                  transition: "filter 120ms ease, opacity 80ms ease, transform 120ms ease",
+                  width: "100%",
+                }}
+              />
+              <Box
+                data-testid="pixi-host"
+                ref={setPixiHostElement}
+                style={{
+                  height: "100%",
+                  inset: 0,
+                  opacity: compareOriginal || pixiStageFailed ? 0 : 1,
+                  pointerEvents: "none",
+                  position: "absolute",
+                  transition: "opacity 80ms ease",
+                  width: "100%",
+                }}
+              />
+              <AnnotationLayer
+                annotations={activeTool === "annotation" ? recipe.annotations : []}
+                brushPreview={displayLiquifyBrushPreview}
+                exactBrushRadius={Boolean(recipe.imageCoordinates)}
+                debugFaceBox={normalizedDebugFaceBox}
+                debugHrnetBox={normalizedDebugHrnetBox}
+                debugLandmarks={landmarkDebugInfo?.points}
+                eyeRegionScale={recipe.eyes.eyeRegionScale}
+                height={stageHeight}
+                landmarks={currentLandmarks}
+                liquifySymmetryAxis={liquifySymmetryAxis}
+                liquifyStrokes={displayLiquifyStrokes}
+                onAnnotationDelete={handleAnnotationDelete}
+                onAnnotationHandlePointerDown={handleAnnotationHandlePointerDown}
+                onAnnotationPointerDown={handleAnnotationPointerDown}
+                onLandmarkPointerDown={handleLandmarkPointerDown}
+                selectedAnnotationId={selectedAnnotationId}
+                selectedLandmarkKey={selectedLandmarkKey}
+                secondaryLandmarks={secondaryLandmarks}
+                showLandmarkDebug={landmarkDebugMode}
+                showLandmarks={effectiveShowLandmarks || landmarkDebugMode}
+                showLiquifySymmetryAxis={
+                  activeTool === "liquify" && liquifyToolMode === "warp" && liquifySymmetryEnabled
+                }
+                showSecondaryLandmarks={landmarkDebugMode && !landmarkDebugInfo}
+                showLiquifyStrokes={activeTool === "liquify"}
+                visible={activeTool === "annotation" || landmarkTools.has(activeTool) || activeTool === "liquify"}
+                width={stageWidth}
+              />
+              {activeTool === "local-generate" ? (
+                <LocalMaskLayer
+                  brushPreview={localMaskBrushPreview}
+                  height={stageHeight}
+                  strokes={localMaskStrokes}
+                  width={stageWidth}
+                />
+              ) : null}
             </Box>
+          </Box>
+          <Tooltip label="按住对比原图">
+            <ActionIcon
+              aria-label="按住对比原图"
+              color={compareOriginal ? "cyan" : "gray"}
+              data-testid="editor-compare-floating"
+              onBlur={() => setCompareOriginal(false)}
+              onKeyDown={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+                if (event.key !== " " && event.key !== "Enter") return;
+                event.preventDefault();
+                setCompareOriginal(true);
+              }}
+              onKeyUp={(event: ReactKeyboardEvent<HTMLButtonElement>) => {
+                if (event.key !== " " && event.key !== "Enter") return;
+                event.preventDefault();
+                setCompareOriginal(false);
+              }}
+              onPointerCancel={() => setCompareOriginal(false)}
+              onPointerDown={(event: PointerEvent<HTMLButtonElement>) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.setPointerCapture?.(event.pointerId);
+                setCompareOriginal(true);
+              }}
+              onPointerUp={(event: PointerEvent<HTMLButtonElement>) => {
+                event.preventDefault();
+                event.stopPropagation();
+                event.currentTarget.releasePointerCapture?.(event.pointerId);
+                setCompareOriginal(false);
+              }}
+              size="lg"
+              style={{
+                background: compareOriginal ? "var(--kb-dirty-yellow)" : "var(--kb-paper)",
+                border: "1px solid var(--kb-line)",
+                borderRadius: 0,
+                bottom: 12,
+                boxShadow: "var(--kb-hard-shadow-sm)",
+                color: "var(--kb-ink)",
+                position: "absolute",
+                right: 12,
+                zIndex: 12,
+              }}
+              variant={compareOriginal ? "filled" : "light"}
+            >
+              <CompareOriginalIcon size={20} />
+            </ActionIcon>
+          </Tooltip>
+          {renderLandmarkDebugPanel()}
+          {saveMenuPosition ? (
+            <Paper
+              data-testid="editor-save-menu"
+              onPointerDown={(event: PointerEvent<HTMLDivElement>) => {
+                event.stopPropagation();
+              }}
+              role="menu"
+              shadow="sm"
+              style={{
+                background: "var(--kb-panel)",
+                border: "1px solid var(--kb-line)",
+                borderRadius: 0,
+                boxShadow: "var(--kb-hard-shadow-sm)",
+                left: saveMenuPosition.x,
+                minWidth: 176,
+                padding: 8,
+                position: "absolute",
+                top: saveMenuPosition.y,
+                zIndex: 20,
+              }}
+              withBorder
+            >
+              <Stack gap={0.75}>
+                <Button
+                  data-testid="editor-save-menu-save"
+                  fullWidth
+                  leftSection={<IconPhoto size={16} />}
+                  onClick={() => {
+                    setSaveMenuPosition(null);
+                    void handleSave();
+                  }}
+                  role="menuitem"
+                  size="sm"
+                  variant="filled"
+                >
+                  保存图像
+                </Button>
+                <Button
+                  color="gray"
+                  data-testid="editor-save-menu-cancel"
+                  fullWidth
+                  onClick={() => setSaveMenuPosition(null)}
+                  role="menuitem"
+                  size="sm"
+                  variant="light"
+                >
+                  取消
+                </Button>
+              </Stack>
+            </Paper>
+          ) : null}
+        </>
+      ) : (
+        <Stack align="center" gap="sm" p="xl" ta="center">
+          <IconPhoto color="#64748b" size={48} />
+          <Title c="white" order={3} size="h4">
+            暂无候选图像
+          </Title>
+          <Text c="dimmed" maw={360} size="sm">
+            选择生成候选后，真实图像会显示在这里。
+          </Text>
+        </Stack>
+      )}
+    </Box>
   );
 
   if (isIdeLayout) {

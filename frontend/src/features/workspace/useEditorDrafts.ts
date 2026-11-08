@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { draftHasContent, editorDrafts, type EditorDraft, type EditorDraftState } from "../editor/drafts/localDrafts";
+import { draftHasContent, type EditorDraft, type EditorDraftState, editorDrafts } from "../editor/drafts/localDrafts";
 import { recipeHasEdits } from "../editor/EditorWorkspace";
 
 const WRITE_DELAY_MS = 400;

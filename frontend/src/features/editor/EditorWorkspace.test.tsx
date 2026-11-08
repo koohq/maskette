@@ -250,20 +250,24 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerDown(stage, { clientX: 960, clientY: 180 });
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        annotations: [
-          expect.objectContaining({
-            id: "annotation-1",
-            kind: "callout",
-            x: 0.75,
-            y: 0.25,
-          }),
-        ],
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({
+              id: "annotation-1",
+              kind: "callout",
+              x: 0.75,
+              y: 0.25,
+            }),
+          ],
+        }),
+      ),
     );
-    expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-      annotations: [expect.objectContaining({ x: 0.75, y: 0.25 })],
-    }));
+    expect(onRecipeChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        annotations: [expect.objectContaining({ x: 0.75, y: 0.25 })],
+      }),
+    );
     expect(screen.getByTestId("annotation-pin-1")).toHaveTextContent("1");
     expect(screen.getByTestId("annotation-pin-1")).toHaveStyle({ height: "30px", width: "30px" });
   });
@@ -305,10 +309,12 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByTestId("editor-save-menu-save"));
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-        annotationPrompt: "",
-        imageBlob: expect.any(Blob),
-      })),
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          annotationPrompt: "",
+          imageBlob: expect.any(Blob),
+        }),
+      ),
     );
     expect(pixiMocks.exportImage).toHaveBeenCalled();
   });
@@ -326,9 +332,11 @@ describe("EditorWorkspace", () => {
     fireEvent.change(noteInput, { target: { value: "keep left eye highlight" } });
 
     await waitFor(() =>
-      expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        annotations: [expect.objectContaining({ id: "annotation-1", note: "keep left eye highlight" })],
-      })),
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          annotations: [expect.objectContaining({ id: "annotation-1", note: "keep left eye highlight" })],
+        }),
+      ),
     );
   });
 
@@ -352,19 +360,21 @@ describe("EditorWorkspace", () => {
       fireEvent.click(screen.getByTestId("editor-regenerate"));
 
       await waitFor(() =>
-        expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
-          annotationPrompt: "1. (x: 75.0%, y: 25.0%) keep right eye highlight",
-          recipe: expect.objectContaining({
-            annotations: [
-              expect.objectContaining({
-                id: "annotation-1",
-                note: "keep right eye highlight",
-                x: 0.75,
-                y: 0.25,
-              }),
-            ],
+        expect(onRegenerate).toHaveBeenCalledWith(
+          expect.objectContaining({
+            annotationPrompt: "1. (x: 75.0%, y: 25.0%) keep right eye highlight",
+            recipe: expect.objectContaining({
+              annotations: [
+                expect.objectContaining({
+                  id: "annotation-1",
+                  note: "keep right eye highlight",
+                  x: 0.75,
+                  y: 0.25,
+                }),
+              ],
+            }),
           }),
-        })),
+        ),
       );
     } finally {
       restoreImage();
@@ -383,10 +393,12 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByTestId("editor-regenerate"));
 
     await waitFor(() =>
-      expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
-        extraReference: undefined,
-        promptNote: "嘴型更委屈，眼神更柔和",
-      })),
+      expect(onRegenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          extraReference: undefined,
+          promptNote: "嘴型更委屈，眼神更柔和",
+        }),
+      ),
     );
   });
 
@@ -441,7 +453,10 @@ describe("EditorWorkspace", () => {
 
       fireEvent.click(screen.getByTestId("editor-tool-local-generate"));
       // Existing references are offered for selection, but none is selected by default.
-      expect(screen.getByTestId("editor-local-reference-front:references/upload-1/front.webp")).toHaveAttribute("aria-pressed", "false");
+      expect(screen.getByTestId("editor-local-reference-front:references/upload-1/front.webp")).toHaveAttribute(
+        "aria-pressed",
+        "false",
+      );
       const uploadFile = new File(["ref"], "mouth.png", { type: "image/png" });
       fireEvent.change(screen.getByTestId("editor-local-reference-file-input"), {
         target: { files: [uploadFile] },
@@ -457,10 +472,12 @@ describe("EditorWorkspace", () => {
       fireEvent.click(screen.getByTestId("editor-local-generate-submit"));
 
       await waitFor(() => expect(onLocalGenerate).toHaveBeenCalled());
-      expect(onLocalGenerate).toHaveBeenCalledWith(expect.objectContaining({
-        selectedReferenceKeys: [],
-        uploadedReferences: [{ description: "", file: uploadFile }],
-      }));
+      expect(onLocalGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          selectedReferenceKeys: [],
+          uploadedReferences: [{ description: "", file: uploadFile }],
+        }),
+      );
     } finally {
       restoreImage();
       restoreCanvas();
@@ -497,13 +514,15 @@ describe("EditorWorkspace", () => {
       fireEvent.click(screen.getByTestId("editor-local-generate-submit"));
 
       await waitFor(() => expect(onLocalGenerate).toHaveBeenCalled());
-      expect(onLocalGenerate).toHaveBeenCalledWith(expect.objectContaining({
-        baseImageBlob: expect.any(Blob),
-        editNote: "make mouth smaller",
-        maskImageBlob: expect.any(Blob),
-        selectedReferenceKeys: [],
-        uploadedReferences: [{ description: "make mouth smaller", file: uploadFile }],
-      }));
+      expect(onLocalGenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          baseImageBlob: expect.any(Blob),
+          editNote: "make mouth smaller",
+          maskImageBlob: expect.any(Blob),
+          selectedReferenceKeys: [],
+          uploadedReferences: [{ description: "make mouth smaller", file: uploadFile }],
+        }),
+      );
     } finally {
       restoreImage();
       restoreCanvas();
@@ -577,24 +596,28 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerUp(stage, { pointerId: 2 });
 
     await waitFor(() =>
-      expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        annotations: [
-          expect.objectContaining({
-            id: "annotation-1",
-            x: 0.75,
-            y: 0.25,
-          }),
-        ],
-      })),
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({
+              id: "annotation-1",
+              x: 0.75,
+              y: 0.25,
+            }),
+          ],
+        }),
+      ),
     );
     expect(screen.getByTestId("annotation-pin-1")).toHaveAttribute("aria-selected", "true");
 
     fireEvent.pointerDown(screen.getByTestId("annotation-delete-annotation-1"), { pointerId: 3 });
 
     await waitFor(() =>
-      expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        annotations: [],
-      })),
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          annotations: [],
+        }),
+      ),
     );
     expect(screen.queryByTestId("annotation-pin-1")).toBeNull();
   });
@@ -660,7 +683,12 @@ describe("EditorWorkspace", () => {
 
     rerender(
       <ThemeProvider theme={kigTheme}>
-        <EditorWorkspace candidateIndex={2} imageHeight={720} imageUrl="/generated/candidate-b.webp" imageWidth={1280} />
+        <EditorWorkspace
+          candidateIndex={2}
+          imageHeight={720}
+          imageUrl="/generated/candidate-b.webp"
+          imageWidth={1280}
+        />
       </ThemeProvider>,
     );
 
@@ -688,24 +716,28 @@ describe("EditorWorkspace", () => {
     moveSlider("eye-control-eyeHeight", "ArrowRight", 7);
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        face: expect.objectContaining({ faceWidth: -0.048 }),
-        eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          face: expect.objectContaining({ faceWidth: -0.048 }),
+          eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
+        }),
+      ),
     );
 
     fireEvent.click(screen.getByTestId("editor-save"));
 
     await waitFor(() =>
-      expect(onSave).toHaveBeenCalledWith(expect.objectContaining({
-        annotationPrompt: "",
-        fileName: expect.stringMatching(/^maskette-edit-\d+\.png$/),
-        imageBlob: expect.any(Blob),
-        recipe: expect.objectContaining({
-          face: expect.objectContaining({ faceWidth: -0.048 }),
-          eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          annotationPrompt: "",
+          fileName: expect.stringMatching(/^maskette-edit-\d+\.png$/),
+          imageBlob: expect.any(Blob),
+          recipe: expect.objectContaining({
+            face: expect.objectContaining({ faceWidth: -0.048 }),
+            eyes: expect.objectContaining({ eyeHeight: 0.021, eyeSize: 0.057 }),
+          }),
         }),
-      })),
+      ),
     );
     expect(pixiMocks.exportImage).toHaveBeenCalled();
   });
@@ -723,9 +755,11 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByLabelText("扩大参数范围"));
     moveSlider("face-control-faceLength", "ArrowRight", 10);
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        face: expect.objectContaining({ faceLength: 0.06 }),
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          face: expect.objectContaining({ faceLength: 0.06 }),
+        }),
+      ),
     );
     moveSlider("face-control-faceLength", "ArrowLeft", 18);
     fireEvent.click(screen.getByTestId("face-control-faceLength-reset"));
@@ -739,9 +773,11 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByTestId("face-control-faceWidth-reset"));
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        face: expect.objectContaining({ faceLength: 0, faceWidth: 0 }),
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          face: expect.objectContaining({ faceLength: 0, faceWidth: 0 }),
+        }),
+      ),
     );
 
     fireEvent.click(screen.getByTestId("editor-tool-eyes"));
@@ -754,18 +790,22 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByLabelText("扩大参数范围"));
     moveSlider("eye-control-eyeSize", "ArrowRight", 10);
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        eyes: expect.objectContaining({ eyeSize: 0.06 }),
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          eyes: expect.objectContaining({ eyeSize: 0.06 }),
+        }),
+      ),
     );
 
     moveSlider("eye-control-eyeWidth", "ArrowRight", 12);
     fireEvent.click(screen.getByTestId("eye-control-eyeWidth-reset"));
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        eyes: expect.objectContaining({ eyeWidth: 0 }),
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          eyes: expect.objectContaining({ eyeWidth: 0 }),
+        }),
+      ),
     );
   });
 
@@ -785,11 +825,13 @@ describe("EditorWorkspace", () => {
     fireEvent.click(screen.getByTestId("editor-reset-all"));
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        face: expect.objectContaining({ vLine: 0 }),
-        eyes: expect.objectContaining({ eyeSize: 0 }),
-        liquify: [],
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          face: expect.objectContaining({ vLine: 0 }),
+          eyes: expect.objectContaining({ eyeSize: 0 }),
+          liquify: [],
+        }),
+      ),
     );
   });
 
@@ -859,11 +901,13 @@ describe("EditorWorkspace", () => {
     expect(screen.getByTestId("landmark-rightEye")).toBeInTheDocument();
     expect(screen.getByTestId("landmark-chin")).toBeInTheDocument();
     await waitFor(() =>
-      expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        landmarks: expect.objectContaining({
-          leftEye: { x: 0.42, y: 0.42 },
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          landmarks: expect.objectContaining({
+            leftEye: { x: 0.42, y: 0.42 },
+          }),
         }),
-      })),
+      ),
     );
   });
 
@@ -891,11 +935,13 @@ describe("EditorWorkspace", () => {
     expect(screen.getByTestId("landmark-rightEye")).toBeInTheDocument();
     expect(screen.getByTestId("landmark-chin")).toBeInTheDocument();
     await waitFor(() =>
-      expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        landmarks: expect.objectContaining({
-          leftEye: { x: 0.42, y: 0.42 },
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          landmarks: expect.objectContaining({
+            leftEye: { x: 0.42, y: 0.42 },
+          }),
         }),
-      })),
+      ),
     );
   });
 
@@ -954,11 +1000,13 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerUp(stage, { pointerId: 3 });
 
     await waitFor(() =>
-      expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({
-        landmarks: expect.objectContaining({
-          leftEye: { x: 0.75, y: 0.25 },
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          landmarks: expect.objectContaining({
+            leftEye: { x: 0.75, y: 0.25 },
+          }),
         }),
-      })),
+      ),
     );
     expect(screen.getByTestId("landmark-leftEye")).toHaveAttribute("aria-selected", "true");
   });
@@ -979,35 +1027,39 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerUp(stage, { pointerId: 1 });
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        liquify: expect.arrayContaining([
-          expect.objectContaining({
-            deltaX: 0.1,
-            deltaY: -0.1,
-            mode: "warp",
-            radius: 96,
-            x: 0.3,
-            y: 0.7,
-          }),
-        ]),
-      })),
-    );
-
-    fireEvent.click(screen.getByTestId("editor-regenerate"));
-
-    await waitFor(() =>
-      expect(onRegenerate).toHaveBeenCalledWith(expect.objectContaining({
-        recipe: expect.objectContaining({
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
           liquify: expect.arrayContaining([
             expect.objectContaining({
               deltaX: 0.1,
               deltaY: -0.1,
               mode: "warp",
               radius: 96,
+              x: 0.3,
+              y: 0.7,
             }),
           ]),
         }),
-      })),
+      ),
+    );
+
+    fireEvent.click(screen.getByTestId("editor-regenerate"));
+
+    await waitFor(() =>
+      expect(onRegenerate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          recipe: expect.objectContaining({
+            liquify: expect.arrayContaining([
+              expect.objectContaining({
+                deltaX: 0.1,
+                deltaY: -0.1,
+                mode: "warp",
+                radius: 96,
+              }),
+            ]),
+          }),
+        }),
+      ),
     );
   });
 
@@ -1047,12 +1099,14 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerUp(stage, { button: 0, pointerId: 1, pointerType: "mouse" });
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenCalledWith(expect.objectContaining({
-        liquify: [
-          expect.objectContaining({ deltaX: 0.1, deltaY: -0.1, mode: "warp", x: 0.25 }),
-          expect.objectContaining({ deltaX: -0.1, deltaY: -0.1, mode: "warp", x: 0.75 }),
-        ],
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          liquify: [
+            expect.objectContaining({ deltaX: 0.1, deltaY: -0.1, mode: "warp", x: 0.25 }),
+            expect.objectContaining({ deltaX: -0.1, deltaY: -0.1, mode: "warp", x: 0.75 }),
+          ],
+        }),
+      ),
     );
   });
 
@@ -1071,11 +1125,11 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerUp(stage, { button: 0, pointerId: 1, pointerType: "mouse" });
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenCalledWith(expect.objectContaining({
-        liquify: expect.arrayContaining([
-          expect.objectContaining({ deltaX: -0.1, mode: "warp", x: 0.85 }),
-        ]),
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenCalledWith(
+        expect.objectContaining({
+          liquify: expect.arrayContaining([expect.objectContaining({ deltaX: -0.1, mode: "warp", x: 0.85 })]),
+        }),
+      ),
     );
   });
 
@@ -1092,11 +1146,11 @@ describe("EditorWorkspace", () => {
     fireEvent.pointerDown(stage, { clientX: 640, clientY: 360, pointerId: 1 });
 
     await waitFor(() =>
-      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(expect.objectContaining({
-        liquify: [
-          expect.objectContaining({ mode: "scale", radius: 92, scale: -0.3, x: 0.5, y: 0.5 }),
-        ],
-      })),
+      expect(pixiMocks.applyRecipe).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          liquify: [expect.objectContaining({ mode: "scale", radius: 92, scale: -0.3, x: 0.5, y: 0.5 })],
+        }),
+      ),
     );
     expect(screen.getAllByTestId(/liquify-stroke-/)).toHaveLength(1);
   });
@@ -1198,9 +1252,13 @@ describe("image coordinate helpers", () => {
   it("picks the standard scale for a fresh recipe and the on-screen scale for an edited one", () => {
     const image = { height: 720, width: 1280 };
     expect(anchorEffectScale(createEmptyRecipe(), image, 640)).toBeCloseTo(1280 / 720);
-    expect(anchorEffectScale({ ...createEmptyRecipe(), liquify: [
-      { mode: "warp", radius: 10, strength: 0.2, x: 0.5, y: 0.5 },
-    ] }, image, 640)).toBe(2);
+    expect(
+      anchorEffectScale(
+        { ...createEmptyRecipe(), liquify: [{ mode: "warp", radius: 10, strength: 0.2, x: 0.5, y: 0.5 }] },
+        image,
+        640,
+      ),
+    ).toBe(2);
   });
 
   it("moves an anchored recipe to another size of the same image", () => {
@@ -1214,4 +1272,3 @@ describe("image coordinate helpers", () => {
     expect(rescaled.liquify[0]).toEqual(expect.objectContaining({ radius: 50, x: 0.25, y: 0.5 }));
   });
 });
-

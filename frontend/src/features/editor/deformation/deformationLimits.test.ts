@@ -4,7 +4,9 @@ import { calculateRecipePreview, createMeshDeformer } from "./pixiStage";
 import {
   browControlRanges,
   createEmptyRecipe,
+  type EditRecipe,
   eyeControlRanges,
+  type FaceControlKey,
   faceControlRanges,
   mouthControlRanges,
   proportionControlKeys,
@@ -12,8 +14,6 @@ import {
   updateEyeControl,
   updateFaceControl,
   updateMouthControl,
-  type EditRecipe,
-  type FaceControlKey,
 } from "./recipe";
 
 type Section = "face" | "eyes" | "brows" | "mouth";
@@ -71,12 +71,36 @@ function movement(recipe: EditRecipe, [x, y]: readonly [number, number]) {
 }
 
 const allControls: [Section, string, number][] = [
-  ...Object.entries(faceControlRanges).flatMap(([key, range]) => [["face", key, range.min], ["face", key, range.max]] as const),
+  ...Object.entries(faceControlRanges).flatMap(
+    ([key, range]) =>
+      [
+        ["face", key, range.min],
+        ["face", key, range.max],
+      ] as const,
+  ),
   ...Object.entries(eyeControlRanges)
     .filter(([key]) => key !== "eyeRegionScale")
-    .flatMap(([key, range]) => [["eyes", key, range.min], ["eyes", key, range.max]] as const),
-  ...Object.entries(browControlRanges).flatMap(([key, range]) => [["brows", key, range.min], ["brows", key, range.max]] as const),
-  ...Object.entries(mouthControlRanges).flatMap(([key, range]) => [["mouth", key, range.min], ["mouth", key, range.max]] as const),
+    .flatMap(
+      ([key, range]) =>
+        [
+          ["eyes", key, range.min],
+          ["eyes", key, range.max],
+        ] as const,
+    ),
+  ...Object.entries(browControlRanges).flatMap(
+    ([key, range]) =>
+      [
+        ["brows", key, range.min],
+        ["brows", key, range.max],
+      ] as const,
+  ),
+  ...Object.entries(mouthControlRanges).flatMap(
+    ([key, range]) =>
+      [
+        ["mouth", key, range.min],
+        ["mouth", key, range.max],
+      ] as const,
+  ),
 ].filter(([, , value]) => value !== 0) as [Section, string, number][];
 
 describe("deformation limits on an anime portrait", () => {
@@ -93,7 +117,13 @@ describe("deformation limits on an anime portrait", () => {
 
   const faceShapeControls = Object.entries(faceControlRanges)
     .filter(([key]) => !(proportionControlKeys as readonly string[]).includes(key))
-    .flatMap(([key, range]) => [[key, range.min], [key, range.max]] as const)
+    .flatMap(
+      ([key, range]) =>
+        [
+          [key, range.min],
+          [key, range.max],
+        ] as const,
+    )
     .filter(([, value]) => value !== 0);
 
   it.each(faceShapeControls)("keeps every feature in place for face shape %s = %s", (key, value) => {

@@ -72,4 +72,3 @@ describe("ParameterSlider", () => {
     expect(screen.getByText("1.00 (0.200)")).toBeInTheDocument();
   });
 });
-

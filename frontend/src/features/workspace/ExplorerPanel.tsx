@@ -71,7 +71,9 @@ export function ExplorerPanel({
                 type="button"
               >
                 <img alt={reference.file_name} src={reference.url} />
-                {reference.kind === "front" ? <span className="ide-ref-thumb-tag">{t("agent.referenceMain")}</span> : null}
+                {reference.kind === "front" ? (
+                  <span className="ide-ref-thumb-tag">{t("agent.referenceMain")}</span>
+                ) : null}
               </button>
             ))}
           </div>

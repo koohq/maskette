@@ -9,17 +9,21 @@ import {
   IconX,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState, type DragEvent } from "react";
+import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
+import { ConfirmDialog } from "../../ui/IdeDialog";
 import {
   AgentApiError,
+  type ApproveAction,
   approveActionFor,
+  type Conversation,
   cancelRun,
+  type DesignImage,
   deleteAssistantMessage,
   isTurnaroundRole,
-  regenerateLastTurn,
   prepareUpload,
+  regenerateLastTurn,
   renameConversation,
   saveManualVersion,
   sendMessage,
@@ -28,33 +32,24 @@ import {
   uploadReferences,
   versionDownloadUrl,
   versionSourceUrl,
-  type ApproveAction,
-  type Conversation,
-  type DesignImage,
 } from "../agent/agentApi";
 import { useConversation } from "../agent/useConversation";
-import { editorTools, type EditorTool } from "../editor/components/EditorToolRail";
+import { type EditorTool, editorTools } from "../editor/components/EditorToolRail";
 import {
-  EditorWorkspace,
   type EditorImageSavePayload,
   type EditorLocalGeneratePayload,
   type EditorRegeneratePayload,
   type EditorStatus,
+  EditorWorkspace,
   type EditorWorkspaceHandle,
 } from "../editor/EditorWorkspace";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
-import { ConfirmDialog } from "../../ui/IdeDialog";
-import { ThemeToggle } from "./ThemeToggle";
 import { AgentPanel } from "./AgentPanel";
-import {
-  AGENT_WIDTH_STORAGE_KEY,
-  clampAgentWidth,
-  DEFAULT_AGENT_WIDTH,
-  readStoredAgentWidth,
-} from "./agentWidth";
-import { useEditorDrafts } from "./useEditorDrafts";
+import { AGENT_WIDTH_STORAGE_KEY, clampAgentWidth, DEFAULT_AGENT_WIDTH, readStoredAgentWidth } from "./agentWidth";
 import { ExplorerPanel } from "./ExplorerPanel";
+import { ThemeToggle } from "./ThemeToggle";
+import { useEditorDrafts } from "./useEditorDrafts";
 
 type Activity = "explorer" | EditorTool;
 
@@ -139,13 +134,10 @@ export function WorkspacePage() {
     seenImageIds.current = null;
   }, [projectId]);
 
-  const openVersion = useCallback(
-    (imageId: string) => {
-      setOpenTabs((tabs) => (tabs.includes(imageId) ? tabs : [...tabs, imageId]));
-      setActiveTabId(imageId);
-    },
-    [],
-  );
+  const openVersion = useCallback((imageId: string) => {
+    setOpenTabs((tabs) => (tabs.includes(imageId) ? tabs : [...tabs, imageId]));
+    setActiveTabId(imageId);
+  }, []);
 
   // Open the current version on load, then follow new versions as they arrive (unless the user is mid-edit).
   useEffect(() => {
@@ -153,7 +145,8 @@ export function WorkspacePage() {
     const ids = conversation.state.images.map((image) => image.id);
     if (seenImageIds.current === null) {
       seenImageIds.current = new Set(ids);
-      const initial = conversation.state.current_front_id ?? conversation.state.current_design_id ?? ids[ids.length - 1];
+      const initial =
+        conversation.state.current_front_id ?? conversation.state.current_design_id ?? ids[ids.length - 1];
       if (initial) openVersion(initial);
       return;
     }
@@ -445,7 +438,12 @@ export function WorkspacePage() {
                   {(isActive && dirty) || drafts.draftIds.has(id) ? (
                     <span className="ide-tab-dirty" title={t("workspace.unsaved")} />
                   ) : null}
-                  <button aria-label={t("workspace.closeTab")} className="ide-tab-close" onClick={() => closeTab(id)} type="button">
+                  <button
+                    aria-label={t("workspace.closeTab")}
+                    className="ide-tab-close"
+                    onClick={() => closeTab(id)}
+                    type="button"
+                  >
                     <IconX size={12} />
                   </button>
                 </div>
@@ -458,7 +456,8 @@ export function WorkspacePage() {
               <div className="ide-toolbar">
                 <div className="min-w-0 flex-1" ref={setToolbarEl} />
                 <div className="ide-toolbar-actions">
-                  {editorTool === "annotation" && (activeVersion.role === "front" || activeVersion.role === "design") ? (
+                  {editorTool === "annotation" &&
+                  (activeVersion.role === "front" || activeVersion.role === "design") ? (
                     <button
                       className="ide-button"
                       disabled={running}
@@ -530,7 +529,9 @@ export function WorkspacePage() {
               ) : (
                 <>
                   <img alt="" className="h-12 w-12 opacity-60" src="/logo.png" />
-                  <p className="max-w-sm text-sm">{images.length ? t("workspace.openVersionFirst") : t("workspace.noVersions")}</p>
+                  <p className="max-w-sm text-sm">
+                    {images.length ? t("workspace.openVersionFirst") : t("workspace.noVersions")}
+                  </p>
                 </>
               )}
             </div>
@@ -648,7 +649,13 @@ export function projectStages(conversation: Conversation | null) {
   ];
 }
 
-function StageTrack({ conversation, onOpenVersion }: { conversation: Conversation | null; onOpenVersion: (id: string) => void }) {
+function StageTrack({
+  conversation,
+  onOpenVersion,
+}: {
+  conversation: Conversation | null;
+  onOpenVersion: (id: string) => void;
+}) {
   const { t } = useTranslation();
   return (
     <ol aria-label={t("workspace.stageHint")} className="ide-stages">
@@ -757,8 +764,8 @@ function StatusBar({
       </span>
       {activeVersion ? (
         <span className="ide-statusbar-item">
-          {activeVersion.id} · {t(`workspace.roles.${activeVersion.role}`)} · {activeVersion.width}×{activeVersion.height} ·{" "}
-          {t(`workspace.sources.${activeVersion.source}`)}
+          {activeVersion.id} · {t(`workspace.roles.${activeVersion.role}`)} · {activeVersion.width}×
+          {activeVersion.height} · {t(`workspace.sources.${activeVersion.source}`)}
         </span>
       ) : null}
       <span className="flex-1" />

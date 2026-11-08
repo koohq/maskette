@@ -145,7 +145,8 @@ const ja: TranslationResource = {
     untitled: "無題のチャット",
     deleteChat: "チャットを削除",
     welcomeTitle: "キャラクター画像をアップロードしてマスクをデザイン",
-    welcomeBody: "キャラクターの参考画像（できれば最初は正面）を送って、残したいポイントを教えてください。まず設定画を描くので、手動で微調整して確認してください。その設定画からマスクの正面図を作り、確認後に四面図を作ります。",
+    welcomeBody:
+      "キャラクターの参考画像（できれば最初は正面）を送って、残したいポイントを教えてください。まず設定画を描くので、手動で微調整して確認してください。その設定画からマスクの正面図を作り、確認後に四面図を作ります。",
     placeholder: "要望や修正したい点を入力…",
     attach: "参考画像を追加",
     send: "送信",
@@ -229,7 +230,8 @@ const ja: TranslationResource = {
   settings: {
     title: "設定",
     open: "設定",
-    intro: "チャットアシスタント、参考画像の分析、画像生成に使うバックエンドと API キーを設定します。変更はこのコンピューターに保存されます。",
+    intro:
+      "チャットアシスタント、参考画像の分析、画像生成に使うバックエンドと API キーを設定します。変更はこのコンピューターに保存されます。",
     readOnly: "本番環境では設定は読み取り専用です。.env を編集してください。",
     loadFailed: "設定を読み込めません",
     saveFailed: "保存に失敗しました：{{error}}",
@@ -253,7 +255,8 @@ const ja: TranslationResource = {
     model: "モデル",
     modelDefault: "空欄で既定のモデル",
     extraBody: "追加リクエストパラメータ（JSON）",
-    extraBodyHint: "毎回のリクエストに付けます。既定では OpenRouter に浅めの思考（reasoning の effort を low）を頼みます。モデルが受け付けない場合は自動で外します。不要なら空にしてください。",
+    extraBodyHint:
+      "毎回のリクエストに付けます。既定では OpenRouter に浅めの思考（reasoning の effort を low）を頼みます。モデルが受け付けない場合は自動で外します。不要なら空にしてください。",
     probe: "接続テスト",
     probing: "テスト中…",
     probeHint: "保存済みの設定で小さなリクエストを 1 回送ります（少量のトークンを消費）。",
@@ -288,11 +291,13 @@ const ja: TranslationResource = {
     },
     sameAsAgent: "空欄でチャットアシスタントと同じ：{{value}}",
     analysisKeyHint: "空欄の場合、URL がチャットアシスタントと同じならそのキー、Ark と同じなら Ark のキーを使います。",
-    analysisExtraBodyHint: "毎回の分析リクエストに付けます（例：OpenRouter の思考の深さ {\"reasoning\": {\"effort\": \"medium\"}}）。空欄の場合、URL がチャットアシスタントと同じときだけ、その値を使います。何も付けないときは {} と入力します。",
+    analysisExtraBodyHint:
+      '毎回の分析リクエストに付けます（例：OpenRouter の思考の深さ {"reasoning": {"effort": "medium"}}）。空欄の場合、URL がチャットアシスタントと同じときだけ、その値を使います。何も付けないときは {} と入力します。',
     visionRequired: "モデルは画像入力（マルチモーダル）に対応している必要があります。",
     openrouterKeyHint: "空欄の場合、分析かチャットアシスタントの URL が OpenRouter なら、そのキーを使います。",
-    openrouterModelHint: "参考画像を受け付ける画像モデルを指定します（openrouter.ai/api/v1/images/models の一覧から選びます）。",
-    openrouterExtraBodyHint: "毎回の画像リクエストに付けます（例：{\"quality\": \"high\"}）。空欄なら何も付けません。",
+    openrouterModelHint:
+      "参考画像を受け付ける画像モデルを指定します（openrouter.ai/api/v1/images/models の一覧から選びます）。",
+    openrouterExtraBodyHint: '毎回の画像リクエストに付けます（例：{"quality": "high"}）。空欄なら何も付けません。',
     codexBridgeRemoved: "Codex Bridge は無くなりました。Codex か、ほかの経路を選んでください。",
     apiKey: "API キー",
     keyFromEnv: "設定済み {{hint}}（.env）",
@@ -304,7 +309,8 @@ const ja: TranslationResource = {
     keyClear: "この画面で保存したキーを削除",
     keyUndoClear: "元に戻す",
     agentKeyHint: "空欄で API URL が Ark と同じ場合、画像生成用の Ark キーを再利用します。",
-    keyStorageNote: "API キーはファイルではなく OS の資格情報の保管場所（Windows の資格情報マネージャー、macOS のキーチェーン）に保存されます。画面には表示されません。",
+    keyStorageNote:
+      "API キーはファイルではなく OS の資格情報の保管場所（Windows の資格情報マネージャー、macOS のキーチェーン）に保存されます。画面には表示されません。",
     providers: {
       openai_compatible: "OpenAI 互換 API",
       claude_code: "Claude Code CLI",

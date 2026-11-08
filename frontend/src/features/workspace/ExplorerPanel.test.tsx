@@ -10,8 +10,23 @@ beforeAll(async () => {
   await i18n.changeLanguage("zh-CN");
 });
 
-function image(id: string, role: "front" | "turnaround", parent: string | null, source: "agent" | "manual" | "local_revision") {
-  return { id, role, job_id: "", url: `/api/generated/${id}.webp`, width: 800, height: 1100, instructions: "", parent_id: parent, source };
+function image(
+  id: string,
+  role: "front" | "turnaround",
+  parent: string | null,
+  source: "agent" | "manual" | "local_revision",
+) {
+  return {
+    id,
+    role,
+    job_id: "",
+    url: `/api/generated/${id}.webp`,
+    width: 800,
+    height: 1100,
+    instructions: "",
+    parent_id: parent,
+    source,
+  };
 }
 
 const conversation: Conversation = {

@@ -16,11 +16,7 @@ describe("MouthControls", () => {
 
     render(
       <ThemeProvider theme={kigTheme}>
-        <MouthControls
-          values={recipe.mouth}
-          onChange={onChange}
-          onReset={vi.fn()}
-        />
+        <MouthControls values={recipe.mouth} onChange={onChange} onReset={vi.fn()} />
       </ThemeProvider>,
     );
 

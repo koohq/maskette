@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { DEFAULT_LOCALE, type AppLocale } from "../i18n/locales";
+import { type AppLocale, DEFAULT_LOCALE } from "../i18n/locales";
 import { apiFetch, resolveApiUrls } from "./backend";
 
 const API_BASE = "/api";
@@ -16,13 +16,15 @@ export const requirementOptionSchema = z.object({
   sort_order: z.number(),
 });
 
-export const legacyPromptChipSchema = z.object({
-  id: z.string(),
-  category: z.string(),
-  label: z.string(),
-  text: z.string(),
-  sort_order: z.number(),
-}).strict();
+export const legacyPromptChipSchema = z
+  .object({
+    id: z.string(),
+    category: z.string(),
+    label: z.string(),
+    text: z.string(),
+    sort_order: z.number(),
+  })
+  .strict();
 
 export const landmarkPointSchema = z.object({
   x: z.number(),
@@ -69,12 +71,14 @@ export const generationJobSchema = z.object({
   outputs: z.array(generationOutputSchema),
 });
 
-const legacyGenerationOutputSchema = z.object({
-  index: z.number(),
-  object_key: z.string(),
-  width: z.number(),
-  height: z.number(),
-}).strict();
+const legacyGenerationOutputSchema = z
+  .object({
+    index: z.number(),
+    object_key: z.string(),
+    width: z.number(),
+    height: z.number(),
+  })
+  .strict();
 
 const legacyGenerationJobSchema = z
   .object({
@@ -303,10 +307,12 @@ export const albumItemSchema = z.object({
 const albumItemsSchema = z.array(albumItemSchema);
 const jobEventsSchema = z.array(jobEventSchema);
 
-const legacyJobEventSchema = z.object({
-  type: z.string(),
-  progress: z.number(),
-}).strict();
+const legacyJobEventSchema = z
+  .object({
+    type: z.string(),
+    progress: z.number(),
+  })
+  .strict();
 
 const legacyJobEventsSchema = z.array(legacyJobEventSchema).transform((events) =>
   events.map((event, index) =>
@@ -412,26 +418,18 @@ async function requestRawJson(
 ): Promise<unknown> {
   const timeoutMs = options?.timeoutMs;
   const controller = timeoutMs ? new AbortController() : null;
-  const timeoutId = controller
-    ? window.setTimeout(() => controller.abort(), timeoutMs)
-    : null;
+  const timeoutId = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : null;
   try {
     const response = await apiFetch(`${API_BASE}${url}`, controller ? { ...init, signal: controller.signal } : init);
     const body = await readJson(response);
     if (!response.ok) {
       const detail =
-        typeof body === "object" && body && "detail" in body
-          ? (body as { detail?: unknown }).detail
-          : body;
+        typeof body === "object" && body && "detail" in body ? (body as { detail?: unknown }).detail : body;
       throw new ApiError(`API request failed: ${response.status}`, response.status, detail);
     }
     return resolveApiUrls(body);
   } catch (error) {
-    if (
-      options?.timeoutDetail &&
-      error instanceof DOMException &&
-      error.name === "AbortError"
-    ) {
+    if (options?.timeoutDetail && error instanceof DOMException && error.name === "AbortError") {
       throw new ApiError("API request timed out", 504, options.timeoutDetail);
     }
     throw error;
@@ -445,24 +443,29 @@ export function getRequirementOptions(): Promise<RequirementOption[]> {
 }
 
 export function analyzeReferenceDetails(input: AnalyzeReferenceDetailsInput): Promise<DetailAnalysis> {
-  return requestJson("/generation/detail-analysis", detailAnalysisSchema, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      character_session_id: input.characterSessionId,
-      free_text: input.freeText,
-      locale: input.locale,
-      requirement_ids: input.requirementIds,
-      reference_keys: input.referenceKeys,
-      reference_descriptions: input.referenceDescriptions.map((item) => ({
-        description: item.description,
-        reference_key: item.referenceKey,
-      })),
-    }),
-  }, {
-    timeoutDetail: "detail_analysis_request_timeout",
-    timeoutMs: DETAIL_ANALYSIS_REQUEST_TIMEOUT_MS,
-  });
+  return requestJson(
+    "/generation/detail-analysis",
+    detailAnalysisSchema,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        character_session_id: input.characterSessionId,
+        free_text: input.freeText,
+        locale: input.locale,
+        requirement_ids: input.requirementIds,
+        reference_keys: input.referenceKeys,
+        reference_descriptions: input.referenceDescriptions.map((item) => ({
+          description: item.description,
+          reference_key: item.referenceKey,
+        })),
+      }),
+    },
+    {
+      timeoutDetail: "detail_analysis_request_timeout",
+      timeoutMs: DETAIL_ANALYSIS_REQUEST_TIMEOUT_MS,
+    },
+  );
 }
 
 type CreateGenerationJobInput = {
@@ -506,22 +509,20 @@ type LegacyCreateGenerationJobInput = {
 
 export function createGenerationJob(input: CreateGenerationJobInput): Promise<GenerationJob>;
 export function createGenerationJob(input: LegacyCreateGenerationJobInput): Promise<GenerationJob>;
-export function createGenerationJob(input: CreateGenerationJobInput | LegacyCreateGenerationJobInput): Promise<GenerationJob> {
+export function createGenerationJob(
+  input: CreateGenerationJobInput | LegacyCreateGenerationJobInput,
+): Promise<GenerationJob> {
   if ("projectId" in input) {
-    return requestJson(
-      `/generation/projects/${encodeURIComponent(input.projectId)}/jobs`,
-      legacyGenerationJobSchema,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          project_id: input.projectId,
-          free_text: input.freeText,
-          chip_ids: input.chipIds,
-          reference_keys: input.referenceKeys,
-        }),
-      },
-    );
+    return requestJson(`/generation/projects/${encodeURIComponent(input.projectId)}/jobs`, legacyGenerationJobSchema, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        project_id: input.projectId,
+        free_text: input.freeText,
+        chip_ids: input.chipIds,
+        reference_keys: input.referenceKeys,
+      }),
+    });
   }
 
   return requestJson("/generation/jobs", generationJobSchema, {
@@ -546,10 +547,11 @@ export function createGenerationJob(input: CreateGenerationJobInput | LegacyCrea
       free_text: input.freeText,
       generation_mode: input.generationMode ?? "front_design",
       locale: input.locale ?? DEFAULT_LOCALE,
-      reference_descriptions: input.referenceDescriptions?.map((item) => ({
-        description: item.description,
-        reference_key: item.referenceKey,
-      })) ?? [],
+      reference_descriptions:
+        input.referenceDescriptions?.map((item) => ({
+          description: item.description,
+          reference_key: item.referenceKey,
+        })) ?? [],
       requirement_ids: input.requirementIds,
       reference_keys: input.referenceKeys,
     }),
@@ -600,10 +602,7 @@ export async function getGenerationEvents(jobId: string): Promise<JobEvent[]> {
   return legacyJobEventsSchema.parse(body);
 }
 
-export function acceptGenerationCandidate(
-  jobId: string,
-  outputIndex: number,
-): Promise<GenerationJob> {
+export function acceptGenerationCandidate(jobId: string, outputIndex: number): Promise<GenerationJob> {
   return requestJson(`/generation/jobs/${encodeURIComponent(jobId)}/accept`, generationJobSchema, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -757,4 +756,3 @@ export function saveAlbumImageFile(input: SaveAlbumImageFileInput): Promise<Albu
 export function listAlbumItems(): Promise<AlbumItem[]> {
   return requestJson("/album/items", albumItemsSchema);
 }
-

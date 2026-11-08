@@ -1,16 +1,16 @@
-import { publicUrl } from "../../../ui/publicUrl";
-import { FaceDetector, FilesetResolver, type Detection } from "@mediapipe/tasks-vision";
+import { type Detection, FaceDetector, FilesetResolver } from "@mediapipe/tasks-vision";
 import * as ort from "onnxruntime-web/wasm";
 import ortWasmThreadedUrl from "../../../../node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm?url";
-import type { LandmarkPoint, ManualLandmarks } from "./landmarks";
+import { publicUrl } from "../../../ui/publicUrl";
 import {
+  type DetectedPoint,
   decodeHrnetHeatmaps,
   expandFaceBox,
+  type FaceBox,
   mapAnimePointsToManualLandmarks,
   normalizeAnimeDetailPoints,
-  type DetectedPoint,
-  type FaceBox,
 } from "./animeLandmarkMapping";
+import type { LandmarkPoint, ManualLandmarks } from "./landmarks";
 
 const mediaPipeWasmUrl = publicUrl("/mediapipe-wasm");
 const mediaPipeFaceModelUrl = publicUrl("/models/blaze_face_short_range.tflite");
@@ -96,7 +96,9 @@ function rankFaceBoxes(detections: readonly Detection[]) {
   return detections
     .map((detection) => ({ box: detectionToBox(detection), score: detectionScore(detection) }))
     .filter((entry): entry is { box: FaceBox; score: number } => Boolean(entry.box))
-    .sort((left, right) => right.score * right.box.width * right.box.height - left.score * left.box.width * left.box.height);
+    .sort(
+      (left, right) => right.score * right.box.width * right.box.height - left.score * left.box.width * left.box.height,
+    );
 }
 
 function pickFaceBox(detections: readonly Detection[]) {
@@ -157,16 +159,18 @@ async function getFaceDetector() {
 }
 
 async function getOrt() {
-  ortPromise ??= Promise.resolve().then(() => {
-    ort.env.wasm.numThreads = 1;
-    (ort.env.wasm as unknown as { wasmPaths: { wasm: string } }).wasmPaths = {
-      wasm: ortWasmThreadedUrl,
-    };
-    return ort;
-  }).catch((error: unknown) => {
-    ortPromise = null;
-    throw error;
-  });
+  ortPromise ??= Promise.resolve()
+    .then(() => {
+      ort.env.wasm.numThreads = 1;
+      (ort.env.wasm as unknown as { wasmPaths: { wasm: string } }).wasmPaths = {
+        wasm: ortWasmThreadedUrl,
+      };
+      return ort;
+    })
+    .catch((error: unknown) => {
+      ortPromise = null;
+      throw error;
+    });
 
   return ortPromise;
 }
@@ -235,7 +239,8 @@ function preprocessCrop(image: HTMLImageElement, box: FaceBox, ort: OrtModule) {
       const rgb = [pixels[pixelOffset] / 255, pixels[pixelOffset + 1] / 255, pixels[pixelOffset + 2] / 255];
 
       for (let channel = 0; channel < 3; channel += 1) {
-        input[channel * modelSize * modelSize + tensorOffset] = (rgb[channel] - imageNetMean[channel]) / imageNetStd[channel];
+        input[channel * modelSize * modelSize + tensorOffset] =
+          (rgb[channel] - imageNetMean[channel]) / imageNetStd[channel];
       }
     }
   }
@@ -243,7 +248,11 @@ function preprocessCrop(image: HTMLImageElement, box: FaceBox, ort: OrtModule) {
   return new ort.Tensor("float32", input, [1, 3, modelSize, modelSize]);
 }
 
-export function detectAnimeLandmarks(image: HTMLImageElement, signal?: AbortSignal, requireSingleFace = false): Promise<AnimeLandmarkDetection | null> {
+export function detectAnimeLandmarks(
+  image: HTMLImageElement,
+  signal?: AbortSignal,
+  requireSingleFace = false,
+): Promise<AnimeLandmarkDetection | null> {
   return detectAnimeLandmarksWithModel(image, hrnetModelUrl, signal, requireSingleFace);
 }
 
@@ -302,9 +311,13 @@ export async function detectAnimeLandmarksWithModel(
 
   async function fit(entry: { box: FaceBox; score: number }) {
     const hrnetBox = expandFaceBox(entry.box, width, height);
-    const result = await runHrnetSession(hrnetSession, {
-      [hrnetSession.inputNames[0]]: preprocessCrop(image, hrnetBox, ort),
-    }, signal);
+    const result = await runHrnetSession(
+      hrnetSession,
+      {
+        [hrnetSession.inputNames[0]]: preprocessCrop(image, hrnetBox, ort),
+      },
+      signal,
+    );
     signal?.throwIfAborted();
     const data = result[hrnetSession.outputNames[0]].data;
     if (!(data instanceof Float32Array)) return null;
@@ -326,12 +339,23 @@ export async function detectAnimeLandmarksWithModel(
       if (attempt) attempts.push(attempt);
     }
     candidates = attempts.map(({ box, detectorScore, quality }) => ({ box, detectorScore, quality }));
-    chosen = attempts.reduce<(typeof attempts)[number] | null>((best, attempt) => (!best || attempt.quality > best.quality ? attempt : best), null);
+    chosen = attempts.reduce<(typeof attempts)[number] | null>(
+      (best, attempt) => (!best || attempt.quality > best.quality ? attempt : best),
+      null,
+    );
     if (!chosen || chosen.quality < minLandmarkQuality) return null;
     const best = chosen;
     // A second, separate face that fits nearly as well means the picture holds more than one face.
-    if (attempts.some((other) => other !== best && overlap(other.box, best.box) < 0.1
-        && other.quality >= ambiguousQuality && other.quality >= best.quality * 0.85)) return null;
+    if (
+      attempts.some(
+        (other) =>
+          other !== best &&
+          overlap(other.box, best.box) < 0.1 &&
+          other.quality >= ambiguousQuality &&
+          other.quality >= best.quality * 0.85,
+      )
+    )
+      return null;
   }
   if (!chosen) return null;
 
@@ -356,7 +380,10 @@ function runHrnetSession(
   feeds: Parameters<ort.InferenceSession["run"]>[0],
   signal?: AbortSignal,
 ) {
-  const run = hrnetRunQueue.then(() => { signal?.throwIfAborted(); return session.run(feeds); });
+  const run = hrnetRunQueue.then(() => {
+    signal?.throwIfAborted();
+    return session.run(feeds);
+  });
   hrnetRunQueue = run.catch(() => undefined);
   return run;
 }

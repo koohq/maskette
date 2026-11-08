@@ -1,8 +1,8 @@
-import { ActionIcon, Group, Stack, Text, Tooltip } from "../../../ui/mui";
 import { IconChevronLeft, IconChevronRight, IconRefresh } from "@tabler/icons-react";
-import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
+import { type CSSProperties, type FormEvent, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { translateLiteralString } from "../../../i18n/literalTranslations";
+import { ActionIcon, Group, Stack, Text, Tooltip } from "../../../ui/mui";
 
 export type ParameterSliderProps = {
   dataTestId: string;

@@ -193,7 +193,10 @@ export function startLocalRevision(
   return request(`/conversations/${id}/local-revision`, conversationSchema, { body: form, method: "POST" });
 }
 
-export function startAnnotatedRevision(id: string, payload: { baseImageId: string; image: Blob; instructions: string }) {
+export function startAnnotatedRevision(
+  id: string,
+  payload: { baseImageId: string; image: Blob; instructions: string },
+) {
   const form = new FormData();
   form.append("base_image_id", payload.baseImageId);
   form.append("instructions", payload.instructions);
@@ -211,7 +214,12 @@ export function cancelRun(id: string) {
 
 export function sendMessage(
   id: string,
-  { text = "", files = [], action, imageId }: { text?: string; files?: File[]; action?: ApproveAction; imageId?: string },
+  {
+    text = "",
+    files = [],
+    action,
+    imageId,
+  }: { text?: string; files?: File[]; action?: ApproveAction; imageId?: string },
 ) {
   const form = new FormData();
   form.append("text", text);

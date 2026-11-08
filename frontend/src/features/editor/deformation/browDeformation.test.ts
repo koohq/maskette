@@ -1,20 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { createBrowMeshTransforms, getBrowDisplacement, type BrowMeshTransform } from "./browDeformation";
+import { type BrowMeshTransform, createBrowMeshTransforms, getBrowDisplacement } from "./browDeformation";
 import { animeFaceLandmarks, animeFaceSize } from "./fixtures/animeFace";
 import { createDefaultLandmarks, resolveBrowLandmarks } from "./landmarks";
-import { createEmptyRecipe, updateBrowControl, updateManualLandmark, type BrowControlKey } from "./recipe";
+import { type BrowControlKey, createEmptyRecipe, updateBrowControl, updateManualLandmark } from "./recipe";
 
 function brows(key: BrowControlKey, value: number) {
-  const [left, right] = createBrowMeshTransforms(updateBrowControl(createEmptyRecipe(), key, value), animeFaceLandmarks);
+  const [left, right] = createBrowMeshTransforms(
+    updateBrowControl(createEmptyRecipe(), key, value),
+    animeFaceLandmarks,
+  );
   return { left, right };
 }
 
 function offsetAt(transform: BrowMeshTransform, point: { x: number; y: number }) {
   const scale = (p: { x: number; y: number }) => ({ x: p.x * animeFaceSize.width, y: p.y * animeFaceSize.height });
-  const inner = scale(transform.inner), outer = scale(transform.outer), peak = scale(transform.peak), at = scale(point);
-  return getBrowDisplacement(transform, {
-    innerX: inner.x, innerY: inner.y, outerX: outer.x, outerY: outer.y, peakX: peak.x, peakY: peak.y, minHalfLength: 6,
-  }, at.x, at.y);
+  const inner = scale(transform.inner),
+    outer = scale(transform.outer),
+    peak = scale(transform.peak),
+    at = scale(point);
+  return getBrowDisplacement(
+    transform,
+    {
+      innerX: inner.x,
+      innerY: inner.y,
+      outerX: outer.x,
+      outerY: outer.y,
+      peakX: peak.x,
+      peakY: peak.y,
+      minHalfLength: 6,
+    },
+    at.x,
+    at.y,
+  );
 }
 
 const midpoint = (transform: BrowMeshTransform) => ({

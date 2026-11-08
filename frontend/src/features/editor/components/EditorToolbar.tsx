@@ -1,4 +1,3 @@
-import { ActionIcon, Button, Divider, Group, Slider, Text, Tooltip, useMediaQuery } from "../../../ui/mui";
 import {
   IconArrowBackUp,
   IconArrowForwardUp,
@@ -12,6 +11,7 @@ import {
   IconWand,
 } from "@tabler/icons-react";
 import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
+import { ActionIcon, Button, Divider, Group, Slider, Text, Tooltip, useMediaQuery } from "../../../ui/mui";
 
 export type EditorToolbarProps = {
   canRedo?: boolean;
@@ -85,7 +85,9 @@ export function EditorToolbar({
   const showFaceRecognition = Boolean(onRecognizeFace);
   const isViewportOnlyToolbar = showViewportActions && !showPrimaryActions;
   const shouldWrapToolbar = isCompactToolbar && !isViewportOnlyToolbar;
-  const regenerateButtonStyle = isCompactToolbar ? { flex: "1 1 0", minWidth: 0, whiteSpace: "nowrap" } : { whiteSpace: "nowrap" };
+  const regenerateButtonStyle = isCompactToolbar
+    ? { flex: "1 1 0", minWidth: 0, whiteSpace: "nowrap" }
+    : { whiteSpace: "nowrap" };
 
   return (
     <Group
@@ -158,7 +160,11 @@ export function EditorToolbar({
           <Group
             gap={1}
             wrap={isCompactToolbar ? "wrap" : "nowrap"}
-            style={{ flex: isCompactToolbar ? "1 1 100%" : "0 0 auto", marginLeft: isCompactToolbar ? 0 : "auto", order: 1 }}
+            style={{
+              flex: isCompactToolbar ? "1 1 100%" : "0 0 auto",
+              marginLeft: isCompactToolbar ? 0 : "auto",
+              order: 1,
+            }}
           >
             <Button
               color="gray"
@@ -337,7 +343,12 @@ export function EditorToolbar({
           >
             {zoomPercent}%
           </Text>
-          <ToolbarIconButton compact={isViewportOnlyToolbar && isCompactToolbar} disabled={!onFit} label="适应画布" onClick={onFit}>
+          <ToolbarIconButton
+            compact={isViewportOnlyToolbar && isCompactToolbar}
+            disabled={!onFit}
+            label="适应画布"
+            onClick={onFit}
+          >
             <IconMaximize size={isViewportOnlyToolbar && isCompactToolbar ? 16 : 20} />
           </ToolbarIconButton>
         </Group>

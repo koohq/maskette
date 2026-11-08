@@ -1,6 +1,6 @@
-import { Box, Paper, SimpleGrid, Stack, Text, Title } from "../ui/mui";
 import type { ReactNode } from "react";
 import type { AuditGenerationJob, AuditSummary } from "../api/client";
+import { Box, Paper, SimpleGrid, Stack, Text, Title } from "../ui/mui";
 
 type TrendPoint = {
   label: string;
@@ -154,11 +154,7 @@ function TrendLineChart({
           <text className="audit-trend-chart-label" x={4} y={CHART_PADDING.top + 4}>
             {maxValue}
           </text>
-          <text
-            className="audit-trend-chart-label"
-            x={4}
-            y={CHART_HEIGHT - CHART_PADDING.bottom - 2}
-          >
+          <text className="audit-trend-chart-label" x={4} y={CHART_HEIGHT - CHART_PADDING.bottom - 2}>
             0
           </text>
           <path className="audit-trend-chart-line" d={linePath} fill="none" stroke={color} />
@@ -207,13 +203,7 @@ function ChartPanel({
   );
 }
 
-export function AuditOverviewCharts({
-  jobs,
-  summary,
-}: {
-  jobs: AuditGenerationJob[];
-  summary: AuditSummary;
-}) {
+export function AuditOverviewCharts({ jobs, summary }: { jobs: AuditGenerationJob[]; summary: AuditSummary }) {
   const userTrend = buildCumulativeUserTrend(jobs);
   const callTrend = buildDailyCallTrend(jobs);
 
@@ -230,11 +220,7 @@ export function AuditOverviewCharts({
         </Box>
 
         <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
-          <ChartPanel
-            subtitle="按任务创建日期累计独立 session 数量。"
-            testId="audit-user-chart-panel"
-            title="用户趋势"
-          >
+          <ChartPanel subtitle="按任务创建日期累计独立 session 数量。" testId="audit-user-chart-panel" title="用户趋势">
             <TrendLineChart
               color="var(--kb-teal, #0d9488)"
               emptyText="暂无用户趋势数据。"
@@ -245,11 +231,7 @@ export function AuditOverviewCharts({
             />
           </ChartPanel>
 
-          <ChartPanel
-            subtitle="按任务创建日期统计每日调用次数。"
-            testId="audit-call-chart-panel"
-            title="调用趋势"
-          >
+          <ChartPanel subtitle="按任务创建日期统计每日调用次数。" testId="audit-call-chart-panel" title="调用趋势">
             <TrendLineChart
               color="var(--kb-coral)"
               emptyText="暂无调用趋势数据。"

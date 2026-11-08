@@ -9,10 +9,10 @@ import {
   IconTrash,
   IconX,
 } from "@tabler/icons-react";
+import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
-import { type TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
-import { approveActionFor, isDesignRole, isTurnaroundRole, type AgentEvent, type Conversation } from "./agentApi";
+import { type AgentEvent, approveActionFor, type Conversation, isDesignRole, isTurnaroundRole } from "./agentApi";
 
 type TimelineProps = {
   events: AgentEvent[];
@@ -134,7 +134,9 @@ export function ChatTimeline({
             return (
               <li className="agent-notice agent-notice-error" key={event.seq}>
                 <IconAlertTriangle className="shrink-0" size={14} />
-                <span className="min-w-0 wrap-break-word">{t("agent.errors.generic", { message: event.message as string })}</span>
+                <span className="min-w-0 wrap-break-word">
+                  {t("agent.errors.generic", { message: event.message as string })}
+                </span>
               </li>
             );
           case "notice": {
@@ -207,7 +209,9 @@ function UserMessage({ event, onOpenImage }: { event: AgentEvent; onOpenImage: (
   const { t } = useTranslation();
   const attachments = (event.attachments ?? []) as Array<{ id: string; url: string; kind: string }>;
   const action = event.action as string | null | undefined;
-  const text = (event.text as string) || (action === "approve_front"
+  const text =
+    (event.text as string) ||
+    (action === "approve_front"
       ? t("agent.approveMessage")
       : action === "approve_design"
         ? t("agent.approveDesignMessage")
@@ -303,7 +307,13 @@ function ToolCard({ event }: { event: AgentEvent }) {
         <p className="text-[11px] text-(--ide-text-muted)">{t("agent.toolReasoning", { count: reasoningTokens })}</p>
       ) : null}
       {running && progress > 0 ? (
-        <div className="agent-progress" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
+        <div
+          className="agent-progress"
+          role="progressbar"
+          aria-valuenow={progress}
+          aria-valuemin={0}
+          aria-valuemax={100}
+        >
           <span style={{ width: `${progress}%` }} />
         </div>
       ) : null}
@@ -338,7 +348,12 @@ function ImageCard({
   const open = () => (onOpenVersion ? onOpenVersion(imageId) : onOpenImage(url));
   return (
     <li className={`agent-image-card ml-8 ${isTurnaround ? "" : "max-w-60"}`}>
-      <button className="block w-full" onClick={open} title={onOpenVersion ? t("agent.openInEditor") : t("agent.openImage")} type="button">
+      <button
+        className="block w-full"
+        onClick={open}
+        title={onOpenVersion ? t("agent.openInEditor") : t("agent.openImage")}
+        type="button"
+      >
         <img
           alt={t(`workspace.roles.${role}`)}
           className="block w-full"

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
-import { subscribeToEvents, type AgentEvent } from "./agentApi";
+import { type AgentEvent, subscribeToEvents } from "./agentApi";
 import { ChatTimeline } from "./ChatTimeline";
 
 afterEach(() => {

@@ -1,11 +1,15 @@
+import { IconTrash } from "@tabler/icons-react";
 import type { PointerEvent } from "react";
 import { useTranslation } from "react-i18next";
-import { IconTrash } from "@tabler/icons-react";
-import {
-  getManualLandmarkPoint,
-  resolveBrowLandmarks,
-  type EyeRegion, type LandmarkPoint, type ManualLandmarkKey, type ManualLandmarks } from "../deformation/landmarks";
 import { translateLiteralString } from "../../../i18n/literalTranslations";
+import {
+  type EyeRegion,
+  getManualLandmarkPoint,
+  type LandmarkPoint,
+  type ManualLandmarkKey,
+  type ManualLandmarks,
+  resolveBrowLandmarks,
+} from "../deformation/landmarks";
 import type { AnnotationMark, DetailRegion, LiquifyStroke } from "../deformation/recipe";
 
 export type AnnotationLayerProps = {
@@ -138,7 +142,9 @@ export function AnnotationLayer({
   if (!visible) return null;
 
   const stageTestId = showLandmarks ? "landmark-stage" : showLiquifyStrokes ? "liquify-stage" : "annotation-stage";
-  const visibleLiquifyStrokes = showLiquifyStrokes ? liquifyStrokes.filter((stroke) => stroke.mode === "scale").slice(-1) : [];
+  const visibleLiquifyStrokes = showLiquifyStrokes
+    ? liquifyStrokes.filter((stroke) => stroke.mode === "scale").slice(-1)
+    : [];
   const visibleLiquifyStartIndex = Math.max(0, liquifyStrokes.indexOf(visibleLiquifyStrokes[0]));
 
   return (
@@ -307,12 +313,14 @@ export function AnnotationLayer({
                 }}
               />
               {selected
-                ? ([
-                    ["nw", rectLeft, rectTop],
-                    ["ne", rectLeft + rectWidth, rectTop],
-                    ["sw", rectLeft, rectTop + rectHeight],
-                    ["se", rectLeft + rectWidth, rectTop + rectHeight],
-                  ] as const).map(([handle, x, y]) => (
+                ? (
+                    [
+                      ["nw", rectLeft, rectTop],
+                      ["ne", rectLeft + rectWidth, rectTop],
+                      ["sw", rectLeft, rectTop + rectHeight],
+                      ["se", rectLeft + rectWidth, rectTop + rectHeight],
+                    ] as const
+                  ).map(([handle, x, y]) => (
                     <div
                       data-testid={`annotation-handle-${annotation.id}-${handle}`}
                       key={handle}
@@ -503,10 +511,12 @@ export function AnnotationLayer({
         : null}
 
       {showLandmarks && landmarks?.eyeRegions
-        ? ([
-            ["left", landmarks.leftEye, scaledEyeRegion(landmarks.eyeRegions.left, eyeRegionScale)],
-            ["right", landmarks.rightEye, scaledEyeRegion(landmarks.eyeRegions.right, eyeRegionScale)],
-          ] as const).map(([side, center, region]) => {
+        ? (
+            [
+              ["left", landmarks.leftEye, scaledEyeRegion(landmarks.eyeRegions.left, eyeRegionScale)],
+              ["right", landmarks.rightEye, scaledEyeRegion(landmarks.eyeRegions.right, eyeRegionScale)],
+            ] as const
+          ).map(([side, center, region]) => {
             if (!region) return null;
             const regionRadiusY = Math.max(region.radiusTopY, region.radiusBottomY);
 
@@ -547,7 +557,9 @@ export function AnnotationLayer({
                     <polyline
                       fill="none"
                       key={index}
-                      points={[brow.inner, brow.peak, brow.outer].map((point) => `${point.x * 100},${point.y * 100}`).join(" ")}
+                      points={[brow.inner, brow.peak, brow.outer]
+                        .map((point) => `${point.x * 100},${point.y * 100}`)
+                        .join(" ")}
                       stroke="rgba(52, 211, 153, 0.85)"
                       strokeWidth={2}
                       vectorEffect="non-scaling-stroke"
@@ -757,4 +769,3 @@ export function AnnotationLayer({
     </div>
   );
 }
-

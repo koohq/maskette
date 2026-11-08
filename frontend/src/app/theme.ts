@@ -82,12 +82,18 @@ export function createKigTheme(mode: ThemeMode): Theme {
         styleOverrides: { root: { borderRadius: 6, minWidth: 0, whiteSpace: "nowrap" } },
       },
       MuiIconButton: {
-        styleOverrides: { root: { borderRadius: 6, color: p.textMuted, "&:hover": { backgroundColor: p.hover, color: p.text } } },
+        styleOverrides: {
+          root: { borderRadius: 6, color: p.textMuted, "&:hover": { backgroundColor: p.hover, color: p.text } },
+        },
       },
       MuiPaper: { styleOverrides: { root: { backgroundImage: "none" } } },
       MuiMenu: {
         styleOverrides: {
-          paper: { backgroundColor: p.panelRaised, border: `1px solid ${p.border}`, boxShadow: "0 8px 24px rgba(0,0,0,0.28)" },
+          paper: {
+            backgroundColor: p.panelRaised,
+            border: `1px solid ${p.border}`,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.28)",
+          },
         },
       },
       MuiSlider: {

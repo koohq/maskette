@@ -62,7 +62,9 @@ describe("ProjectsPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "删除项目" }).at(-1)!);
 
     await waitFor(() => expect(screen.queryByText("黑双马尾")).toBeNull());
-    expect(fetchMock.mock.calls.some(([url, init]) => url === "/api/agent/conversations/p1" && init?.method === "DELETE")).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([url, init]) => url === "/api/agent/conversations/p1" && init?.method === "DELETE"),
+    ).toBe(true);
     expect(nativeConfirm).not.toHaveBeenCalled();
   });
 
@@ -113,7 +115,10 @@ describe("ProjectsPage", () => {
   });
 
   it("offers the .vkp export in the project menu and an import button", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => json([project])));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json([project])),
+    );
     renderPage();
 
     expect(screen.getByRole("button", { name: "导入项目" })).toBeTruthy();
@@ -145,6 +150,8 @@ describe("ProjectsPage", () => {
       target: { files: [new File(["bundle"], "project.vkp", { type: "application/zip" })] },
     });
 
-    await waitFor(() => expect(fetchMock.mock.calls.some(([url]) => url === "/api/agent/conversations/import")).toBe(true));
+    await waitFor(() =>
+      expect(fetchMock.mock.calls.some(([url]) => url === "/api/agent/conversations/import")).toBe(true),
+    );
   });
 });

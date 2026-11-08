@@ -6,5 +6,10 @@
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
   "javascript": { "formatter": { "quoteStyle": "double" } },
+  // index.css uses Tailwind 4 at-rules (@import "tailwindcss", @theme, @custom-variant).
+  "css": { "parser": { "tailwindDirectives": true } },
+  // The docs are Japanese prose that several sessions edit by hand; padding every table
+  // cell to the widest one turns each one-word edit into a whole-table diff.
+  "markdown": { "formatter": { "enabled": false } },
   "linter": { "enabled": true, "rules": { "recommended": true } }
 }

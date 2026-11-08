@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  type DetectedPoint,
   decodeHrnetHeatmaps,
   expandFaceBox,
   mapAnimePointsToManualLandmarks,
   normalizeAnimeDetailPoints,
-  type DetectedPoint,
 } from "./animeLandmarkMapping";
 
 describe("anime landmark mapping", () => {
@@ -88,7 +88,13 @@ describe("anime landmark mapping", () => {
   it("orders each brow from the face center outward and pairs it with the nearer eye", () => {
     const points = faceWithBrows();
     // Swap the detector brow groups: assignment must follow the eyes, not the index order.
-    [[5, 8], [6, 9], [7, 10]].forEach(([a, b]) => { [points[a], points[b]] = [points[b], points[a]]; });
+    [
+      [5, 8],
+      [6, 9],
+      [7, 10],
+    ].forEach(([a, b]) => {
+      [points[a], points[b]] = [points[b], points[a]];
+    });
 
     const brows = mapAnimePointsToManualLandmarks(points, 1000, 1000)?.brows;
 

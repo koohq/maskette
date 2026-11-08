@@ -1,5 +1,5 @@
-import { Box, Button, Group, Stack, Switch } from "../../../ui/mui";
 import { useState } from "react";
+import { Box, Button, Group, Stack, Switch } from "../../../ui/mui";
 import type { BrowControlKey, EditRecipe } from "../deformation/recipe";
 import { browControlRanges } from "../deformation/recipe";
 import { ParameterSlider } from "./ParameterSlider";

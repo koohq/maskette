@@ -1,4 +1,4 @@
-import { useState, type FormEvent, type ReactNode } from "react";
+import { type FormEvent, type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 /**
@@ -128,7 +128,11 @@ function DialogShell({
           <button className="ide-button" disabled={busy} onClick={onCancel} type="button">
             {t("workspace.cancel")}
           </button>
-          <button className={`ide-button ${danger ? "ide-button-danger" : "ide-button-primary"}`} disabled={busy || disabled} type="submit">
+          <button
+            className={`ide-button ${danger ? "ide-button-danger" : "ide-button-primary"}`}
+            disabled={busy || disabled}
+            type="submit"
+          >
             {confirmLabel}
           </button>
         </div>

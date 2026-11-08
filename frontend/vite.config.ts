@@ -18,7 +18,11 @@ function shouldLongCache(pathname = "") {
 }
 
 function staticCacheHeadersPlugin(): Plugin {
-  const middleware = (request: { url?: string }, response: { setHeader: (name: string, value: string) => void }, next: () => void) => {
+  const middleware = (
+    request: { url?: string },
+    response: { setHeader: (name: string, value: string) => void },
+    next: () => void,
+  ) => {
     if (shouldLongCache(request.url?.split("?")[0] ?? "")) {
       response.setHeader("Cache-Control", immutableCacheHeader);
     }
@@ -77,7 +81,11 @@ function devApiProxyPlugin(): Plugin {
         }
         const upstream = httpRequest(
           {
-            headers: { ...request.headers, authorization: `Bearer ${backend.token}`, host: `127.0.0.1:${backend.port}` },
+            headers: {
+              ...request.headers,
+              authorization: `Bearer ${backend.token}`,
+              host: `127.0.0.1:${backend.port}`,
+            },
             hostname: "127.0.0.1",
             method: request.method,
             path: url,
@@ -115,4 +123,3 @@ export default defineConfig({
     headers: crossOriginIsolationHeaders,
   },
 });
-

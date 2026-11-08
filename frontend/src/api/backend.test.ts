@@ -60,7 +60,10 @@ describe("with the injected backend (Maskette window)", () => {
     expect(resolved).toEqual({
       count: 2,
       items: [
-        { image_url: `http://127.0.0.1:4321/api/generated/a.png?${TOKEN_QUERY_PARAM}=test-token`, note: "keeps /api/ in prose" },
+        {
+          image_url: `http://127.0.0.1:4321/api/generated/a.png?${TOKEN_QUERY_PARAM}=test-token`,
+          note: "keeps /api/ in prose",
+        },
         { image_url: null },
       ],
       title: "/apiary",

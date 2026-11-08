@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { buildCumulativeUserTrend, buildDailyCallTrend } from "./AuditOverviewCharts";
 import type { AuditGenerationJob } from "../api/client";
+import { buildCumulativeUserTrend, buildDailyCallTrend } from "./AuditOverviewCharts";
 
 function job(partial: Partial<AuditGenerationJob> & Pick<AuditGenerationJob, "id">): AuditGenerationJob {
   return {

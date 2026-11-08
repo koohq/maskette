@@ -1,17 +1,22 @@
 import { validImageCoordinates } from "../core/imageCoordinates";
-import { browMaxSupport, createBrowMeshTransforms, getBrowDisplacement, type BrowMeshTransform } from "./browDeformation";
+import {
+  type BrowMeshTransform,
+  browMaxSupport,
+  createBrowMeshTransforms,
+  getBrowDisplacement,
+} from "./browDeformation";
 import {
   createFaceShapeDeformer,
   createFaceShapeTransform,
   createFeatureProtectionZones,
   createProportionStrokes,
-  getFeatureProtection,
   type FaceShapeTransform,
   type FeatureProtectionZone,
+  getFeatureProtection,
 } from "./faceDeformation";
 import { flatFalloff, peakedFalloff, peakedRamp } from "./falloff";
 import { createDefaultLandmarks, type ManualLandmarks } from "./landmarks";
-import { eyeControlRanges, mouthControlRanges, type EditRecipe, type LiquifyMode, type LiquifyStroke } from "./recipe";
+import { type EditRecipe, eyeControlRanges, type LiquifyMode, type LiquifyStroke, mouthControlRanges } from "./recipe";
 
 type PixiModule = typeof import("pixi.js");
 
@@ -148,7 +153,12 @@ const eyeTailSupportX = 0.34;
 const eyeTailSupportY = 1;
 const eyeLidSupportX = 1.15;
 const eyeLidSupportY = 1.6;
-const eyeMaxSupportX = Math.max(eyeScaleSupport, eyeShiftInnerSupport, eyeTailCornerX + eyeTailSupportX, eyeLidSupportX);
+const eyeMaxSupportX = Math.max(
+  eyeScaleSupport,
+  eyeShiftInnerSupport,
+  eyeTailCornerX + eyeTailSupportX,
+  eyeLidSupportX,
+);
 const eyeMaxSupportY = Math.max(eyeScaleSupport, eyeShiftTopSupport, eyeLidSupportY);
 // Amplitudes at the stored control limits, kept below the mesh fold-over limit of each profile.
 const maxEyeBulge = 0.54;
@@ -183,7 +193,7 @@ function scaleEyeRegionRadius(value: number, multiplier: number) {
 }
 
 export function getDisplacementTextureRadius(radius: number) {
-  return round(clamp(radius / canonicalPreviewSize * displacementTextureSize, 4, 60));
+  return round(clamp((radius / canonicalPreviewSize) * displacementTextureSize, 4, 60));
 }
 
 export function calculateDisplacementPixel(
@@ -239,7 +249,7 @@ function modeVector(mode: LiquifyMode) {
 }
 
 function getStrokeAxisWeight(stroke: LiquifyStroke) {
-  const weight = Math.abs(clamp(stroke.strength, -1, 1)) * clamp(stroke.radius, 0, 240) / 120;
+  const weight = (Math.abs(clamp(stroke.strength, -1, 1)) * clamp(stroke.radius, 0, 240)) / 120;
 
   if (stroke.mode === "expand" || stroke.mode === "shrink") {
     return { x: weight, y: weight, intensity: weight };
@@ -257,7 +267,7 @@ function getStrokeAxisWeight(stroke: LiquifyStroke) {
   }
 
   if (stroke.mode === "scale") {
-    const scaleWeight = Math.abs(clamp(stroke.scale ?? 0, -1, 1)) * clamp(stroke.radius, 0, 240) / 120;
+    const scaleWeight = (Math.abs(clamp(stroke.scale ?? 0, -1, 1)) * clamp(stroke.radius, 0, 240)) / 120;
 
     return { x: scaleWeight, y: scaleWeight, intensity: scaleWeight };
   }
@@ -314,7 +324,11 @@ export function calculateRecipePreview(recipe: EditRecipe, options: RecipePrevie
   );
   const eyeTransformVector = eyeMeshTransforms.reduce(
     (accumulator, transform) => {
-      const scaleX = Math.max(Math.abs(transform.scaleX - 1), Math.abs(transform.stretchX), Math.abs(transform.irisScale));
+      const scaleX = Math.max(
+        Math.abs(transform.scaleX - 1),
+        Math.abs(transform.stretchX),
+        Math.abs(transform.irisScale),
+      );
       const scaleY = Math.max(Math.abs(transform.scaleY - 1), Math.abs(transform.irisScale));
       const rotation = Math.abs(transform.rotation);
       const shiftX = Math.abs(transform.shiftX);
@@ -338,7 +352,11 @@ export function calculateRecipePreview(recipe: EditRecipe, options: RecipePrevie
     (accumulator, band) => {
       const x = Math.max(...band.inward.map(Math.abs)) * 20;
       const y = Math.max(...band.up.map(Math.abs)) * 20;
-      return { x: Math.max(accumulator.x, x), y: Math.max(accumulator.y, y), intensity: Math.max(accumulator.intensity, x, y) };
+      return {
+        x: Math.max(accumulator.x, x),
+        y: Math.max(accumulator.y, y),
+        intensity: Math.max(accumulator.intensity, x, y),
+      };
     },
     { x: 0, y: 0, intensity: 0 },
   );
@@ -378,8 +396,24 @@ export function calculateRecipePreview(recipe: EditRecipe, options: RecipePrevie
     browMeshTransforms,
     detailRegionCount: 0,
     displacementScale: {
-      x: scaleAxisWeight(Math.max(liquifyVector.x, faceShapeVector.x, eyeTransformVector.x, browTransformVector.x, mouthTransformVector.x)),
-      y: scaleAxisWeight(Math.max(liquifyVector.y, faceShapeVector.y, eyeTransformVector.y, browTransformVector.y, mouthTransformVector.y)),
+      x: scaleAxisWeight(
+        Math.max(
+          liquifyVector.x,
+          faceShapeVector.x,
+          eyeTransformVector.x,
+          browTransformVector.x,
+          mouthTransformVector.x,
+        ),
+      ),
+      y: scaleAxisWeight(
+        Math.max(
+          liquifyVector.y,
+          faceShapeVector.y,
+          eyeTransformVector.y,
+          browTransformVector.y,
+          mouthTransformVector.y,
+        ),
+      ),
     },
     eyeMeshTransforms,
     eyeOffset: { x: 0, y: 0 },
@@ -394,13 +428,15 @@ export function calculateRecipePreview(recipe: EditRecipe, options: RecipePrevie
     imageScale: { x: 1, y: 1 },
     imageSkew: { x: 0, y: 0 },
     jawScale: { x: 1, y: 1 },
-    liquifyIntensity: round(Math.max(
-      liquifyVector.intensity,
-      faceShapeVector.intensity,
-      eyeTransformVector.intensity,
-      browTransformVector.intensity,
-      mouthTransformVector.intensity,
-    )),
+    liquifyIntensity: round(
+      Math.max(
+        liquifyVector.intensity,
+        faceShapeVector.intensity,
+        eyeTransformVector.intensity,
+        browTransformVector.intensity,
+        mouthTransformVector.intensity,
+      ),
+    ),
     manualStrokeCount: recipe.liquify.length,
     mouthMeshTransforms,
     mouthTransformCount: mouthMeshTransforms.length,
@@ -426,8 +462,18 @@ export function createEyeMeshTransforms(recipe: EditRecipe, landmarks: ManualLan
   const tailLift = round(clamp(eyes.eyeTailLift, -1, 1) * eyeTailLiftAmplitude);
   const upperLid = round(clamp(eyes.eyeUpperLid, -1, 1) * eyeLidAmplitude);
   const lowerLid = round(clamp(eyes.eyeLowerLid, -1, 1) * eyeLidAmplitude);
-  const hasTransform = [scaleX - 1, scaleY - 1, stretchX, shiftX, shiftY, rotationMagnitude, irisScale, tailLift, upperLid, lowerLid]
-    .some((value) => Math.abs(value) >= 0.001);
+  const hasTransform = [
+    scaleX - 1,
+    scaleY - 1,
+    stretchX,
+    shiftX,
+    shiftY,
+    rotationMagnitude,
+    irisScale,
+    tailLift,
+    upperLid,
+    lowerLid,
+  ].some((value) => Math.abs(value) >= 0.001);
 
   if (!hasTransform) return [];
 
@@ -442,9 +488,15 @@ export function createEyeMeshTransforms(recipe: EditRecipe, landmarks: ManualLan
       centerX: center.x,
       centerY: center.y,
       outwardSign,
-      radiusBottomY: scaleEyeRegionRadius(region?.radiusBottomY ?? region?.radiusY ?? defaultEyePatchRadiusBottomY, eyeRegionScale),
+      radiusBottomY: scaleEyeRegionRadius(
+        region?.radiusBottomY ?? region?.radiusY ?? defaultEyePatchRadiusBottomY,
+        eyeRegionScale,
+      ),
       radiusX: scaleEyeRegionRadius(region?.radiusX ?? defaultEyePatchRadiusX, eyeRegionScale),
-      radiusTopY: scaleEyeRegionRadius(region?.radiusTopY ?? region?.radiusY ?? defaultEyePatchRadiusTopY, eyeRegionScale),
+      radiusTopY: scaleEyeRegionRadius(
+        region?.radiusTopY ?? region?.radiusY ?? defaultEyePatchRadiusTopY,
+        eyeRegionScale,
+      ),
       radiusY: scaleEyeRegionRadius(region?.radiusY ?? defaultEyePatchRadiusY, eyeRegionScale),
       // Positive tilt lifts the outer corners, like the outer corner lift.
       rotation: round(-outwardSign * rotationMagnitude),
@@ -555,12 +607,22 @@ export function createMouthMeshTransforms(recipe: EditRecipe, landmarks: ManualL
   const eyeDistance = Math.abs(landmarks.rightEye.x - landmarks.leftEye.x);
   const faceHeight = Math.abs(landmarks.chin.y - (landmarks.leftEye.y + landmarks.rightEye.y) / 2);
   // The patch must stay inside the face: scaling or moving it would otherwise drag the jaw line and chin, changing the face shape.
-  const jawReach = Math.min(landmarks.mouthCenter.x - landmarks.jawLeft.x, landmarks.jawRight.x - landmarks.mouthCenter.x);
+  const jawReach = Math.min(
+    landmarks.mouthCenter.x - landmarks.jawLeft.x,
+    landmarks.jawRight.x - landmarks.mouthCenter.x,
+  );
   const chinReach = landmarks.chin.y - landmarks.mouthCenter.y;
   const maxRadiusX = jawReach > 0 ? jawReach * mouthPatchFaceShare : Number.POSITIVE_INFINITY;
   const maxRadiusY = chinReach > 0 ? chinReach * mouthPatchFaceShare : Number.POSITIVE_INFINITY;
-  const radiusX = round(Math.min(clamp(Math.max(mouthWidthFromLandmarks * 2.15, eyeDistance * 0.2, defaultMouthPatchRadiusX), 0.035, 0.2), maxRadiusX));
-  const radiusY = round(Math.min(clamp(Math.max(faceHeight * 0.14, defaultMouthPatchRadiusY), 0.025, 0.12), maxRadiusY));
+  const radiusX = round(
+    Math.min(
+      clamp(Math.max(mouthWidthFromLandmarks * 2.15, eyeDistance * 0.2, defaultMouthPatchRadiusX), 0.035, 0.2),
+      maxRadiusX,
+    ),
+  );
+  const radiusY = round(
+    Math.min(clamp(Math.max(faceHeight * 0.14, defaultMouthPatchRadiusY), 0.025, 0.12), maxRadiusY),
+  );
 
   return [
     {
@@ -665,27 +727,27 @@ async function createPixiStage(host: HTMLDivElement, pixi: PixiModule): Promise<
   return {
     setImageUrl(url: string) {
       imageReady = (async () => {
-      const loadToken = imageLoadToken + 1;
-      imageLoadToken = loadToken;
-      const texture = await loadPixiTexture(pixi, url);
-      if (isDestroyed || loadToken !== imageLoadToken) return;
+        const loadToken = imageLoadToken + 1;
+        imageLoadToken = loadToken;
+        const texture = await loadPixiTexture(pixi, url);
+        if (isDestroyed || loadToken !== imageLoadToken) return;
 
-      imageContainer.removeChildren();
-      imageMesh = new MeshPlane({
-        texture,
-        verticesX: meshVerticesX,
-        verticesY: meshVerticesY,
-      });
-      imageMesh.autoResize = false;
-      baseMeshPositions = imageMesh.geometry.positions.slice();
-      imageContainer.addChild(imageMesh);
-      resizePixiAppToHost(app, host);
-      fitImageToStage(app, imageMesh);
+        imageContainer.removeChildren();
+        imageMesh = new MeshPlane({
+          texture,
+          verticesX: meshVerticesX,
+          verticesY: meshVerticesY,
+        });
+        imageMesh.autoResize = false;
+        baseMeshPositions = imageMesh.geometry.positions.slice();
+        imageContainer.addChild(imageMesh);
+        resizePixiAppToHost(app, host);
+        fitImageToStage(app, imageMesh);
 
-      if (currentRecipe) {
-      applyPreview(app, imageContainer, imageMesh, baseMeshPositions, currentRecipe);
-      }
-      app.render();
+        if (currentRecipe) {
+          applyPreview(app, imageContainer, imageMesh, baseMeshPositions, currentRecipe);
+        }
+        app.render();
       })();
       return imageReady;
     },
@@ -792,7 +854,10 @@ function fitImageToStage(
 }
 
 function applyPreview(
-  app: { canvas?: HTMLCanvasElement; renderer: { height: number; width: number; screen?: { width: number; height: number } } },
+  app: {
+    canvas?: HTMLCanvasElement;
+    renderer: { height: number; width: number; screen?: { width: number; height: number } };
+  },
   imageContainer: {
     position: { set(x: number, y: number): void };
     scale: { set(x: number, y: number): void };
@@ -808,24 +873,20 @@ function applyPreview(
 ): RecipePreview {
   const preview = calculateRecipePreview(recipe);
   const coordinates = recipe.imageCoordinates;
-  if (coordinates && (!validImageCoordinates(coordinates) || (imageMesh &&
-      (coordinates.width !== imageMesh.texture.width || coordinates.height !== imageMesh.texture.height)))) {
+  if (
+    coordinates &&
+    (!validImageCoordinates(coordinates) ||
+      (imageMesh && (coordinates.width !== imageMesh.texture.width || coordinates.height !== imageMesh.texture.height)))
+  ) {
     throw new Error("Recipe image coordinates do not match the source");
   }
 
-  imageContainer.position.set(
-    preview.imageOffset.x + preview.eyeOffset.x,
-    preview.imageOffset.y + preview.eyeOffset.y,
-  );
-  imageContainer.scale.set(
-    preview.imageScale.x * preview.eyeScale.x,
-    preview.imageScale.y * preview.eyeScale.y,
-  );
+  imageContainer.position.set(preview.imageOffset.x + preview.eyeOffset.x, preview.imageOffset.y + preview.eyeOffset.y);
+  imageContainer.scale.set(preview.imageScale.x * preview.eyeScale.x, preview.imageScale.y * preview.eyeScale.y);
   imageContainer.skew.set(preview.imageSkew.x + preview.eyeSkew, preview.imageSkew.y);
 
-  const toImagePixels = (strokes: readonly LiquifyStroke[]) => coordinates
-    ? strokes.map(stroke => ({ ...stroke, radius: stroke.radius * coordinates.effectScale }))
-    : strokes;
+  const toImagePixels = (strokes: readonly LiquifyStroke[]) =>
+    coordinates ? strokes.map((stroke) => ({ ...stroke, radius: stroke.radius * coordinates.effectScale })) : strokes;
 
   applyMeshDeformation(
     app,
@@ -849,7 +910,10 @@ function applyPreview(
   return preview;
 }
 
-function getRendererPixelRatio(app: { canvas?: HTMLCanvasElement; renderer: { height: number; width: number; screen?: { width: number; height: number } } }) {
+function getRendererPixelRatio(app: {
+  canvas?: HTMLCanvasElement;
+  renderer: { height: number; width: number; screen?: { width: number; height: number } };
+}) {
   if (app.renderer.screen) return 1;
   const rect = app.canvas?.getBoundingClientRect();
   if (rect?.width && rect.height) {
@@ -859,13 +923,7 @@ function getRendererPixelRatio(app: { canvas?: HTMLCanvasElement; renderer: { he
   return typeof window === "undefined" ? 1 : window.devicePixelRatio || 1;
 }
 
-function getStrokeVector(
-  stroke: LiquifyStroke,
-  deltaX: number,
-  deltaY: number,
-  distance: number,
-  radius: number,
-) {
+function getStrokeVector(stroke: LiquifyStroke, deltaX: number, deltaY: number, distance: number, radius: number) {
   if (stroke.mode === "warp") {
     return getWarpStrokeVector(stroke);
   }
@@ -902,8 +960,8 @@ function getWarpStrokeVector(stroke: LiquifyStroke) {
   const visibleDistance = clamp(distance / 0.12, 0, 1);
 
   return {
-    x: deltaX / distance * visibleDistance,
-    y: deltaY / distance * visibleDistance,
+    x: (deltaX / distance) * visibleDistance,
+    y: (deltaY / distance) * visibleDistance,
   };
 }
 
@@ -955,8 +1013,13 @@ export type MeshDeformationInput = {
 /** Maps a display-pixel point to its display-pixel offset, or returns null when nothing deforms. */
 export function createMeshDeformer(input: MeshDeformationInput) {
   const { textureWidth, textureHeight, fitScale, pixelRatio } = input;
-  if (!input.faceShape && input.strokes.length === 0 && input.eyeTransforms.length === 0 &&
-      input.browTransforms.length === 0 && input.mouthTransforms.length === 0) {
+  if (
+    !input.faceShape &&
+    input.strokes.length === 0 &&
+    input.eyeTransforms.length === 0 &&
+    input.browTransforms.length === 0 &&
+    input.mouthTransforms.length === 0
+  ) {
     return null;
   }
 
@@ -1060,10 +1123,21 @@ export function createMeshDeformer(input: MeshDeformationInput) {
     for (const eye of eyes) {
       const localX = displayX + offsetX - eye.centerX;
       const localY = displayY + offsetY - eye.centerY;
-      if (Math.abs(localX) > eye.radiusX * eyeMaxSupportX ||
-          localY < -eye.radiusTopY * eyeMaxSupportY || localY > eye.radiusBottomY * eyeMaxSupportY) continue;
+      if (
+        Math.abs(localX) > eye.radiusX * eyeMaxSupportX ||
+        localY < -eye.radiusTopY * eyeMaxSupportY ||
+        localY > eye.radiusBottomY * eyeMaxSupportY
+      )
+        continue;
 
-      const displacement = getEyeDisplacement(eye.transform, localX, localY, eye.radiusX, eye.radiusTopY, eye.radiusBottomY);
+      const displacement = getEyeDisplacement(
+        eye.transform,
+        localX,
+        localY,
+        eye.radiusX,
+        eye.radiusTopY,
+        eye.radiusBottomY,
+      );
       offsetX += displacement.x;
       offsetY += displacement.y;
     }
@@ -1100,14 +1174,20 @@ export function createMeshDeformer(input: MeshDeformationInput) {
 }
 
 function applyMeshDeformation(
-  app: { canvas?: HTMLCanvasElement; renderer: { height: number; width: number; screen?: { width: number; height: number } } },
+  app: {
+    canvas?: HTMLCanvasElement;
+    renderer: { height: number; width: number; screen?: { width: number; height: number } };
+  },
   imageMesh: {
     geometry: { positions: Float32Array };
     scale: { x: number; y: number };
     texture: { height: number; width: number };
   } | null,
   baseMeshPositions: Float32Array | null,
-  deformation: Omit<MeshDeformationInput, "fitScale" | "pixelRatio" | "strokeRadiiInImagePixels" | "textureHeight" | "textureWidth">,
+  deformation: Omit<
+    MeshDeformationInput,
+    "fitScale" | "pixelRatio" | "strokeRadiiInImagePixels" | "textureHeight" | "textureWidth"
+  >,
   imageEffectScale?: number,
 ) {
   if (!imageMesh || !baseMeshPositions) return;

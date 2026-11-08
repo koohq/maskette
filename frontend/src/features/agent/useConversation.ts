@@ -1,11 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  applyEvent,
-  getConversation,
-  subscribeToEvents,
-  type AgentEvent,
-  type Conversation,
-} from "./agentApi";
+import { type AgentEvent, applyEvent, type Conversation, getConversation, subscribeToEvents } from "./agentApi";
 
 /** While a run is in progress, re-read the snapshot this often in case a live event was missed. */
 const RUNNING_POLL_MS = 8000;
@@ -60,7 +54,8 @@ export function useConversation(conversationId: string | null) {
               setRunning(event.status === "running");
               if (event.status !== "running") void refresh();
             }
-            if (event.type === "image" || event.type === "front_approved" || event.type === "design_approved") void refresh();
+            if (event.type === "image" || event.type === "front_approved" || event.type === "design_approved")
+              void refresh();
           },
           () => void refresh().catch(() => undefined),
         );

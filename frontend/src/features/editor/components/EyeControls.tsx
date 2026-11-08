@@ -1,5 +1,5 @@
-import { Box, Button, Group, Stack, Switch } from "../../../ui/mui";
 import { useState } from "react";
+import { Box, Button, Group, Stack, Switch } from "../../../ui/mui";
 import type { EditRecipe, EyeControlKey } from "../deformation/recipe";
 import { defaultEyeControlValues, eyeControlRanges } from "../deformation/recipe";
 import { ParameterSlider } from "./ParameterSlider";
@@ -153,7 +153,11 @@ function EyeControlSlider({
       precision={2}
       step={0.01}
       value={toDisplayValue(values[control.key], control, expandedRangeEnabled)}
-      debugValueFormatter={debugValues ? (value) => formatRealValue(toActualValue(value, control, expandedRangeEnabled), control) : undefined}
+      debugValueFormatter={
+        debugValues
+          ? (value) => formatRealValue(toActualValue(value, control, expandedRangeEnabled), control)
+          : undefined
+      }
       onChange={(value) => onChange(control.key, toActualValue(value, control, expandedRangeEnabled))}
       onInteractionEnd={onSliderInteractionEnd}
       onInteractionStart={() => onSliderInteractionStart?.(control.key)}

@@ -1,7 +1,7 @@
 import { IconLanguage } from "@tabler/icons-react";
-import { useId, useState, type MouseEvent } from "react";
+import { type MouseEvent, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { normalizeLocale, SUPPORTED_LOCALES, writeStoredLocale, type AppLocale } from "../../i18n/locales";
+import { type AppLocale, normalizeLocale, SUPPORTED_LOCALES, writeStoredLocale } from "../../i18n/locales";
 import { Button, Menu, MenuItem } from "../../ui/mui";
 
 export function LanguageSelector({ compact = false }: { compact?: boolean }) {
@@ -38,12 +38,7 @@ export function LanguageSelector({ compact = false }: { compact?: boolean }) {
       >
         {currentLabel}
       </Button>
-      <Menu
-        anchorEl={anchorEl}
-        open={isOpen}
-        onClose={() => setAnchorEl(null)}
-        slotProps={{ list: { id: menuId } }}
-      >
+      <Menu anchorEl={anchorEl} open={isOpen} onClose={() => setAnchorEl(null)} slotProps={{ list: { id: menuId } }}>
         {SUPPORTED_LOCALES.map((locale) => (
           <MenuItem
             key={locale.value}

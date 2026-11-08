@@ -1,7 +1,7 @@
 import { CssBaseline } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import "../i18n";
 import { createKigTheme, readStoredThemeMode, THEME_STORAGE_KEY, type ThemeMode } from "./theme";
 

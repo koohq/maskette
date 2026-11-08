@@ -1,5 +1,5 @@
 import { flatFalloff, peakedFalloff } from "./falloff";
-import { resolveBrowLandmarks, type BrowLandmark, type ManualLandmarks } from "./landmarks";
+import { type BrowLandmark, type ManualLandmarks, resolveBrowLandmarks } from "./landmarks";
 import type { EditRecipe } from "./recipe";
 
 /**
@@ -64,9 +64,11 @@ export function createBrowMeshTransforms(recipe: EditRecipe, landmarks: ManualLa
   const { brows } = recipe;
   const values = {
     vertical: round(clampUnit(brows.browVertical) * browVerticalAmplitude),
-    thickness: round(brows.browThickness >= 0
-      ? clampUnit(brows.browThickness) * browThicknessGrow
-      : clampUnit(brows.browThickness) * browThicknessShrink),
+    thickness: round(
+      brows.browThickness >= 0
+        ? clampUnit(brows.browThickness) * browThicknessGrow
+        : clampUnit(brows.browThickness) * browThicknessShrink,
+    ),
     length: round(clampUnit(brows.browLength) * browLengthAmplitude),
     spacing: round(clampUnit(brows.browSpacing) * browSpacingAmplitude),
     headSpacing: round(clampUnit(brows.browHeadSpacing) * browHeadSpacingAmplitude),
@@ -127,7 +129,8 @@ export function getBrowDisplacement(transform: BrowMeshTransform, geometry: Brow
   let offsetX = 0;
   let offsetY = 0;
 
-  const moveWeight = flatFalloff(Math.abs(along) / browMoveAlongSupport) * flatFalloff(Math.abs(across) / browMoveAcrossSupport);
+  const moveWeight =
+    flatFalloff(Math.abs(along) / browMoveAlongSupport) * flatFalloff(Math.abs(across) / browMoveAcrossSupport);
   offsetY -= transform.vertical * halfLength * moveWeight;
 
   // Spacing follows the reference: the inner end moves fully and the tail stays nearly in place.
@@ -143,17 +146,22 @@ export function getBrowDisplacement(transform: BrowMeshTransform, geometry: Brow
   offsetY += alongY * transform.length * halfLength * tailWeight;
 
   if (transform.rotation !== 0) {
-    const rotationWeight = flatFalloff(Math.hypot(along / browRotationAlongSupport, across / browRotationAcrossSupport));
+    const rotationWeight = flatFalloff(
+      Math.hypot(along / browRotationAlongSupport, across / browRotationAcrossSupport),
+    );
     const cos = Math.cos(transform.rotation);
     const sin = Math.sin(transform.rotation);
     offsetX += (localX * cos - localY * sin - localX) * rotationWeight;
     offsetY += (localX * sin + localY * cos - localY) * rotationWeight;
   }
 
-  const peakWeight = peakedFalloff(Math.hypot((along - peakAlong) / browPeakAlongSupport, across / browPeakAcrossSupport));
+  const peakWeight = peakedFalloff(
+    Math.hypot((along - peakAlong) / browPeakAlongSupport, across / browPeakAcrossSupport),
+  );
   offsetY -= transform.peakLift * halfLength * peakWeight;
 
-  const thicknessWeight = flatFalloff(Math.abs(along) / browThicknessAlongSupport) *
+  const thicknessWeight =
+    flatFalloff(Math.abs(along) / browThicknessAlongSupport) *
     peakedFalloff(Math.abs(across) / browThicknessAcrossSupport);
   offsetX += acrossX * across * halfLength * transform.thickness * thicknessWeight;
   offsetY += acrossY * across * halfLength * transform.thickness * thicknessWeight;

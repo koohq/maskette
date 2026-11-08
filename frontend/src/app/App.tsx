@@ -1,6 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
-import { ProjectsPage } from "../features/workspace/ProjectsPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
+import { ProjectsPage } from "../features/workspace/ProjectsPage";
 import { WorkspacePage } from "../features/workspace/WorkspacePage";
 import { AdminAuditPage } from "../pages/AdminAuditPage";
 

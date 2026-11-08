@@ -1,4 +1,29 @@
 import {
+  IconArrowLeft,
+  IconChevronRight,
+  IconDeviceFloppy,
+  IconLock,
+  IconLogout,
+  IconPhoto,
+  IconRefresh,
+  IconShieldCheck,
+} from "@tabler/icons-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  ApiError,
+  type AuditGenerationJob,
+  type AuditSummary,
+  getAuditGenerationJobs,
+  getAuditSession,
+  getAuditSummary,
+  loginAudit,
+  logoutAudit,
+  type QuotaPolicy,
+  updateQuotaPolicy,
+} from "../api/client";
+import {
   Alert,
   AppShell,
   Badge,
@@ -7,6 +32,7 @@ import {
   Container,
   Divider,
   Group,
+  Image,
   NumberInput,
   Paper,
   SimpleGrid,
@@ -15,24 +41,7 @@ import {
   Text,
   TextInput,
   Title,
-  Image,
 } from "../ui/mui";
-import { IconArrowLeft, IconChevronRight, IconDeviceFloppy, IconLock, IconLogout, IconPhoto, IconRefresh, IconShieldCheck } from "@tabler/icons-react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  ApiError,
-  getAuditGenerationJobs,
-  getAuditSession,
-  getAuditSummary,
-  loginAudit,
-  logoutAudit,
-  updateQuotaPolicy,
-  type AuditSummary,
-  type AuditGenerationJob,
-  type QuotaPolicy,
-} from "../api/client";
 import { AuditOverviewCharts } from "./AuditOverviewCharts";
 
 const defaultPolicy: QuotaPolicy = {
@@ -135,11 +144,13 @@ function formatAuditJobTitle(job: AuditGenerationJob) {
 }
 
 function getTokenUsage(summary?: AuditSummary | null): TokenUsageSummary {
-  return ((summary as (AuditSummary & { token_usage?: TokenUsageSummary }) | undefined)?.token_usage ?? {}) as TokenUsageSummary;
+  return ((summary as (AuditSummary & { token_usage?: TokenUsageSummary }) | undefined)?.token_usage ??
+    {}) as TokenUsageSummary;
 }
 
 function getImageUsage(summary?: AuditSummary | null): ImageUsageSummary {
-  return ((summary as (AuditSummary & { image_usage?: ImageUsageSummary }) | undefined)?.image_usage ?? {}) as ImageUsageSummary;
+  return ((summary as (AuditSummary & { image_usage?: ImageUsageSummary }) | undefined)?.image_usage ??
+    {}) as ImageUsageSummary;
 }
 
 function loginErrorMessage(error: unknown) {
@@ -164,12 +175,7 @@ function MetricBlock({
   testId?: string;
 }) {
   return (
-    <Paper
-      className="audit-metric-card"
-      data-testid={testId}
-      p="md"
-      radius={0}
-    >
+    <Paper className="audit-metric-card" data-testid={testId} p="md" radius={0}>
       <Text c="var(--kb-concrete-grey)" fw={700} size="sm">
         {label}
       </Text>
@@ -275,47 +281,48 @@ function GenerationJobRecords({
           <SimpleGrid cols={{ base: 1, lg: 2 }} spacing="md">
             <Box className="audit-generation-job-list">
               <Stack gap="sm">
-              {jobs.map((job) => {
-                const selected = selectedJob?.id === job.id;
-                return (
-                  <Paper
-                    key={job.id}
-                    component="button"
-                    data-testid={`audit-generation-job-${job.id}`}
-                    onClick={() => onSelect(job.id)}
-                    p="sm"
-                    radius={0}
-                    style={{
-                      background: selected ? "var(--kb-old-paper-2)" : "var(--kb-panel)",
-                      border: "1px solid var(--kb-line)",
-                      boxShadow: selected ? "var(--kb-hard-shadow-sm)" : "none",
-                      cursor: "pointer",
-                      textAlign: "left",
-                      width: "100%",
-                    }}
-                  >
-                    <Group gap="sm" justify="space-between" wrap="nowrap">
-                      <Stack gap={0.25}>
-                        <Group gap="xs" wrap="wrap">
-                          <Badge color={statusColor(job.status)} variant="light">
-                            {formatAuditJobStatus(job.status)}
-                          </Badge>
-                          <Badge color="cyan" variant="light">
-                            {formatAuditGenerationMode(job.generation_mode)}
-                          </Badge>
-                        </Group>
-                        <Text c="var(--kb-ink)" fw={800} size="sm">
-                          {formatAuditJobTitle(job)}
-                        </Text>
-                        <Text c="var(--kb-concrete-grey)" size="xs">
-                          {formatDateTime(job.updated_at ?? job.created_at)} · 输出 {job.outputs.length} 张 · 参考 {job.references.length} 张
-                        </Text>
-                      </Stack>
-                      <IconChevronRight size={20} />
-                    </Group>
-                  </Paper>
-                );
-              })}
+                {jobs.map((job) => {
+                  const selected = selectedJob?.id === job.id;
+                  return (
+                    <Paper
+                      key={job.id}
+                      component="button"
+                      data-testid={`audit-generation-job-${job.id}`}
+                      onClick={() => onSelect(job.id)}
+                      p="sm"
+                      radius={0}
+                      style={{
+                        background: selected ? "var(--kb-old-paper-2)" : "var(--kb-panel)",
+                        border: "1px solid var(--kb-line)",
+                        boxShadow: selected ? "var(--kb-hard-shadow-sm)" : "none",
+                        cursor: "pointer",
+                        textAlign: "left",
+                        width: "100%",
+                      }}
+                    >
+                      <Group gap="sm" justify="space-between" wrap="nowrap">
+                        <Stack gap={0.25}>
+                          <Group gap="xs" wrap="wrap">
+                            <Badge color={statusColor(job.status)} variant="light">
+                              {formatAuditJobStatus(job.status)}
+                            </Badge>
+                            <Badge color="cyan" variant="light">
+                              {formatAuditGenerationMode(job.generation_mode)}
+                            </Badge>
+                          </Group>
+                          <Text c="var(--kb-ink)" fw={800} size="sm">
+                            {formatAuditJobTitle(job)}
+                          </Text>
+                          <Text c="var(--kb-concrete-grey)" size="xs">
+                            {formatDateTime(job.updated_at ?? job.created_at)} · 输出 {job.outputs.length} 张 · 参考{" "}
+                            {job.references.length} 张
+                          </Text>
+                        </Stack>
+                        <IconChevronRight size={20} />
+                      </Group>
+                    </Paper>
+                  );
+                })}
               </Stack>
             </Box>
 
@@ -417,11 +424,7 @@ function AuditLoginPanel({ onAuthenticated }: { onAuthenticated: () => void }) {
 
   return (
     <Container py={{ base: "lg", md: "xl" }} size="sm">
-      <Paper
-        className="grunge-card"
-        p={{ base: "lg", md: "xl" }}
-        radius={0}
-      >
+      <Paper className="grunge-card" p={{ base: "lg", md: "xl" }} radius={0}>
         <Stack gap="md">
           <Group gap="sm" wrap="nowrap">
             <Badge color="cyan" leftSection={<IconLock size={14} />} radius="sm" variant="light">
@@ -460,7 +463,11 @@ function AuditLoginPanel({ onAuthenticated }: { onAuthenticated: () => void }) {
             <Button component={Link} leftSection={<IconArrowLeft size={16} />} to="/" variant="subtle">
               返回
             </Button>
-            <Button disabled={!password.trim()} loading={loginMutation.isPending} onClick={() => loginMutation.mutate(password)}>
+            <Button
+              disabled={!password.trim()}
+              loading={loginMutation.isPending}
+              onClick={() => loginMutation.mutate(password)}
+            >
               登录
             </Button>
           </Group>

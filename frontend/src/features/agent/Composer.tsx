@@ -1,5 +1,5 @@
 import { IconArrowUp, IconPhotoPlus, IconPlayerStopFilled, IconX } from "@tabler/icons-react";
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 const MAX_FILES = 6;
@@ -124,7 +124,13 @@ export function Composer({ running, disabled = false, pendingFiles, onFilesChang
           value={text}
         />
         {running ? (
-          <button aria-label={t("agent.stop")} className="agent-send" onClick={onStop} title={t("agent.stop")} type="button">
+          <button
+            aria-label={t("agent.stop")}
+            className="agent-send"
+            onClick={onStop}
+            title={t("agent.stop")}
+            type="button"
+          >
             <IconPlayerStopFilled size={18} />
           </button>
         ) : (

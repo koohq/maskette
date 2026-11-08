@@ -18,28 +18,11 @@ const animeLandmarkCount = 28;
 const leftEyeContourIndexes = [11, 12, 13, 14, 15, 16] as const;
 const rightEyeContourIndexes = [17, 18, 19, 20, 21, 22] as const;
 const mouthContourIndexes = [24, 25, 26, 27] as const;
-const browGroupIndexes = [[5, 6, 7], [8, 9, 10]] as const;
-const controlLandmarkSourceIndexes = new Set([
-  1,
-  2,
-  3,
-  11,
-  12,
-  13,
-  14,
-  15,
-  16,
-  17,
-  18,
-  19,
-  20,
-  21,
-  22,
-  24,
-  25,
-  26,
-  27,
-]);
+const browGroupIndexes = [
+  [5, 6, 7],
+  [8, 9, 10],
+] as const;
+const controlLandmarkSourceIndexes = new Set([1, 2, 3, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27]);
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
@@ -142,16 +125,10 @@ function deriveEyePatchRegion(
     Math.max(...ys) - center.y,
     (Math.max(...stableYs) - Math.min(...stableYs)) * 0.72,
   );
-  const radiusY = clamp(
-    Math.max(pointRadiusY, eyeDistance * 0.13) / Math.max(1, imageHeight),
-    0.028,
-    0.13,
-  );
+  const radiusY = clamp(Math.max(pointRadiusY, eyeDistance * 0.13) / Math.max(1, imageHeight), 0.028, 0.13);
 
   return {
-    radiusX: Number(
-      clamp(Math.max(pointRadiusX, eyeDistance * 0.22) / Math.max(1, imageWidth), 0.05, 0.17).toFixed(4),
-    ),
+    radiusX: Number(clamp(Math.max(pointRadiusX, eyeDistance * 0.22) / Math.max(1, imageWidth), 0.05, 0.17).toFixed(4)),
     radiusBottomY: Number(radiusY.toFixed(4)),
     radiusTopY: Number(radiusY.toFixed(4)),
     radiusY: Number(radiusY.toFixed(4)),
@@ -168,12 +145,7 @@ function normalizePoint(point: { x: number; y: number }, imageWidth: number, ima
   };
 }
 
-export function expandFaceBox(
-  box: FaceBox,
-  imageWidth: number,
-  imageHeight: number,
-  padding = 1.18,
-): FaceBox {
+export function expandFaceBox(box: FaceBox, imageWidth: number, imageHeight: number, padding = 1.18): FaceBox {
   const safePadding = Math.max(1, padding);
   const size = Math.max(box.width, box.height) * safePadding;
   const centerX = box.x + box.width / 2;
@@ -210,10 +182,13 @@ export function decodeHrnetHeatmaps(data: Float32Array, box: FaceBox): DetectedP
     let y = peakY;
 
     if (peakX > 0 && peakX < heatmapSize - 1) {
-      x += Math.sign(data[base + peakY * heatmapSize + peakX + 1] - data[base + peakY * heatmapSize + peakX - 1]) * 0.25;
+      x +=
+        Math.sign(data[base + peakY * heatmapSize + peakX + 1] - data[base + peakY * heatmapSize + peakX - 1]) * 0.25;
     }
     if (peakY > 0 && peakY < heatmapSize - 1) {
-      y += Math.sign(data[base + (peakY + 1) * heatmapSize + peakX] - data[base + (peakY - 1) * heatmapSize + peakX]) * 0.25;
+      y +=
+        Math.sign(data[base + (peakY + 1) * heatmapSize + peakX] - data[base + (peakY - 1) * heatmapSize + peakX]) *
+        0.25;
     }
 
     points.push({
@@ -279,7 +254,8 @@ function deriveBrows(
 
   const meanX = (group: readonly DetectedPoint[]) => group.reduce((sum, point) => sum + point.x, 0) / group.length;
   const [first, second] = groups;
-  const firstIsLeft = Math.abs(meanX(first) - leftEye.x) + Math.abs(meanX(second) - rightEye.x) <=
+  const firstIsLeft =
+    Math.abs(meanX(first) - leftEye.x) + Math.abs(meanX(second) - rightEye.x) <=
     Math.abs(meanX(first) - rightEye.x) + Math.abs(meanX(second) - leftEye.x);
   const faceCenterX = (leftEye.x + rightEye.x) / 2;
   const toBrow = (group: readonly DetectedPoint[]): BrowLandmark => {
@@ -295,9 +271,7 @@ function deriveBrows(
   const eyeY = Math.min(leftEye.y, rightEye.y);
   if (groups.some((group) => group.some((point) => point.y >= eyeY))) return undefined;
 
-  return firstIsLeft
-    ? { left: toBrow(first), right: toBrow(second) }
-    : { left: toBrow(second), right: toBrow(first) };
+  return firstIsLeft ? { left: toBrow(first), right: toBrow(second) } : { left: toBrow(second), right: toBrow(first) };
 }
 
 export function normalizeAnimeDetailPoints(
@@ -312,4 +286,3 @@ export function normalizeAnimeDetailPoints(
     .filter(({ index }) => !controlLandmarkSourceIndexes.has(index))
     .map(({ point }) => normalizePoint(point, imageWidth, imageHeight));
 }
-
