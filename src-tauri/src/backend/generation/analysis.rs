@@ -57,10 +57,61 @@ const DETAIL_KINDS: [&str; 11] = [
     "avoid",
     "other",
 ];
-const NON_HEAD_DETAIL_TERMS: [&str; 26] = [
-    "hand", "hands", "gesture", "pose", "body", "clothing", "clothes", "outfit", "uniform",
-    "dress", "shirt", "skirt", "wrist", "bracelet", "手", "手势", "动作", "姿势", "身体", "服装",
-    "衣服", "制服", "裙", "上衣", "手腕", "手链",
+/// Words that mark a feature as being about something other than the head.
+/// English words must match a whole word, so "headdress" and "uniformly"
+/// stay; Japanese and Chinese words match anywhere, so no single 「手」,
+/// which is also in 「手前」 (in front) and 「上手」.
+const NON_HEAD_DETAIL_TERMS: &[&str] = &[
+    "hand",
+    "hands",
+    "gesture",
+    "gestures",
+    "pose",
+    "poses",
+    "body",
+    "clothing",
+    "clothes",
+    "outfit",
+    "outfits",
+    "uniform",
+    "uniforms",
+    "dress",
+    "dresses",
+    "shirt",
+    "shirts",
+    "skirt",
+    "skirts",
+    "wrist",
+    "wrists",
+    "bracelet",
+    "bracelets",
+    "手势",
+    "手部",
+    "手指",
+    "手掌",
+    "双手",
+    "手套",
+    "动作",
+    "姿势",
+    "身体",
+    "服装",
+    "衣服",
+    "制服",
+    "裙",
+    "上衣",
+    "手腕",
+    "手链",
+    "両手",
+    "片手",
+    "手首",
+    "手袋",
+    "手のひら",
+    "ポーズ",
+    "胴体",
+    "衣装",
+    "スカート",
+    "シャツ",
+    "ブレスレット",
 ];
 /// Names models use for a kind, and the kind they mean.
 const DETAIL_KIND_ALIASES: [(&str, &str); 76] = [
@@ -819,10 +870,18 @@ fn is_head_detail(kind: &str, label: &str, description: &str) -> bool {
     if !HEAD_DETAIL_KINDS.contains(&kind) {
         return false;
     }
-    let haystack = format!("{label} {description}").to_lowercase();
-    !NON_HEAD_DETAIL_TERMS
-        .iter()
-        .any(|term| haystack.contains(term))
+    let text = format!("{label} {description}").to_lowercase();
+    let words: Vec<&str> = text
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|word| !word.is_empty())
+        .collect();
+    !NON_HEAD_DETAIL_TERMS.iter().any(|term| {
+        if term.is_ascii() {
+            words.contains(term)
+        } else {
+            text.contains(term)
+        }
+    })
 }
 
 /// Keeps the first user requirement and the details of the head only.
@@ -901,6 +960,35 @@ mod tests {
         let ids: Vec<&str> = result.features.iter().map(|f| f.id.as_str()).collect();
         assert_eq!(ids, ["b", "a"]);
         assert_eq!(result.warnings, ["w"]);
+    }
+
+    #[test]
+    fn non_head_words_do_not_catch_head_details() {
+        for (label, description) in [
+            ("前髪", "手前に垂れる前髪"),
+            ("星の飾り", "画面左側、横髪の手前に付く星"),
+            ("表情", "上手に笑う"),
+            ("Headdress", "a lace headdress"),
+            ("Hair", "uniformly pink hair, exposed forehead"),
+            ("Ears", "somebody's cat ears"),
+            ("刘海", "额前的刘海"),
+        ] {
+            assert!(is_head_detail("hair", label, description), "{description}");
+        }
+        for (label, description) in [
+            ("リボン", "両手で持つリボン"),
+            ("リボン", "衣装の胸元のリボン"),
+            ("Pose", "hands on the hips"),
+            ("Bow", "a bow on the dress"),
+            ("Bow", "bows on the Skirts."),
+            ("手势", "比心的手势"),
+            ("发饰", "与上衣同色"),
+        ] {
+            assert!(
+                !is_head_detail("headwear", label, description),
+                "{description}"
+            );
+        }
     }
 
     #[test]
