@@ -247,7 +247,7 @@ const ja: TranslationResource = {
     model: "モデル",
     modelDefault: "空欄で既定のモデル",
     extraBody: "追加リクエストパラメータ（JSON）",
-    extraBodyHint: "毎回のリクエストに付けます。既定では Doubao の深い思考をオフにします。モデルが受け付けない場合は自動で外します。不要なら空にしてください。",
+    extraBodyHint: "毎回のリクエストに付けます。既定では OpenRouter に浅めの思考（reasoning の effort を low）を頼みます。モデルが受け付けない場合は自動で外します。不要なら空にしてください。",
     probe: "接続テスト",
     probing: "テスト中…",
     probeHint: "保存済みの設定で小さなリクエストを 1 回送ります（少量のトークンを消費）。",

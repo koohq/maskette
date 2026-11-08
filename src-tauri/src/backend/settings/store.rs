@@ -56,30 +56,39 @@ const fn secret(key: &'static str) -> Field {
 }
 
 const ARK_BASE_URL: &str = "https://ark.cn-beijing.volces.com/api/plan/v3";
+const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 
-/// The settings the settings page may change, in the old backend's order and
-/// with its defaults.
+/// The settings the settings page may change, in the old backend's order.
+///
+/// The defaults put all three roles on OpenRouter, so one key is enough to
+/// start: the chat and the analysis on `google/gemini-3.8-flash` (reasoning
+/// low and medium), images on Nano Banana 2.1, the model the realism prompts
+/// were checked with (`docs/topics/ai-backends.md`). The old backend's
+/// defaults pointed the chat at Ark's Doubao and left the rest unset.
 pub const FIELDS: &[Field] = &[
     Field {
         default: "openai_compatible",
         ..choice("agent_llm_provider", &["openai_compatible", "claude_code"])
     },
-    text("agent_llm_base_url", ARK_BASE_URL),
-    text("agent_llm_model", "doubao-seed-2-0-pro"),
+    text("agent_llm_base_url", OPENROUTER_BASE_URL),
+    text("agent_llm_model", "google/gemini-3.8-flash"),
     text(
         "agent_llm_extra_body",
-        r#"{"thinking": {"type": "disabled"}}"#,
+        r#"{"reasoning": {"effort": "low"}}"#,
     ),
     text("agent_claude_code_model", ""),
-    // Empty for the two backend choices means the old `GENERATION_PROVIDER`
-    // default, which was the fixtures.
+    // Empty for the two backend choices means the fixtures in debug builds
+    // and OpenRouter (through the chat's endpoint for analysis) otherwise.
     choice(
         "llm_provider",
         &["openai_compatible", "codex", "claude_code", "fixture"],
     ),
     text("analysis_llm_base_url", ""),
     text("analysis_llm_model", ""),
-    text("analysis_llm_extra_body", ""),
+    text(
+        "analysis_llm_extra_body",
+        r#"{"reasoning": {"effort": "medium"}}"#,
+    ),
     choice(
         "image_provider",
         &[
@@ -95,8 +104,8 @@ pub const FIELDS: &[Field] = &[
     text("siliconflow_image_model", "Qwen/Qwen-Image-Edit-2509"),
     text("ark_base_url", ARK_BASE_URL),
     text("ark_image_model", "doubao-seedream-5-0-pro"),
-    text("openrouter_base_url", "https://openrouter.ai/api/v1"),
-    text("openrouter_image_model", ""),
+    text("openrouter_base_url", OPENROUTER_BASE_URL),
+    text("openrouter_image_model", "google/gemini-nano-banana-2.1"),
     text("openrouter_extra_body", ""),
     text("codex_bridge_url", ""),
     secret("agent_llm_api_key"),
@@ -186,14 +195,26 @@ impl Settings {
         self.values.get(key).map_or("", String::as_str)
     }
 
-    /// The backend for reference analysis.
+    /// The backend for reference analysis: when unset, the fixture in
+    /// debug builds and the chat API otherwise.
     pub fn llm_provider(&self) -> &str {
-        non_empty_or(self.get("llm_provider").trim(), "fixture")
+        let fallback = if self.allow_fixture {
+            "fixture"
+        } else {
+            "openai_compatible"
+        };
+        non_empty_or(self.get("llm_provider").trim(), fallback)
     }
 
-    /// The backend for image generation.
+    /// The backend for image generation: when unset, the fixture in debug
+    /// builds and OpenRouter otherwise.
     pub fn image_provider(&self) -> &str {
-        non_empty_or(self.get("image_provider").trim(), "fixture")
+        let fallback = if self.allow_fixture {
+            "fixture"
+        } else {
+            "openrouter"
+        };
+        non_empty_or(self.get("image_provider").trim(), fallback)
     }
 
     /// The chat assistant's key; on the Ark endpoint it may reuse the Ark key.

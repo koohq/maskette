@@ -245,7 +245,7 @@ const zhCN = {
     model: "模型",
     modelDefault: "留空使用默认模型",
     extraBody: "额外请求参数（JSON）",
-    extraBodyHint: "每次请求都会附带，默认用来关闭豆包的深度思考。模型不认识时会自动去掉；不用的话可以清空。",
+    extraBodyHint: "每次请求都会附带，默认请 OpenRouter 使用较浅的思考（reasoning 的 effort 为 low）。模型不认识时会自动去掉；不用的话可以清空。",
     probe: "测试连接",
     probing: "测试中…",
     probeHint: "用已保存的设置发一个很小的请求（消耗少量 token）。",

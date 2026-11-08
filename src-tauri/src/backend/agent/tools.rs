@@ -224,16 +224,25 @@ pub async fn run_tool(name: &str, arguments: &JsonObject, context: &ToolContext)
 }
 
 async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
-    let (session, locale, keys) = {
+    let (locale, keys, descriptions) = {
         let conversation = context.entry.lock();
         let state = &conversation.state;
         if state.references.is_empty() {
             return Err("No reference images uploaded yet. Ask the user to upload at least one character image.".to_owned());
         }
+        let descriptions = state
+            .references
+            .iter()
+            .filter(|reference| !reference.note.is_empty())
+            .map(|reference| ReferenceDescription {
+                reference_key: reference_key(&reference.kind, &reference.key),
+                description: reference.note.clone(),
+            })
+            .collect();
         (
-            state.character_session_id.clone(),
             conversation.locale.clone(),
             character_reference_keys(&conversation),
+            descriptions,
         )
     };
     let focus_note = clean_text(&arg_text(arguments, "focus_note"));
@@ -241,13 +250,12 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
     let analysis_id = ids::uuid4();
     context.progress(10, "analyzing");
     let request = AnalysisRequest {
-        analysis_id: analysis_id.clone(),
-        character_session_id: session,
         free_text: focus_note.clone(),
         locale: locale.clone(),
         reference_keys: keys,
+        reference_descriptions: descriptions,
     };
-    let result = match backend.analyze(&request).await {
+    let result = match backend.analyze(&context.state, &request).await {
         Ok(result) => result,
         Err(AnalysisError::Rejected { reason, message }) => {
             context.entry.lock().state.analysis = None;
@@ -635,9 +643,15 @@ async fn run_generation(
     }
     context.progress(5, "generating");
     let output = backend
-        .generate(context.data_dir(), &request)
+        .generate(&context.state, &request, &context.cancelled)
         .await
-        .map_err(|error| format!("Generation failed: {error}"))?;
+        .map_err(|error| {
+            if context.cancelled.load(Ordering::SeqCst) {
+                error
+            } else {
+                format!("Generation failed: {error}")
+            }
+        })?;
     #[cfg(test)]
     context
         .state

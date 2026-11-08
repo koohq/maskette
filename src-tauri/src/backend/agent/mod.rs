@@ -6,9 +6,8 @@
 //! pixels in `references/agent/<id>/`.
 //!
 //! Intended differences from the old backend:
-//! - Generation and analysis work only with the fixtures until the
-//!   generation router moves (see [`crate::backend::generation`]); so do the
-//!   watermarks, and a manual version's public image is its clean pixels.
+//! - Generation runs in the same process instead of a queue the tools poll
+//!   (see [`crate::backend::generation`]); a cancelled run stops its request.
 //! - The Claude Code chat assistant moves with the CLI paths.
 //! - Deleting a project also removes its images and working files.
 //! - The system prompt calls the assistant Maskette's; it cannot be
@@ -964,8 +963,11 @@ async fn save_manual_version(
                 if let Some(parent) = public_path.parent() {
                     std::fs::create_dir_all(parent).map_err(|error| error.to_string())?;
                 }
-                // The watermark comes with the generation router.
-                std::fs::copy(&clean_path, &public_path).map_err(|error| error.to_string())?;
+                let mut public = clean.clone();
+                generation::watermark::apply(&mut public);
+                public
+                    .save_with_format(&public_path, image::ImageFormat::Png)
+                    .map_err(|error| error.to_string())?;
                 Ok(())
             };
             save().map_err(|error| ApiError::internal(format!("version_not_saved: {error}")))?;

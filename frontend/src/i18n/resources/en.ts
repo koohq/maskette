@@ -247,7 +247,7 @@ const en: TranslationResource = {
     model: "Model",
     modelDefault: "Leave empty for the default model",
     extraBody: "Extra request fields (JSON)",
-    extraBodyHint: "Sent with every request; by default it turns off Doubao's deep thinking. Removed automatically when a model rejects it; clear it if you don't need it.",
+    extraBodyHint: "Sent with every request; by default it asks OpenRouter for a low reasoning effort. Removed automatically when a model rejects it; clear it if you don't need it.",
     probe: "Test connection",
     probing: "Testing…",
     probeHint: "Sends one small request with the saved settings (uses a few tokens).",

@@ -64,7 +64,11 @@ async fn settings_report_effective_backends() {
     assert_eq!(body["values"]["image_provider"], "fixture");
     assert_eq!(
         body["values"]["agent_llm_base_url"],
-        "https://ark.cn-beijing.volces.com/api/plan/v3"
+        "https://openrouter.ai/api/v1"
+    );
+    assert_eq!(
+        body["values"]["openrouter_image_model"],
+        "google/gemini-nano-banana-2.1"
     );
     assert_eq!(body["overridden"], json!([]));
     assert_eq!(
@@ -195,6 +199,9 @@ async fn fixtures_are_hidden_and_refused_when_not_allowed() {
     // Release builds: the old backend's production / no-fixture setup.
     let app = TestBackend::new(None, false).app();
     let body = read(&app).await;
+    // Unset, analysis and images go to OpenRouter.
+    assert_eq!(body["values"]["llm_provider"], "openai_compatible");
+    assert_eq!(body["values"]["image_provider"], "openrouter");
     assert!(
         !body["options"]["image_provider"]
             .as_array()
@@ -238,6 +245,13 @@ fn the_settings_file_never_supplies_api_keys_or_invalid_values() {
 async fn api_keys_are_write_only_and_kept_in_the_credential_store() {
     let backend = backend();
     let app = backend.app();
+    // The chat on Ark (the old default endpoint).
+    let response = put(
+        &app,
+        json!({"agent_llm_base_url": "https://ark.cn-beijing.volces.com/api/plan/v3"}),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
 
     let response = put(&app, json!({"ark_api_key": " ark-secret-key-1234 "})).await;
     assert_eq!(response.status(), StatusCode::OK);
@@ -249,7 +263,10 @@ async fn api_keys_are_write_only_and_kept_in_the_credential_store() {
         json!({"set": true, "source": "override", "hint": "…1234"})
     );
     assert_eq!(body["status"]["ark_key"], true);
-    assert_eq!(body["overridden"], json!(["ark_api_key"]));
+    assert_eq!(
+        body["overridden"],
+        json!(["agent_llm_base_url", "ark_api_key"])
+    );
     // The agent reuses the Ark key when it talks to the same endpoint.
     assert_eq!(body["status"]["agent_llm_key"], true);
     assert_eq!(
@@ -442,13 +459,19 @@ fn tool_call() -> Value {
 }
 
 /// The old probe tests' endpoint: GLM behind the chat assistant settings,
-/// with Doubao's `thinking` extra field (the default).
+/// with Doubao's `thinking` extra field (the old default) and no analysis
+/// fields of its own.
 fn agent_backend(llm: &FakeLlm, extra: Value) -> TestBackend {
     let backend = backend();
     let mut changes: Vec<(String, Option<String>)> = vec![
         ("agent_llm_base_url".to_owned(), Some(llm.base_url.clone())),
         ("agent_llm_api_key".to_owned(), Some("key".to_owned())),
         ("agent_llm_model".to_owned(), Some("glm-5".to_owned())),
+        (
+            "agent_llm_extra_body".to_owned(),
+            Some(r#"{"thinking": {"type": "disabled"}}"#.to_owned()),
+        ),
+        ("analysis_llm_extra_body".to_owned(), Some(String::new())),
     ];
     if let Value::Object(extra) = extra {
         changes.extend(

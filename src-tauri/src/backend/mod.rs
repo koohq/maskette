@@ -69,6 +69,7 @@ pub struct AppState {
     pub settings: Arc<SettingsStore>,
     pub chat: ChatApi,
     pub agent: agent::Agent,
+    pub generation: generation::Services,
     /// Every generation request, by job id, for the tests to inspect.
     #[cfg(test)]
     pub generation_log: std::sync::Mutex<Vec<(String, generation::GenerationRequest)>>,
@@ -109,6 +110,7 @@ impl Backend {
         let state = Arc::new(AppState {
             token: token.clone(),
             agent: agent::Agent::new(&config.data_dir),
+            generation: generation::Services::new(&config.data_dir),
             data_dir: config.data_dir,
             relay,
             settings: Arc::new(settings),

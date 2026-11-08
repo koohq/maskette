@@ -1,19 +1,35 @@
-//! Image generation and reference analysis, as the agent's tools see them.
+//! Image generation and reference analysis, as the agent's tools see them
+//! (the old `app/generation/`).
 //!
-//! The real backends (OpenRouter, Ark, SiliconFlow, Codex, ...) and the job
-//! records move over in the next step of the port. Until then only the
-//! fixtures work: placeholder images and a canned analysis, in debug builds.
-//! Every other backend answers that it has not moved yet.
+//! Image backends: the hosted image APIs ([`hosted`]: OpenRouter, Ark,
+//! SiliconFlow) on a shared pipeline ([`image_api`]), and in debug builds the
+//! fixture (placeholder images). Analysis: an OpenAI-compatible chat API
+//! ([`analysis`]), or the canned fixture analysis in debug builds. Codex,
+//! the Codex bridge and Claude Code come with the CLI backends; until then
+//! they answer that they have not moved.
+//!
+//! Every job is recorded ([`jobs`]). The old `/api/generation/...` routes
+//! are not served: the screen never calls them (the agent runs the jobs).
 //!
 //! Generated images live in `generated/` under the data folder (the old
-//! `runtime/generated`) and are served at `/api/generated/...`. The
-//! unwatermarked copy that later jobs attach as a reference goes to
-//! `clean-outputs/` (the old `runtime/clean-outputs`). Watermarks come with
-//! the real backends; for now both copies are the same pixels.
+//! `runtime/generated`) and are served at `/api/generated/...`; they carry
+//! the AI label ([`watermark`]). The unlabelled copy that later jobs attach
+//! as a reference goes to `clean-outputs/` (the old `runtime/clean-outputs`).
+//! The fixture writes the same pixels to both.
 
 pub mod analysis;
+pub mod hosted;
+pub mod image_api;
+pub mod jobs;
+pub mod prompt;
+pub mod watermark;
+
+#[cfg(test)]
+mod tests;
 
 use std::path::{Component, Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
 use axum::Router;
 use axum::extract::State;
@@ -25,9 +41,9 @@ use image::{Rgb, RgbImage};
 use serde::Serialize;
 use serde_json::Value;
 
-use super::SharedState;
 use super::error::ApiError;
 use super::settings::store::Settings;
+use super::{AppState, SharedState};
 
 pub const GENERATED_DIR: &str = "generated";
 pub const CLEAN_DIR: &str = "clean-outputs";
@@ -198,10 +214,37 @@ pub struct GeneratedImage {
     pub height: u32,
 }
 
+/// What generation keeps between jobs.
+pub struct Services {
+    pub jobs: jobs::JobStore,
+    pub client: reqwest::Client,
+    /// OpenRouter's model capabilities, by base URL.
+    pub models: hosted::ModelCache,
+    /// Waits between retries of a failed image request.
+    pub retry_delays: Vec<Duration>,
+}
+
+impl Services {
+    pub fn new(data_dir: &Path) -> Self {
+        Self::with_retry_delays(data_dir, image_api::RETRY_DELAYS.to_vec())
+    }
+
+    /// Tests pass zero delays so retries do not wait.
+    pub fn with_retry_delays(data_dir: &Path, retry_delays: Vec<Duration>) -> Self {
+        Self {
+            jobs: jobs::JobStore::open(data_dir),
+            client: reqwest::Client::new(),
+            models: hosted::ModelCache::default(),
+            retry_delays,
+        }
+    }
+}
+
 /// The configured image backend.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub enum ImageBackend {
     Fixture,
+    Hosted(hosted::HostedApi),
 }
 
 /// The image backend the settings choose, or why there is none.
@@ -209,6 +252,15 @@ pub fn image_backend(settings: &Settings) -> Result<ImageBackend, String> {
     match settings.image_provider() {
         "fixture" if settings.allow_fixture => Ok(ImageBackend::Fixture),
         "fixture" => Err("No real generation backend is configured (image_provider).".to_owned()),
+        "openrouter" => Ok(ImageBackend::Hosted(hosted::HostedApi::OpenRouter(
+            hosted::OpenRouter::from_settings(settings)?,
+        ))),
+        "ark" => Ok(ImageBackend::Hosted(hosted::HostedApi::Ark(
+            hosted::Ark::from_settings(settings)?,
+        ))),
+        "siliconflow" => Ok(ImageBackend::Hosted(hosted::HostedApi::SiliconFlow(
+            hosted::SiliconFlow::from_settings(settings)?,
+        ))),
         other => Err(format!(
             "Image generation with {other} has not moved to the new backend yet."
         )),
@@ -216,33 +268,157 @@ pub fn image_backend(settings: &Settings) -> Result<ImageBackend, String> {
 }
 
 impl ImageBackend {
-    pub fn supports_local_revision(self) -> bool {
+    pub fn name(&self) -> &'static str {
         match self {
-            Self::Fixture => true,
+            Self::Fixture => "fixture",
+            Self::Hosted(api) => api.name(),
         }
     }
 
+    fn model(&self) -> String {
+        match self {
+            Self::Fixture => String::new(),
+            Self::Hosted(api) => api.api().model().to_owned(),
+        }
+    }
+
+    pub fn supports_local_revision(&self) -> bool {
+        true
+    }
+
+    /// Runs one job, recorded from start to end. Stops early, without an
+    /// image, when `cancelled` is set.
     pub async fn generate(
         self,
-        data_dir: &Path,
+        state: &AppState,
         request: &GenerationRequest,
+        cancelled: &AtomicBool,
     ) -> Result<GeneratedImage, String> {
-        match self {
-            Self::Fixture => {
-                let data_dir = data_dir.to_owned();
-                let request = request.clone();
-                tokio::task::spawn_blocking(move || fixture_image(&data_dir, &request))
-                    .await
-                    .map_err(|error| format!("fixture generation stopped: {error}"))?
+        let job = state
+            .generation
+            .jobs
+            .create(request, self.name(), &self.model());
+        let job_id = job.id();
+        log::info!(
+            "generation job started job_id={job_id} provider={} mode={:?} references={}",
+            self.name(),
+            request.generation_mode,
+            request.reference_keys.len()
+        );
+        let run = self.run(state, &job, &job_id, request);
+        tokio::pin!(run);
+        let outcome = loop {
+            tokio::select! {
+                outcome = &mut run => break Some(outcome),
+                () = tokio::time::sleep(Duration::from_millis(200)) => {
+                    if cancelled.load(Ordering::SeqCst) {
+                        break None;
+                    }
+                }
+            }
+        };
+        match outcome {
+            None => {
+                job.cancel();
+                Err("Cancelled by the user.".to_owned())
+            }
+            Some(Ok(output)) => {
+                job.succeed(&output);
+                Ok(output)
+            }
+            Some(Err(error)) => {
+                log::warn!("generation job failed job_id={job_id}: {error}");
+                job.fail(&error);
+                Err(error)
             }
         }
     }
+
+    async fn run(
+        self,
+        state: &AppState,
+        job: &jobs::Job<'_>,
+        job_id: &str,
+        request: &GenerationRequest,
+    ) -> Result<GeneratedImage, String> {
+        job.step("preparing_references", 15, "准备素材");
+        let data_dir = state.data_dir.clone();
+        let mut api = match self {
+            Self::Fixture => {
+                job.step("generating", 45, "生成中");
+                let (job_id, request) = (job_id.to_owned(), request.clone());
+                return blocking(move || fixture_image(&data_dir, &job_id, &request)).await;
+            }
+            Self::Hosted(api) => api,
+        };
+        if let hosted::HostedApi::OpenRouter(openrouter) = &mut api {
+            openrouter
+                .load_parameters(&state.generation.client, &state.generation.models)
+                .await;
+        }
+        let trace_id = format!("maskette-{}-1", image_api::safe_segment(job_id));
+        let (prepared, api_request) = {
+            let (data_dir, request, api, trace_id) = (
+                data_dir.clone(),
+                request.clone(),
+                api.clone(),
+                trace_id.clone(),
+            );
+            blocking(move || {
+                let prepared = image_api::prepare(
+                    &data_dir,
+                    &request,
+                    api.reference_limit(),
+                    api.prompt_limit(),
+                )?;
+                let api_request = api.api().build_request(
+                    &prepared.prompt,
+                    &prepared.images,
+                    &trace_id,
+                    request.generation_mode,
+                );
+                Ok((prepared, api_request))
+            })
+            .await?
+        };
+        job.record_prompt(&prepared.prompt, image_api::request_summary(&api_request));
+        job.step("generating", 45, "生成中");
+        let bytes = image_api::request_image(
+            &state.generation.client,
+            api.api(),
+            &api_request,
+            &trace_id,
+            &state.generation.retry_delays,
+        )
+        .await?;
+        job.step("saving_outputs", 90, "保存结果");
+        let (job_id, request) = (job_id.to_owned(), request.clone());
+        blocking(move || {
+            let raw = image_api::decode_rgb(&bytes)
+                .map_err(|error| format!("the generated image is {error}"))?;
+            let image = prepared.finish(&raw)?;
+            image_api::store_output(&data_dir, &request, &job_id, &image)
+        })
+        .await
+    }
+}
+
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tokio::task::spawn_blocking(work)
+        .await
+        .map_err(|error| format!("generation stopped: {error}"))?
 }
 
 /// A flat placeholder of the mode's size; a local revision tints the masked
 /// area of its base instead, so the editor flow can be tried by hand.
-fn fixture_image(data_dir: &Path, request: &GenerationRequest) -> Result<GeneratedImage, String> {
-    let job_id = super::ids::uuid4();
+fn fixture_image(
+    data_dir: &Path,
+    job_id: &str,
+    request: &GenerationRequest,
+) -> Result<GeneratedImage, String> {
+    let job_id = job_id.to_owned();
     let image = match &request.local_edit {
         Some(edit) => tinted_base(edit)?,
         None => {
@@ -296,7 +472,7 @@ fn tinted_base(edit: &LocalEdit) -> Result<RgbImage, String> {
 }
 
 #[cfg(test)]
-mod tests {
+mod url_tests {
     use super::*;
 
     #[test]

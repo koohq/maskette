@@ -53,6 +53,10 @@ impl TestBackend {
             // Retries must not wait in tests.
             chat: ChatApi::with_retry_delays(vec![std::time::Duration::ZERO; 3]),
             agent: super::agent::Agent::new(data_dir),
+            generation: super::generation::Services::with_retry_delays(
+                data_dir,
+                vec![std::time::Duration::ZERO; 3],
+            ),
             generation_log: Default::default(),
         })
     }

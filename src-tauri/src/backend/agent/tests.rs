@@ -505,7 +505,7 @@ async fn the_model_gets_a_streamed_request_in_the_openai_shape() {
     let sent = setup.llm.bodies.lock().unwrap()[0].clone();
     assert_eq!(sent["model"], "test-model");
     assert_eq!(sent["stream"], true);
-    assert_eq!(sent["thinking"], json!({"type": "disabled"}));
+    assert_eq!(sent["reasoning"], json!({"effort": "low"}));
     assert_eq!(sent["tool_choice"], "auto");
     assert_eq!(sent["messages"][0]["role"], "system");
     let prompt = sent["messages"][0]["content"].as_str().unwrap();
@@ -1586,24 +1586,29 @@ async fn without_fixtures_the_tools_say_what_is_missing() {
         .update(&[
             ("agent_llm_base_url".to_owned(), Some(llm.base_url.clone())),
             ("agent_llm_model".to_owned(), Some("test-model".to_owned())),
-            ("image_provider".to_owned(), Some("openrouter".to_owned())),
+            // Nothing answers here.
+            (
+                "analysis_llm_base_url".to_owned(),
+                Some("http://127.0.0.1:9/v1".to_owned()),
+            ),
         ])
         .unwrap();
     let setup = Setup { backend, llm };
     let id = setup.start().await;
     let body = setup.send(&id, "", 1, &[]).await;
+    // A release build analyses and generates with OpenRouter by default.
     assert!(
         tool_event(&body, "analyze_references")["error"]
             .as_str()
             .unwrap()
-            .contains("No real analysis backend")
+            .starts_with("Analysis LLM")
     );
     // The batch stopped, so the model asked again and got the image error.
     assert!(
         tool_event(&body, "generate_front_view")["error"]
             .as_str()
             .unwrap()
-            .contains("openrouter has not moved")
+            .contains("openrouter_api_key is required")
     );
 }
 
