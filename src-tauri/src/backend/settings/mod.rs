@@ -115,10 +115,6 @@ pub fn describe(store: &SettingsStore) -> SettingsOut {
         ("codex_cli", on_path(Settings::CODEX_PATH)),
         ("claude_cli", on_path(Settings::CLAUDE_CODE_PATH)),
         (
-            "codex_bridge",
-            !settings.get("codex_bridge_url").trim().is_empty(),
-        ),
-        (
             "siliconflow_key",
             !settings.get("siliconflow_api_key").trim().is_empty(),
         ),

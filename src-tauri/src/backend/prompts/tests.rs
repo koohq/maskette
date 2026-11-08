@@ -164,10 +164,14 @@ fn every_listed_key_reaches_a_prompt() {
             locale: "ja".to_owned(),
             reference_keys: Vec::new(),
             reference_descriptions: Vec::new(),
+            ..AnalysisRequest::default()
         };
         sent.push(analysis::detail_analysis_prompt(&analysis, &overrides));
         sent.push(analysis::reference_safety_prompt(&analysis, &overrides));
         sent.push(system_prompt("en", &overrides));
+        sent.push(crate::backend::cli::codex::image_prompt(
+            &overrides, "shared", false,
+        ));
         assert!(
             sent.iter().any(|text| text.contains(&marker)),
             "{key} is listed but never read"
@@ -217,8 +221,7 @@ fn analysis_prompts_take_their_overrides() {
     let request = AnalysisRequest {
         free_text: "x".to_owned(),
         locale: "en".to_owned(),
-        reference_keys: Vec::new(),
-        reference_descriptions: Vec::new(),
+        ..AnalysisRequest::default()
     };
     let detail = analysis::detail_analysis_prompt(&request, &overrides);
     assert!(detail.starts_with("DETAIL OVERRIDE\n\nWrite every feature"));
@@ -267,8 +270,11 @@ async fn the_inventory_lists_defaults_values_and_overrides() {
         body["constraints.front_design"]["value"],
         json!(prompt::FRONT_DESIGN_CONSTRAINTS)
     );
+    assert_eq!(
+        body["codex.tool_requirement"]["default"],
+        crate::backend::cli::codex::TOOL_REQUIREMENT
+    );
     // Keys of the paths that have not moved are not listed.
-    assert!(body.get("codex.tool_requirement").is_none());
     assert!(body.get("style_photo_ignore").is_none());
 
     write(

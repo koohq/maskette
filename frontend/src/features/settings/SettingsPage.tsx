@@ -199,10 +199,9 @@ export function SettingsPage() {
               value={form.image_provider}
             >
               {form.image_provider === "codex_bridge" ? (
-                <>
-                  <TextField disabled={disabled} label={t("settings.bridgeUrl")} onChange={set("codex_bridge_url")} value={form.codex_bridge_url} />
-                  {secretField("codex_bridge_token")}
-                </>
+                <p className="text-xs text-(--ide-danger)" role="alert">
+                  {t("settings.codexBridgeRemoved")}
+                </p>
               ) : null}
               {form.image_provider === "openrouter" ? (
                 <>

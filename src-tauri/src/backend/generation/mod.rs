@@ -2,11 +2,11 @@
 //! (the old `app/generation/`).
 //!
 //! Image backends: the hosted image APIs ([`hosted`]: OpenRouter, Ark,
-//! SiliconFlow) on a shared pipeline ([`image_api`]), and in debug builds the
-//! fixture (placeholder images). Analysis: an OpenAI-compatible chat API
-//! ([`analysis`]), or the canned fixture analysis in debug builds. Codex,
-//! the Codex bridge and Claude Code come with the CLI backends; until then
-//! they answer that they have not moved.
+//! SiliconFlow) on a shared pipeline ([`image_api`]), the Codex CLI
+//! ([`codex`], on the same pipeline), and in debug builds the fixture
+//! (placeholder images). Analysis ([`analysis`]): an OpenAI-compatible chat
+//! API, the Codex or Claude Code CLI, or the canned fixture analysis in
+//! debug builds.
 //!
 //! Every job is recorded ([`jobs`]). The old `/api/generation/...` routes
 //! are not served: the screen never calls them (the agent runs the jobs).
@@ -18,6 +18,7 @@
 //! The fixture writes the same pixels to both.
 
 pub mod analysis;
+pub mod codex;
 pub mod hosted;
 pub mod image_api;
 pub mod jobs;
@@ -245,6 +246,7 @@ impl Services {
 pub enum ImageBackend {
     Fixture,
     Hosted(hosted::HostedApi),
+    Codex,
 }
 
 /// The image backend the settings choose, or why there is none.
@@ -261,9 +263,12 @@ pub fn image_backend(settings: &Settings) -> Result<ImageBackend, String> {
         "siliconflow" => Ok(ImageBackend::Hosted(hosted::HostedApi::SiliconFlow(
             hosted::SiliconFlow::from_settings(settings)?,
         ))),
-        other => Err(format!(
-            "Image generation with {other} has not moved to the new backend yet."
-        )),
+        "codex" => Ok(ImageBackend::Codex),
+        crate::backend::settings::store::RETIRED_IMAGE_PROVIDER => Err(
+            "Codex Bridge は無くなりました。設定の「画像生成」で Codex（または API キーの経路）を選んでください。"
+                .to_owned(),
+        ),
+        other => Err(format!("Unsupported image_provider={other:?}")),
     }
 }
 
@@ -272,12 +277,14 @@ impl ImageBackend {
         match self {
             Self::Fixture => "fixture",
             Self::Hosted(api) => api.name(),
+            Self::Codex => "codex",
         }
     }
 
     fn model(&self) -> String {
         match self {
-            Self::Fixture => String::new(),
+            // Codex does not say which model made the image.
+            Self::Fixture | Self::Codex => String::new(),
             Self::Hosted(api) => api.api().model().to_owned(),
         }
     }
@@ -352,6 +359,7 @@ impl ImageBackend {
                 return blocking(move || fixture_image(&data_dir, &job_id, &request)).await;
             }
             Self::Hosted(api) => api,
+            Self::Codex => return codex::generate(state, job, job_id, request).await,
         };
         if let hosted::HostedApi::OpenRouter(openrouter) = &mut api {
             openrouter

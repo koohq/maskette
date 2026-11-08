@@ -450,11 +450,7 @@ async fn openrouter_needs_a_model_and_a_key() {
         ("analysis_llm_api_key", "k"),
     ])
     .unwrap();
-    assert!(
-        settings(&[("image_provider", "codex")])
-            .unwrap_err()
-            .contains("codex has not moved")
-    );
+    settings(&[("image_provider", "codex")]).unwrap();
     assert!(
         settings(&[("image_provider", "ark")])
             .unwrap_err()
@@ -499,6 +495,8 @@ fn analysis_request(key: &str) -> AnalysisRequest {
         locale: "ja".to_owned(),
         reference_keys: vec![format!("front:{key}")],
         reference_descriptions: Vec::new(),
+        character_session_id: "session-1".to_owned(),
+        analysis_id: "analysis-1".to_owned(),
     }
 }
 

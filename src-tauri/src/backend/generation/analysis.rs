@@ -1,26 +1,31 @@
 //! Reference analysis: the head details (hair, eyes, ears, headwear, ...) a
 //! design has to keep.
 //!
-//! The real backend is an OpenAI-compatible chat API that reads images (the
-//! old `app/generation/backends/openai_compatible.py`): one call checks that
-//! the references are usable, a second lists the details. The prompts are
-//! the old `backends/analysis.py`; reading the answer and cleaning it up is
-//! the old `app/generation/detail_analysis.py`.
+//! The real backends are an OpenAI-compatible chat API that reads images
+//! (the old `app/generation/backends/openai_compatible.py`) and the Codex
+//! and Claude Code CLIs ([`crate::backend::cli`]). Each makes two calls: one
+//! checks that the references are usable, a second lists the details. The
+//! prompts are the old `backends/analysis.py`; reading the answer and
+//! cleaning it up is the old `app/generation/detail_analysis.py`.
 //!
 //! The answer may also name crops (boxes around single details). The old
 //! agent never used them, and the screen does not call the old
 //! `/api/generation/detail-analysis` that saved them, so they are not read.
-//! The Codex and Claude Code analysis come with the CLI backends.
+//!
+//! The CLIs get the references as image files in their working folder
+//! (`codex/<project>/analysis-<id>/` or `claude-code/...` in the data folder),
+//! shrunk like the chat API's.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use super::ReferenceDescription;
-use super::image_api::{load_rgb, reference_file, to_data_uri};
+use super::image_api::{self, downscale, load_rgb, reference_file, safe_segment, to_data_uri};
 use crate::backend::AppState;
 use crate::backend::chat_api::{self, JsonObject};
+use crate::backend::cli;
 use crate::backend::ids;
 use crate::backend::prompts::Overrides;
 use crate::backend::settings::store::Settings;
@@ -198,11 +203,15 @@ pub struct AnalysisResult {
     pub warnings: Vec<String>,
 }
 
+#[derive(Default)]
 pub struct AnalysisRequest {
     pub free_text: String,
     pub locale: String,
     pub reference_keys: Vec<String>,
     pub reference_descriptions: Vec<ReferenceDescription>,
+    /// Name the CLIs' working folder.
+    pub character_session_id: String,
+    pub analysis_id: String,
 }
 
 #[derive(Debug)]
@@ -228,6 +237,8 @@ pub struct Endpoint {
 pub enum AnalysisBackend {
     Fixture,
     OpenAiCompatible(Endpoint),
+    Codex,
+    ClaudeCode,
 }
 
 /// The analysis backend the settings choose, or why there is none.
@@ -247,9 +258,9 @@ pub fn analysis_backend(settings: &Settings) -> Result<AnalysisBackend, String> 
                 extra_body: settings.analysis_extra_body(),
             }))
         }
-        other => Err(format!(
-            "Reference analysis with {other} has not moved to the new backend yet."
-        )),
+        "codex" => Ok(AnalysisBackend::Codex),
+        "claude_code" => Ok(AnalysisBackend::ClaudeCode),
+        other => Err(format!("Unsupported llm_provider={other:?}")),
     }
 }
 
@@ -261,9 +272,29 @@ impl AnalysisBackend {
     ) -> Result<AnalysisResult, AnalysisError> {
         match self {
             Self::Fixture => Ok(fixture_result()),
-            Self::OpenAiCompatible(endpoint) => analyze_with_chat(state, endpoint, request).await,
+            _ => analyze_with(state, self, request).await,
         }
     }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Self::Fixture => "Fixture",
+            Self::OpenAiCompatible(_) => "Analysis LLM",
+            Self::Codex => "Codex",
+            Self::ClaudeCode => "Claude Code",
+        }
+    }
+}
+
+/// The references as each backend takes them.
+enum Images {
+    DataUris(Vec<String>),
+    /// Files in the CLI's working folder: absolute for Codex, relative to
+    /// the folder for Claude Code's Read tool.
+    Files {
+        workspace: PathBuf,
+        paths: Vec<PathBuf>,
+    },
 }
 
 fn fixture_result() -> AnalysisResult {
@@ -292,30 +323,49 @@ fn fixture_result() -> AnalysisResult {
     }
 }
 
-async fn analyze_with_chat(
+async fn analyze_with(
     state: &AppState,
-    endpoint: &Endpoint,
+    backend: &AnalysisBackend,
     request: &AnalysisRequest,
 ) -> Result<AnalysisResult, AnalysisError> {
+    let workspace = match backend {
+        AnalysisBackend::Codex => Some(cli::codex_root(&state.data_dir)),
+        AnalysisBackend::ClaudeCode => Some(cli::claude_root(&state.data_dir)),
+        _ => None,
+    }
+    .map(|root| {
+        let analysis_id = if request.analysis_id.is_empty() {
+            crate::backend::ids::short_hex(12)
+        } else {
+            request.analysis_id.clone()
+        };
+        root.join(safe_segment(&request.character_session_id))
+            .join(format!("analysis-{}", safe_segment(&analysis_id)))
+    });
     let images = {
         let data_dir = state.data_dir.clone();
         let keys = request.reference_keys.clone();
-        tokio::task::spawn_blocking(move || encode_references(&data_dir, &keys))
-            .await
-            .map_err(|error| AnalysisError::Failed(error.to_string()))?
-            .map_err(AnalysisError::Failed)?
+        tokio::task::spawn_blocking(move || match workspace {
+            None => encode_references(&data_dir, &keys).map(Images::DataUris),
+            Some(workspace) => stage_references(&data_dir, &keys, &workspace)
+                .map(|paths| Images::Files { workspace, paths }),
+        })
+        .await
+        .map_err(|error| AnalysisError::Failed(error.to_string()))?
+        .map_err(AnalysisError::Failed)?
     };
     let overrides = Overrides::load(&state.data_dir);
+    let name = backend.name();
     let safety_text = complete(
         state,
-        endpoint,
+        backend,
+        "reference-safety",
         &reference_safety_prompt(request, &overrides),
         &images,
     )
     .await?;
-    let safety = parse_reference_safety(&extract_json(&safety_text)).map_err(|_| {
-        AnalysisError::Failed("Analysis LLM returned an invalid safety result".to_owned())
-    })?;
+    let safety = parse_reference_safety(&extract_json(&safety_text))
+        .map_err(|_| AnalysisError::Failed(format!("{name} returned an invalid safety result")))?;
     if !safety.allowed {
         let reason = if safety.reason == "adult_explicit" {
             "reference_adult_explicit"
@@ -334,19 +384,19 @@ async fn analyze_with_chat(
     }
     let analysis_text = complete(
         state,
-        endpoint,
+        backend,
+        "detail-analysis",
         &detail_analysis_prompt(request, &overrides),
         &images,
     )
     .await?;
-    parse_detail_analysis(&extract_json(&analysis_text)).map_err(|_| {
-        AnalysisError::Failed("Analysis LLM returned invalid detail analysis JSON".to_owned())
-    })
+    parse_detail_analysis(&extract_json(&analysis_text))
+        .map_err(|_| AnalysisError::Failed(format!("{name} returned invalid detail analysis JSON")))
 }
 
-/// The references as data URLs, in order.
-fn encode_references(data_dir: &Path, keys: &[String]) -> Result<Vec<String>, String> {
-    let mut encoded = Vec::new();
+/// The references as RGB images, in order.
+fn load_references(data_dir: &Path, keys: &[String]) -> Result<Vec<image::RgbImage>, String> {
+    let mut images = Vec::new();
     let mut missing = Vec::new();
     for key in keys {
         let Some((_kind, path)) = reference_file(data_dir, key) else {
@@ -355,7 +405,7 @@ fn encode_references(data_dir: &Path, keys: &[String]) -> Result<Vec<String>, St
         };
         let image = load_rgb(&path)
             .map_err(|_| format!("Detail analysis reference image is unreadable: {key}"))?;
-        encoded.push(to_data_uri(&image, MAX_IMAGE_SIDE));
+        images.push(image);
     }
     if !missing.is_empty() {
         return Err(format!(
@@ -363,13 +413,101 @@ fn encode_references(data_dir: &Path, keys: &[String]) -> Result<Vec<String>, St
             missing.join(", ")
         ));
     }
-    if encoded.is_empty() {
+    if images.is_empty() {
         return Err("Detail analysis requires at least one uploaded user reference".to_owned());
     }
-    Ok(encoded)
+    Ok(images)
+}
+
+/// The references as data URLs, in order.
+fn encode_references(data_dir: &Path, keys: &[String]) -> Result<Vec<String>, String> {
+    Ok(load_references(data_dir, keys)?
+        .iter()
+        .map(|image| to_data_uri(image, MAX_IMAGE_SIDE))
+        .collect())
+}
+
+/// The references as `refs/ref-<n>.png` in `workspace`.
+fn stage_references(
+    data_dir: &Path,
+    keys: &[String],
+    workspace: &Path,
+) -> Result<Vec<PathBuf>, String> {
+    let folder = workspace.join("refs");
+    std::fs::create_dir_all(&folder)
+        .map_err(|error| format!("cannot create the analysis working folder: {error}"))?;
+    load_references(data_dir, keys)?
+        .iter()
+        .enumerate()
+        .map(|(index, image)| {
+            let path = folder.join(format!("ref-{}.png", index + 1));
+            image_api::save_png(&downscale(image, MAX_IMAGE_SIDE), &path)?;
+            Ok(path)
+        })
+        .collect()
+}
+
+/// Claude Code looks at the staged images with its Read tool.
+fn with_read_instructions(prompt: &str, workspace: &Path, paths: &[PathBuf]) -> String {
+    let mut lines = vec![
+        "The uploaded reference images are files in the current directory. Use the Read tool to view every one \
+         of them before answering:"
+            .to_owned(),
+    ];
+    lines.extend(paths.iter().map(|path| {
+        let relative = path.strip_prefix(workspace).unwrap_or(path);
+        format!("- {}", relative.to_string_lossy().replace('\\', "/"))
+    }));
+    lines.extend([String::new(), prompt.to_owned()]);
+    lines.join("\n")
 }
 
 async fn complete(
+    state: &AppState,
+    backend: &AnalysisBackend,
+    label: &str,
+    prompt: &str,
+    images: &Images,
+) -> Result<String, AnalysisError> {
+    match (backend, images) {
+        (AnalysisBackend::OpenAiCompatible(endpoint), Images::DataUris(images)) => {
+            complete_with_chat(state, endpoint, prompt, images).await
+        }
+        (AnalysisBackend::Codex, Images::Files { workspace, paths }) => {
+            let run = cli::codex::run(
+                &state.cli,
+                workspace,
+                label,
+                prompt,
+                paths,
+                cli::codex::Purpose::Analysis,
+            )
+            .await
+            .map_err(AnalysisError::Failed)?;
+            if run.text.is_empty() {
+                return Err(AnalysisError::Failed(
+                    "Codex の返事が空でした。もう一度試してください。".to_owned(),
+                ));
+            }
+            Ok(run.text)
+        }
+        (AnalysisBackend::ClaudeCode, Images::Files { workspace, paths }) => cli::claude::run(
+            &state.cli,
+            workspace,
+            label,
+            &with_read_instructions(prompt, workspace, paths),
+            cli::claude::Tools::ReadImages,
+            "",
+        )
+        .await
+        .map_err(AnalysisError::Failed),
+        _ => Err(AnalysisError::Failed(
+            "the analysis images do not fit the backend".to_owned(),
+        )),
+    }
+}
+
+async fn complete_with_chat(
     state: &AppState,
     endpoint: &Endpoint,
     prompt: &str,
@@ -762,6 +900,7 @@ mod tests {
                 reference_key: "front:references/x/y.png".to_owned(),
                 description: "main".to_owned(),
             }],
+            ..AnalysisRequest::default()
         };
         let prompt = detail_analysis_prompt(&request, &Overrides::default());
         assert!(prompt.starts_with("Analyze the uploaded character references"));

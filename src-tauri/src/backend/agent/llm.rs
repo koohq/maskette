@@ -2,17 +2,21 @@
 //!
 //! Messages are kept in the OpenAI chat format (role / content / tool_calls /
 //! tool_call_id). The OpenAI-compatible backend sends them as they are, with
-//! native function calling, streamed. The Claude Code backend moves over with
-//! the CLI paths (the last step of the port).
+//! native function calling, streamed. The Claude Code CLI has no client-side
+//! tool calling, so for it the transcript is written out as text and the
+//! answer asked for as JSON (the reply and the tool calls).
 //!
 //! Ported from the old backend's `app/agent/llm.py`.
 
+use std::fmt::Write as _;
+use std::path::Path;
 use std::sync::LazyLock;
 
 use regex::Regex;
 use serde_json::{Value, json};
 
 use crate::backend::chat_api::{self, ChatApi, JsonObject};
+use crate::backend::cli::{self, Cli};
 use crate::backend::ids;
 use crate::backend::settings::store::Settings;
 
@@ -66,10 +70,17 @@ pub fn tool_payload(tool: &ToolSpec) -> Value {
     })
 }
 
+/// Where a turn goes, and the conversation's Claude Code working folder.
+pub struct Backends<'a> {
+    pub chat: &'a ChatApi,
+    pub cli: &'a Cli,
+    pub workspace: &'a Path,
+}
+
 /// One assistant turn for the transcript so far.
 pub async fn complete(
     settings: &Settings,
-    chat: &ChatApi,
+    backends: &Backends<'_>,
     system_prompt: &str,
     messages: &[Value],
     tools: &[ToolSpec],
@@ -77,14 +88,21 @@ pub async fn complete(
     match settings.get("agent_llm_provider").trim() {
         "" | "openai_compatible" => {}
         "claude_code" => {
-            return Err(
-                "The Claude Code chat assistant has not moved to the new backend yet; \
-                 choose openai_compatible in the settings."
-                    .to_owned(),
-            );
+            let prompt = claude_code_prompt(system_prompt, messages, tools);
+            let text = cli::claude::run(
+                backends.cli,
+                backends.workspace,
+                "agent-turn",
+                &prompt,
+                cli::claude::Tools::None,
+                settings.get("agent_claude_code_model"),
+            )
+            .await?;
+            return Ok(parse_claude_code_reply(&text));
         }
         other => return Err(format!("Unsupported agent_llm_provider={other:?}")),
     }
+    let chat = backends.chat;
     let base_url = settings
         .get("agent_llm_base_url")
         .trim()
@@ -128,6 +146,125 @@ fn wire_message(message: &Value) -> Value {
         fields.remove("name");
     }
     message
+}
+
+pub const CLAUDE_CODE_REPLY_FORMAT: &str = r#"Reply with ONLY one JSON object and nothing else:
+{"reply": "<text shown to the user; may be empty while you call tools>",
+ "tool_calls": [{"name": "<tool name>", "arguments": {...}}]}
+Use an empty tool_calls list when you are done and waiting for the user. Never invent tool names."#;
+
+/// The system prompt, the tools and the transcript as one text prompt.
+pub fn claude_code_prompt(system_prompt: &str, messages: &[Value], tools: &[ToolSpec]) -> String {
+    let text = |message: &Value, key: &str| -> String {
+        message
+            .get(key)
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned()
+    };
+    let mut prompt = format!("{system_prompt}\n\n## Tools\n");
+    for tool in tools {
+        let _ = writeln!(prompt, "- {}: {}", tool.name, tool.description);
+        let _ = writeln!(prompt, "  arguments schema: {}", tool.parameters);
+    }
+    prompt.push_str("\n## Conversation so far\n");
+    for message in messages {
+        match message.get("role").and_then(Value::as_str) {
+            Some("user") => {
+                let _ = writeln!(prompt, "[user] {}", text(message, "content"));
+            }
+            Some("assistant") => {
+                let content = text(message, "content");
+                if !content.is_empty() {
+                    let _ = writeln!(prompt, "[assistant] {content}");
+                }
+                for call in message
+                    .get("tool_calls")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                {
+                    let function = call.get("function").unwrap_or(&Value::Null);
+                    let arguments = text(function, "arguments");
+                    let arguments = if arguments.is_empty() {
+                        "{}"
+                    } else {
+                        &arguments
+                    };
+                    let _ = writeln!(
+                        prompt,
+                        "[assistant called {}] {arguments}",
+                        text(function, "name")
+                    );
+                }
+            }
+            Some("tool") => {
+                let _ = writeln!(prompt, "[tool result] {}", text(message, "content"));
+            }
+            _ => {}
+        }
+    }
+    prompt.push_str("\n## Your turn\n");
+    prompt.push_str(CLAUDE_CODE_REPLY_FORMAT);
+    prompt
+}
+
+static FENCED_JSON: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(r"(?s)```(?:json)?\s*(\{.*\})\s*```").expect("fenced JSON"));
+
+/// The reply and tool calls in Claude Code's answer; an answer that is not
+/// the asked-for JSON counts as a plain reply rather than failing the turn.
+pub fn parse_claude_code_reply(text: &str) -> AssistantTurn {
+    let stripped = text.trim();
+    let mut candidates: Vec<&str> = FENCED_JSON
+        .captures(stripped)
+        .and_then(|captures| captures.get(1))
+        .map(|found| found.as_str())
+        .into_iter()
+        .collect();
+    if let (Some(start), Some(end)) = (stripped.find('{'), stripped.rfind('}'))
+        && start < end
+    {
+        candidates.push(&stripped[start..=end]);
+    }
+    let Some(payload) = candidates.into_iter().find_map(|candidate| {
+        match serde_json::from_str::<Value>(candidate) {
+            Ok(Value::Object(payload)) => Some(payload),
+            _ => None,
+        }
+    }) else {
+        return AssistantTurn {
+            text: stripped.to_owned(),
+            tool_calls: Vec::new(),
+        };
+    };
+    let tool_calls = payload
+        .get("tool_calls")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|item| {
+            let name = item.get("name").and_then(Value::as_str)?.trim();
+            (!name.is_empty()).then(|| ToolCall {
+                id: format!("call_{}", ids::short_hex(12)),
+                name: name.to_owned(),
+                arguments: item
+                    .get("arguments")
+                    .and_then(Value::as_object)
+                    .cloned()
+                    .unwrap_or_default(),
+            })
+        })
+        .collect();
+    AssistantTurn {
+        text: payload
+            .get("reply")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .trim()
+            .to_owned(),
+        tool_calls,
+    }
 }
 
 static THINKING: LazyLock<Regex> =
@@ -216,6 +353,49 @@ mod tests {
         let turn = parse_openai_message(message.as_object().unwrap());
         assert!(turn.tool_calls[0].id.starts_with("call_"));
         assert_eq!(turn.tool_calls[0].id.len(), 17);
+    }
+
+    #[test]
+    fn claude_code_replies_give_text_and_tool_calls() {
+        let turn = parse_claude_code_reply(
+            "Here you go:\n```json\n{\"reply\": \"見ます\", \"tool_calls\": [{\"name\": \"analyze_references\", \"arguments\": {\"x\": 1}}, {\"name\": \" \"}, \"junk\"]}\n```",
+        );
+        assert_eq!(turn.text, "見ます");
+        assert_eq!(turn.tool_calls.len(), 1);
+        assert_eq!(turn.tool_calls[0].name, "analyze_references");
+        assert_eq!(
+            Value::Object(turn.tool_calls[0].arguments.clone()),
+            json!({"x": 1})
+        );
+        assert!(turn.tool_calls[0].id.starts_with("call_"));
+
+        let plain = parse_claude_code_reply("  ただの返事です  ");
+        assert_eq!(plain.text, "ただの返事です");
+        assert!(plain.tool_calls.is_empty());
+    }
+
+    #[test]
+    fn the_claude_code_prompt_writes_out_the_transcript() {
+        let tools = [ToolSpec {
+            name: "generate_front_view",
+            description: "Make the front view.",
+            parameters: json!({"type": "object"}),
+        }];
+        let messages = [
+            json!({"role": "user", "content": "作って"}),
+            json!({"role": "assistant", "content": "", "tool_calls": [
+                {"id": "c1", "type": "function", "function": {"name": "generate_front_view", "arguments": "{\"instructions\":\"x\"}"}},
+            ]}),
+            json!({"role": "tool", "tool_call_id": "c1", "name": "generate_front_view", "content": "{\"ok\":true}"}),
+        ];
+        let prompt = claude_code_prompt("SYSTEM", &messages, &tools);
+        assert!(prompt.starts_with(
+            "SYSTEM\n\n## Tools\n- generate_front_view: Make the front view.\n  arguments schema: {\"type\":\"object\"}\n"
+        ));
+        assert!(prompt.contains(
+            "[user] 作って\n[assistant called generate_front_view] {\"instructions\":\"x\"}\n[tool result] {\"ok\":true}\n"
+        ));
+        assert!(prompt.ends_with(CLAUDE_CODE_REPLY_FORMAT));
     }
 
     #[test]

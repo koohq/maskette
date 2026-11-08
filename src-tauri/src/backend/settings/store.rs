@@ -91,14 +91,7 @@ pub const FIELDS: &[Field] = &[
     ),
     choice(
         "image_provider",
-        &[
-            "codex",
-            "codex_bridge",
-            "openrouter",
-            "siliconflow",
-            "ark",
-            "fixture",
-        ],
+        &["codex", "openrouter", "siliconflow", "ark", "fixture"],
     ),
     text("siliconflow_base_url", "https://api.siliconflow.cn/v1"),
     text("siliconflow_image_model", "Qwen/Qwen-Image-Edit-2509"),
@@ -107,14 +100,21 @@ pub const FIELDS: &[Field] = &[
     text("openrouter_base_url", OPENROUTER_BASE_URL),
     text("openrouter_image_model", "google/gemini-nano-banana-2.1"),
     text("openrouter_extra_body", ""),
-    text("codex_bridge_url", ""),
     secret("agent_llm_api_key"),
     secret("analysis_llm_api_key"),
     secret("siliconflow_api_key"),
     secret("ark_api_key"),
     secret("openrouter_api_key"),
-    secret("codex_bridge_token"),
 ];
+
+/// A saved `image_provider` that is no longer offered: the old Codex Bridge
+/// (a server for reaching Codex from inside Docker, running it without a
+/// sandbox). It is kept when read, so generation can say what to do instead,
+/// but can no longer be chosen. Its `codex_bridge_url` and
+/// `codex_bridge_token` are not read.
+pub const RETIRED_IMAGE_PROVIDER: &str = "codex_bridge";
+/// Earlier builds kept this key in the credential store; a reset removes it.
+const RETIRED_SECRET: &str = "codex_bridge_token";
 
 const EXTRA_BODY_FIELDS: [&str; 3] = [
     "agent_llm_extra_body",
@@ -442,6 +442,9 @@ impl SettingsStore {
             })?;
             saved.secrets.remove(key);
         }
+        if let Err(error) = self.secrets.delete(RETIRED_SECRET) {
+            log::warn!("cannot remove {RETIRED_SECRET} from the credential store: {error}");
+        }
         Ok(())
     }
 }
@@ -471,7 +474,9 @@ fn read_values(path: &Path) -> BTreeMap<String, String> {
                 return None;
             };
             let editable = field(&key).is_some_and(|field| !field.secret);
-            (editable && valid_setting(&key, &value)).then(|| (key, value.trim().to_owned()))
+            let retired = key == "image_provider" && value.trim() == RETIRED_IMAGE_PROVIDER;
+            (editable && (valid_setting(&key, &value) || retired))
+                .then(|| (key, value.trim().to_owned()))
         })
         .collect()
 }

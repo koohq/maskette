@@ -309,15 +309,25 @@ async fn run_chat(
             return Ok(());
         }
         let overrides = Overrides::load(&state.data_dir);
-        let (prompt, messages) = {
+        let (prompt, messages, workspace) = {
             let conversation = entry.lock();
             (
                 system_prompt(&conversation, &overrides),
                 conversation.llm_messages.clone(),
+                state
+                    .agent
+                    .store
+                    .workspace(&conversation.id)
+                    .join("claude-code"),
             )
         };
         let settings = state.settings.settings();
-        let turn = llm::complete(&settings, &state.chat, &prompt, &messages, &specs).await?;
+        let backends = llm::Backends {
+            chat: &state.chat,
+            cli: &state.cli,
+            workspace: &workspace,
+        };
+        let turn = llm::complete(&settings, &backends, &prompt, &messages, &specs).await?;
         {
             let mut conversation = entry.lock();
             conversation.llm_messages.push(turn.to_message());

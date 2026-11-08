@@ -11,8 +11,8 @@
 //!
 //! `GET /api/settings/prompts` lists every key Maskette reads, with its
 //! built-in text, the text in use and whether the file changes it. The old
-//! keys of the paths that have not moved (Codex, the finished-product style
-//! photo, the landmark lines) are not listed and not read.
+//! keys of the paths that have not moved (the finished-product style photo,
+//! the landmark lines) are not listed and not read.
 //!
 //! The old `/api/prompts/requirements` and `/api/prompts/chips` are not
 //! served: the screen never calls them.
@@ -29,6 +29,7 @@ use serde_json::{Map, Value, json};
 
 use super::SharedState;
 use super::agent::runner;
+use super::cli::codex;
 use super::generation::{analysis, prompt};
 
 pub const FILE_NAME: &str = "prompts.json";
@@ -195,6 +196,14 @@ pub const FIELDS: &[(&str, Builtin)] = &[
         Builtin::List(&prompt::TURNAROUND_CONSTRAINTS),
     ),
     ("agent.system_prompt", Builtin::Text(runner::SYSTEM_PROMPT)),
+    (
+        "codex.tool_requirement",
+        Builtin::Text(codex::TOOL_REQUIREMENT),
+    ),
+    (
+        "codex.tool_output_note",
+        Builtin::Text(codex::TOOL_OUTPUT_NOTE),
+    ),
 ];
 
 /// Every key with its built-in value, the value in use and whether the file

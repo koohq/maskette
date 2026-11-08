@@ -17,6 +17,16 @@ use super::{AppState, Backend, SharedState, router};
 
 pub const TOKEN: &str = "test-token-0123456789abcdef";
 
+/// Tests never start the real CLIs (they would use the user's
+/// subscription): every run answers as if the CLI were not installed.
+pub struct NoCli;
+
+impl super::cli::Runner for NoCli {
+    fn run(&self, _invocation: super::cli::Invocation) -> super::cli::RunFuture<'_> {
+        Box::pin(async { Err(super::cli::RunError::NotFound) })
+    }
+}
+
 /// A backend on a temporary data folder, with API keys kept in memory.
 pub struct TestBackend {
     pub dir: tempfile::TempDir,
@@ -26,9 +36,14 @@ pub struct TestBackend {
 
 impl TestBackend {
     pub fn new(allow_fixture: bool) -> Self {
+        Self::with_cli(allow_fixture, super::cli::Cli::with_runner(Arc::new(NoCli)))
+    }
+
+    /// A backend whose CLI runs go to `cli` (usually a stand-in runner).
+    pub fn with_cli(allow_fixture: bool, cli: super::cli::Cli) -> Self {
         let dir = tempfile::tempdir().expect("temporary data folder");
         let secrets = Arc::new(MemorySecrets::default());
-        let state = Self::state(dir.path(), &secrets, allow_fixture);
+        let state = Self::state(dir.path(), &secrets, allow_fixture, cli);
         Self {
             dir,
             secrets,
@@ -40,6 +55,7 @@ impl TestBackend {
         data_dir: &std::path::Path,
         secrets: &Arc<MemorySecrets>,
         allow_fixture: bool,
+        cli: super::cli::Cli,
     ) -> SharedState {
         let store = SettingsStore::open(data_dir, secrets.clone(), allow_fixture);
         Arc::new(AppState {
@@ -54,6 +70,7 @@ impl TestBackend {
                 vec![std::time::Duration::ZERO; 3],
             ),
             audit: super::audit::Audit::default(),
+            cli,
             generation_log: Default::default(),
         })
     }
@@ -64,6 +81,7 @@ impl TestBackend {
             self.dir.path(),
             &self.secrets,
             self.state.settings.settings().allow_fixture,
+            self.state.cli.clone(),
         )
     }
 

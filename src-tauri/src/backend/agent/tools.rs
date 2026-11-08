@@ -224,7 +224,7 @@ pub async fn run_tool(name: &str, arguments: &JsonObject, context: &ToolContext)
 }
 
 async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
-    let (locale, keys, descriptions) = {
+    let (locale, keys, descriptions, session) = {
         let conversation = context.entry.lock();
         let state = &conversation.state;
         if state.references.is_empty() {
@@ -243,6 +243,7 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
             conversation.locale.clone(),
             character_reference_keys(&conversation),
             descriptions,
+            state.character_session_id.clone(),
         )
     };
     let focus_note = clean_text(&arg_text(arguments, "focus_note"));
@@ -254,6 +255,8 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
         locale: locale.clone(),
         reference_keys: keys,
         reference_descriptions: descriptions,
+        character_session_id: session,
+        analysis_id: analysis_id.clone(),
     };
     let result = match backend.analyze(&context.state, &request).await {
         Ok(result) => result,

@@ -932,7 +932,7 @@ async fn model_errors_are_reported_in_the_chat() {
 }
 
 #[tokio::test]
-async fn the_claude_code_assistant_says_it_has_not_moved() {
+async fn the_claude_code_assistant_reports_a_missing_cli() {
     let setup = setup(no_llm).await;
     setup
         .backend
@@ -945,11 +945,13 @@ async fn the_claude_code_assistant_says_it_has_not_moved() {
         .unwrap();
     let id = setup.start().await;
     let body = setup.send(&id, "hello", 0, &[]).await;
+    let message = events(&body, "error")[0]["message"]
+        .as_str()
+        .unwrap()
+        .to_owned();
     assert!(
-        events(&body, "error")[0]["message"]
-            .as_str()
-            .unwrap()
-            .contains("Claude Code")
+        message.contains("Claude Code の CLI（claude）が見つかりません"),
+        "{message}"
     );
 }
 

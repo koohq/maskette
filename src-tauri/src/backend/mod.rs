@@ -7,6 +7,7 @@
 pub mod agent;
 pub mod audit;
 pub mod chat_api;
+pub mod cli;
 #[cfg(debug_assertions)]
 pub mod dev_handoff;
 mod error;
@@ -67,6 +68,8 @@ pub struct AppState {
     pub agent: agent::Agent,
     pub generation: generation::Services,
     pub audit: audit::Audit,
+    /// The subscription CLIs (Codex, Claude Code).
+    pub cli: cli::Cli,
     /// Every generation request, by job id, for the tests to inspect.
     #[cfg(test)]
     pub generation_log: std::sync::Mutex<Vec<(String, generation::GenerationRequest)>>,
@@ -96,6 +99,7 @@ impl Backend {
             agent: agent::Agent::new(&config.data_dir),
             generation: generation::Services::new(&config.data_dir),
             audit: audit::Audit::default(),
+            cli: cli::Cli::new(),
             data_dir: config.data_dir,
             settings: Arc::new(settings),
             chat: ChatApi::new(),

@@ -765,6 +765,13 @@ pub fn safe_segment(value: &str) -> String {
     }
 }
 
+/// Writes `image` as a PNG file.
+pub fn save_png(image: &RgbImage, path: &Path) -> Result<(), String> {
+    image
+        .save_with_format(path, image::ImageFormat::Png)
+        .map_err(|error| format!("cannot write {}: {error}", file_name(path)))
+}
+
 /// Writes the clean output and its watermarked public copy.
 pub fn store_output(
     data_dir: &Path,

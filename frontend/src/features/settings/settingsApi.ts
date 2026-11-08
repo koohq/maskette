@@ -16,7 +16,6 @@ export type BackendSettings = z.infer<typeof backendSettingsSchema>;
 const commonRequirements: Record<string, string> = {
   claude_code: "claude_cli",
   codex: "codex_cli",
-  codex_bridge: "codex_bridge",
   siliconflow: "siliconflow_key",
   ark: "ark_key",
   openrouter: "openrouter_key",
@@ -29,7 +28,7 @@ export function backendRequirement(settingKey: string, option: string): string |
 }
 
 /** Backends that drive a CLI signed in with a personal ChatGPT or Claude subscription. */
-const subscriptionCliBackends = new Set(["codex", "codex_bridge", "claude_code"]);
+const subscriptionCliBackends = new Set(["codex", "claude_code"]);
 
 export function usesSubscriptionCli(option: string): boolean {
   return subscriptionCliBackends.has(option);

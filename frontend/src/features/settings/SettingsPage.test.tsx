@@ -29,7 +29,7 @@ const initial: BackendSettings = {
   options: {
     agent_llm_provider: ["openai_compatible", "claude_code"],
     llm_provider: ["openai_compatible", "codex", "claude_code"],
-    image_provider: ["codex", "codex_bridge", "openrouter", "siliconflow", "ark"],
+    image_provider: ["codex", "openrouter", "siliconflow", "ark"],
   },
   secrets: {
     agent_llm_api_key: { set: false, source: "", hint: "" },
@@ -37,9 +37,8 @@ const initial: BackendSettings = {
     siliconflow_api_key: { set: true, source: "env", hint: "…0000" },
     ark_api_key: { set: false, source: "", hint: "" },
     openrouter_api_key: { set: false, source: "", hint: "" },
-    codex_bridge_token: { set: false, source: "", hint: "" },
   },
-  status: { agent_llm_key: true, analysis_llm_key: false, claude_cli: true, codex_cli: true, codex_bridge: false, siliconflow_key: true, ark_key: false, openrouter_key: true },
+  status: { agent_llm_key: true, analysis_llm_key: false, claude_cli: true, codex_cli: true, siliconflow_key: true, ark_key: false, openrouter_key: true },
 };
 
 function renderPage() {
@@ -247,6 +246,17 @@ describe("SettingsPage", () => {
     expect(screen.getAllByRole("note")).toHaveLength(1);
     fireEvent.click(screen.getAllByRole("radio", { name: "Claude Code CLI" })[0] as HTMLElement);
     expect(screen.getAllByRole("note")).toHaveLength(2);
+  });
+
+  it("says a saved Codex Bridge is gone and offers no Bridge fields", async () => {
+    const saved = { ...initial, values: { ...initial.values, image_provider: "codex_bridge" } };
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify(saved))));
+    renderPage();
+
+    expect((await screen.findByRole("alert")).textContent).toBe("Codex Bridge 已不再提供，请选择 Codex 或其他后端。");
+    expect(screen.queryByText(/Bridge 地址/)).toBeNull();
+    fireEvent.click(screen.getAllByRole("radio", { name: "Codex CLI" })[1] as HTMLElement);
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("warns when the selected backend is not configured and disables editing when read-only", async () => {

@@ -73,14 +73,7 @@ async fn settings_report_effective_backends() {
     assert_eq!(body["overridden"], json!([]));
     assert_eq!(
         body["options"]["image_provider"],
-        json!([
-            "codex",
-            "codex_bridge",
-            "openrouter",
-            "siliconflow",
-            "ark",
-            "fixture"
-        ])
+        json!(["codex", "openrouter", "siliconflow", "ark", "fixture"])
     );
     assert_eq!(
         body["options"]["agent_llm_provider"],
@@ -91,12 +84,11 @@ async fn settings_report_effective_backends() {
         body["secrets"]["ark_api_key"],
         json!({"set": false, "source": "", "hint": ""})
     );
-    assert_eq!(body["secrets"].as_object().unwrap().len(), 6);
+    assert_eq!(body["secrets"].as_object().unwrap().len(), 5);
     let status = body["status"].as_object().unwrap();
     for flag in [
         "codex_cli",
         "claude_cli",
-        "codex_bridge",
         "siliconflow_key",
         "ark_key",
         "openrouter_key",
@@ -239,6 +231,49 @@ fn the_settings_file_never_supplies_api_keys_or_invalid_values() {
     assert_eq!(settings.image_provider(), "fixture");
     assert_eq!(settings.get("ark_image_model"), "m2");
     assert_eq!(saved.into_iter().collect::<Vec<_>>(), ["ark_image_model"]);
+}
+
+#[tokio::test]
+async fn a_saved_codex_bridge_is_kept_but_can_no_longer_be_chosen() {
+    let backend = backend();
+    std::fs::write(
+        backend.dir.path().join(FILE_NAME),
+        r#"{"image_provider": "codex_bridge", "codex_bridge_url": "http://127.0.0.1:8765"}"#,
+    )
+    .unwrap();
+    backend
+        .secrets
+        .set("codex_bridge_token", "old-bridge-token")
+        .unwrap();
+    let state = backend.restart();
+    let settings = state.settings.settings();
+    assert_eq!(settings.image_provider(), "codex_bridge");
+    assert_eq!(settings.get("codex_bridge_url"), "");
+    assert_eq!(settings.get("codex_bridge_token"), "");
+    let error = crate::backend::generation::image_backend(&settings).unwrap_err();
+    assert!(
+        error.starts_with("Codex Bridge は無くなりました"),
+        "{error}"
+    );
+
+    let app = router(state.clone());
+    let body = read(&app).await;
+    assert_eq!(body["values"]["image_provider"], "codex_bridge");
+    assert!(body["values"].get("codex_bridge_url").is_none());
+    assert!(body["secrets"].get("codex_bridge_token").is_none());
+    assert!(body["status"].get("codex_bridge").is_none());
+    let response = put(&app, json!({"image_provider": "codex_bridge"})).await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    // Saving something else keeps it until another backend is chosen.
+    put(&app, json!({"ark_image_model": "m2"})).await;
+    assert_eq!(
+        backend.restart().settings.settings().image_provider(),
+        "codex_bridge"
+    );
+
+    // A reset also removes the token earlier builds kept.
+    call(&app, Method::DELETE, "/api/settings", None).await;
+    assert!(backend.secrets.snapshot().is_empty());
 }
 
 #[tokio::test]
@@ -396,7 +431,7 @@ async fn analysis_extra_body_setting_must_be_a_json_object() {
 
 #[test]
 fn every_secret_is_an_editable_field() {
-    assert_eq!(store::secret_keys().count(), 6);
+    assert_eq!(store::secret_keys().count(), 5);
     assert!(store::valid_setting("ark_api_key", "sk-1"));
     assert!(!store::valid_setting("ark_api_key", ""));
 }
