@@ -72,7 +72,7 @@ fn save(backend: &TestBackend, record: &Value) {
 
 #[tokio::test]
 async fn the_session_is_always_signed_in() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let app = backend.app();
     let (status, body) = call(&app, Method::GET, "/api/audit/session", None).await;
     assert_eq!(status, StatusCode::OK);
@@ -105,7 +105,7 @@ async fn the_session_is_always_signed_in() {
 
 #[tokio::test]
 async fn the_summary_counts_jobs_projects_and_token_usage() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let mut done = record("job-1", "session-a", "succeeded", &["2026-01-01T00:00:00Z"]);
     done["outputs"] = json!([output(1)]);
     done["token_usage"] = json!({"input_tokens": 1000, "output_tokens": 300, "total_tokens": 1300});
@@ -171,7 +171,7 @@ async fn the_summary_counts_jobs_projects_and_token_usage() {
 
 #[tokio::test]
 async fn an_empty_record_folder_gives_zeros() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let (status, body) = call(&backend.app(), Method::GET, "/api/audit/summary", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body["total_calls"], 0);
@@ -190,7 +190,7 @@ async fn an_empty_record_folder_gives_zeros() {
 
 #[tokio::test]
 async fn the_quota_policy_can_be_changed_within_its_bounds() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let app = backend.app();
     let policy = json!({
         "window_hours": 6, "normal_window_limit": 12,
@@ -241,7 +241,7 @@ async fn the_quota_policy_can_be_changed_within_its_bounds() {
 
 #[tokio::test]
 async fn the_job_list_shows_references_and_outputs_newest_first() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let mut old = record(
         "job-old",
         "session-a",
@@ -334,7 +334,7 @@ async fn jobs_the_generator_records_show_up() {
     use crate::backend::generation::{GeneratedImage, GenerationRequest, Mode};
     use crate::backend::prompts::Overrides;
 
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let mut request = GenerationRequest::new("session-1", "ja", Mode::CharacterFront);
     request.reference_keys = vec!["design_source:references/x/y.png".to_owned()];
     let job = backend
@@ -367,17 +367,17 @@ async fn jobs_the_generator_records_show_up() {
     assert_eq!(summary["success_rate"], 1.0);
 }
 
-/// The screen never calls the old album and requirement routes; they are
-/// left to the relay (501 without it).
+/// The screen never calls the old album and requirement routes, so they
+/// were not ported and are unknown paths.
 #[tokio::test]
 async fn album_and_requirement_routes_are_not_served() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     for uri in [
         "/api/album/items",
         "/api/prompts/requirements",
         "/api/prompts/chips",
     ] {
         let (status, _) = call(&backend.app(), Method::GET, uri, None).await;
-        assert_eq!(status, StatusCode::NOT_IMPLEMENTED, "{uri}");
+        assert_eq!(status, StatusCode::NOT_FOUND, "{uri}");
     }
 }

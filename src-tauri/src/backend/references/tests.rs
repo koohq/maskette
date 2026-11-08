@@ -1,17 +1,15 @@
 //! Ported from the old backend's `tests/test_references.py`, plus the path
-//! checks of the asset route and the hand-over to the relay.
+//! checks of the asset route.
 
 use axum::Router;
 use axum::body::Body;
 use axum::http::{Method, StatusCode, header};
 use axum::response::Response;
 use http_body_util::BodyExt;
-use serde_json::Value;
 use tower::ServiceExt;
 
 use super::{DIR_NAME, MAX_UPLOAD_BYTES, safe_filename};
-use crate::backend::relay::Relay;
-use crate::backend::tests::{TOKEN, TestBackend, authed, json_body, spawn_legacy_echo};
+use crate::backend::tests::{TOKEN, TestBackend, authed, json_body};
 use crate::backend::token;
 
 const BOUNDARY: &str = "maskette-test-boundary";
@@ -106,7 +104,7 @@ async fn assert_detail(response: Response, status: StatusCode, detail: &str) {
 
 #[tokio::test]
 async fn reference_upload_stores_image_and_returns_object_key() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let app = backend.app();
 
     let response = upload(
@@ -154,7 +152,7 @@ async fn reference_upload_stores_image_and_returns_object_key() {
 
 #[tokio::test]
 async fn reference_upload_rejects_non_image_files() {
-    let app = TestBackend::new(None, true).app();
+    let app = TestBackend::new(true).app();
 
     let response = upload(
         &app,
@@ -190,7 +188,7 @@ async fn reference_upload_rejects_non_image_files() {
 
 #[tokio::test]
 async fn reference_upload_accepts_a_file_without_a_declared_type() {
-    let app = TestBackend::new(None, true).app();
+    let app = TestBackend::new(true).app();
     let response = upload(
         &app,
         &[
@@ -210,7 +208,7 @@ async fn reference_upload_accepts_a_file_without_a_declared_type() {
 
 #[tokio::test]
 async fn reference_upload_checks_the_kind() {
-    let app = TestBackend::new(None, true).app();
+    let app = TestBackend::new(true).app();
     for kind in ["front view", "../front", &"a".repeat(33)] {
         let response = upload(
             &app,
@@ -226,7 +224,7 @@ async fn reference_upload_checks_the_kind() {
 
 #[tokio::test]
 async fn reference_upload_needs_both_fields() {
-    let app = TestBackend::new(None, true).app();
+    let app = TestBackend::new(true).app();
     for parts in [
         vec![Part::Text("kind", "front")],
         // An empty kind counts as missing.
@@ -263,7 +261,7 @@ async fn reference_upload_needs_both_fields() {
 
 #[tokio::test]
 async fn reference_upload_refuses_huge_files() {
-    let app = TestBackend::new(None, true).app();
+    let app = TestBackend::new(true).app();
     let huge = vec![0u8; MAX_UPLOAD_BYTES + 1];
     let response = upload(
         &app,
@@ -298,7 +296,7 @@ fn file_names_are_made_safe() {
 
 #[tokio::test]
 async fn reference_assets_refuse_paths_outside_the_folder() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let app = backend.app();
     let folder = backend.dir.path().join(DIR_NAME).join("upload-a");
     std::fs::create_dir_all(&folder).unwrap();
@@ -356,7 +354,7 @@ async fn reference_assets_refuse_paths_outside_the_folder() {
 
 #[tokio::test]
 async fn reference_assets_answer_head_requests() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let folder = backend.dir.path().join(DIR_NAME).join("upload-a");
     std::fs::create_dir_all(&folder).unwrap();
     std::fs::write(folder.join("front.png"), b"png").unwrap();
@@ -379,37 +377,11 @@ async fn reference_assets_answer_head_requests() {
 
 #[tokio::test]
 async fn other_methods_get_a_detail() {
-    let app = TestBackend::new(None, true).app();
+    let app = TestBackend::new(true).app();
     assert_detail(
         get(&app, "/api/references").await,
         StatusCode::METHOD_NOT_ALLOWED,
         "Method Not Allowed",
     )
     .await;
-}
-
-#[tokio::test]
-async fn missing_assets_are_asked_of_the_legacy_api_when_relaying() {
-    let legacy = spawn_legacy_echo().await;
-    let backend = TestBackend::new(Some(Relay::new(&legacy).unwrap()), true);
-    let app = backend.app();
-    let uri = format!(
-        "/api/references/references/agent/project-a/uploads/front.png?{}={TOKEN}",
-        token::QUERY_PARAM
-    );
-    let response = get(&app, &uri).await;
-    assert_eq!(response.status(), StatusCode::OK);
-    let echoed: Value = json_body(response).await;
-    assert_eq!(
-        echoed["path"],
-        "/api/references/references/agent/project-a/uploads/front.png"
-    );
-    assert_eq!(echoed["query"], Value::Null);
-    assert_eq!(echoed["authorization"], Value::Null);
-
-    // Bad paths are still refused here.
-    assert_eq!(
-        get(&app, "/api/references/other/front.png").await.status(),
-        StatusCode::BAD_REQUEST
-    );
 }

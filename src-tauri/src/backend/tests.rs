@@ -1,17 +1,15 @@
 use std::sync::Arc;
 
 use axum::Router;
-use axum::body::{Body, Bytes};
+use axum::body::Body;
 use axum::extract::Request;
 use axum::http::{Method, StatusCode, header};
 use axum::response::Response;
-use axum::routing::any;
 use http_body_util::BodyExt;
-use serde_json::{Value, json};
+use serde_json::Value;
 use tower::ServiceExt;
 
 use super::chat_api::ChatApi;
-use super::relay::Relay;
 use super::settings::secrets::MemorySecrets;
 use super::settings::store::SettingsStore;
 use super::token::{self, Token};
@@ -27,10 +25,10 @@ pub struct TestBackend {
 }
 
 impl TestBackend {
-    pub fn new(relay: Option<Relay>, allow_fixture: bool) -> Self {
+    pub fn new(allow_fixture: bool) -> Self {
         let dir = tempfile::tempdir().expect("temporary data folder");
         let secrets = Arc::new(MemorySecrets::default());
-        let state = Self::state(dir.path(), &secrets, relay, allow_fixture);
+        let state = Self::state(dir.path(), &secrets, allow_fixture);
         Self {
             dir,
             secrets,
@@ -41,14 +39,12 @@ impl TestBackend {
     fn state(
         data_dir: &std::path::Path,
         secrets: &Arc<MemorySecrets>,
-        relay: Option<Relay>,
         allow_fixture: bool,
     ) -> SharedState {
         let store = SettingsStore::open(data_dir, secrets.clone(), allow_fixture);
         Arc::new(AppState {
             token: Token::from_static(TOKEN),
             data_dir: data_dir.to_owned(),
-            relay,
             settings: Arc::new(store),
             // Retries must not wait in tests.
             chat: ChatApi::with_retry_delays(vec![std::time::Duration::ZERO; 3]),
@@ -67,7 +63,6 @@ impl TestBackend {
         Self::state(
             self.dir.path(),
             &self.secrets,
-            None,
             self.state.settings.settings().allow_fixture,
         )
     }
@@ -77,8 +72,8 @@ impl TestBackend {
     }
 }
 
-fn app(relay: Option<Relay>) -> Router {
-    TestBackend::new(relay, true).app()
+fn app() -> Router {
+    TestBackend::new(true).app()
 }
 
 fn get(uri: &str) -> axum::http::request::Builder {
@@ -105,7 +100,7 @@ pub async fn json_body(response: Response) -> Value {
 
 #[tokio::test]
 async fn health_answers_with_the_bearer_token() {
-    let response = app(None)
+    let response = app()
         .oneshot(
             get("/api/health")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
@@ -118,13 +113,12 @@ async fn health_answers_with_the_bearer_token() {
     let body = json_body(response).await;
     assert_eq!(body["status"], "ok");
     assert_eq!(body["app"], "maskette");
-    assert_eq!(body["legacy_relay"], false);
 }
 
 #[tokio::test]
 async fn health_answers_with_the_query_token() {
     let uri = format!("/api/health?{}={TOKEN}", token::QUERY_PARAM);
-    let response = app(None)
+    let response = app()
         .oneshot(get(&uri).body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -144,7 +138,7 @@ async fn requests_without_the_token_are_refused() {
             .unwrap(),
         get("/api/not-ported").body(Body::empty()).unwrap(),
     ] {
-        let response = app(None).oneshot(request).await.unwrap();
+        let response = app().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         assert_eq!(
             json_body(response).await["detail"],
@@ -163,7 +157,7 @@ async fn cors_preflight_from_the_ui_passes_without_the_token() {
         .header(header::ACCESS_CONTROL_REQUEST_HEADERS, "authorization")
         .body(Body::empty())
         .unwrap();
-    let response = app(None).oneshot(request).await.unwrap();
+    let response = app().oneshot(request).await.unwrap();
     assert!(response.status().is_success());
     assert_eq!(
         response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
@@ -178,7 +172,7 @@ async fn other_origins_get_no_cors_grant() {
         .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
         .body(Body::empty())
         .unwrap();
-    let response = app(None).oneshot(request).await.unwrap();
+    let response = app().oneshot(request).await.unwrap();
     assert!(
         !response
             .headers()
@@ -188,7 +182,7 @@ async fn other_origins_get_no_cors_grant() {
 
 #[tokio::test]
 async fn responses_opt_in_to_cross_origin_embedding() {
-    let response = app(None)
+    let response = app()
         .oneshot(get("/api/health").body(Body::empty()).unwrap())
         .await
         .unwrap();
@@ -199,8 +193,8 @@ async fn responses_opt_in_to_cross_origin_embedding() {
 }
 
 #[tokio::test]
-async fn unported_api_paths_say_so_when_the_relay_is_off() {
-    let response = app(None)
+async fn unknown_paths_are_not_found() {
+    let response = app()
         .oneshot(
             get("/api/generation/jobs")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
@@ -209,8 +203,9 @@ async fn unported_api_paths_say_so_when_the_relay_is_off() {
         )
         .await
         .unwrap();
-    assert_eq!(response.status(), StatusCode::NOT_IMPLEMENTED);
-    let response = app(None)
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+    assert_eq!(json_body(response).await["detail"], "Not Found");
+    let response = app()
         .oneshot(
             get("/elsewhere")
                 .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
@@ -220,104 +215,6 @@ async fn unported_api_paths_say_so_when_the_relay_is_off() {
         .await
         .unwrap();
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
-}
-
-/// A stand-in for the old Python backend that echoes what it received.
-pub async fn spawn_legacy_echo() -> String {
-    async fn echo(request: Request) -> axum::Json<Value> {
-        let (parts, body) = request.into_parts();
-        let body: Bytes = body.collect().await.expect("body").to_bytes();
-        axum::Json(json!({
-            "method": parts.method.as_str(),
-            "path": parts.uri.path(),
-            "query": parts.uri.query(),
-            "authorization": parts.headers.get(header::AUTHORIZATION).map(|v| v.to_str().unwrap().to_owned()),
-            "content_type": parts.headers.get(header::CONTENT_TYPE).map(|v| v.to_str().unwrap().to_owned()),
-            "body": String::from_utf8_lossy(&body),
-        }))
-    }
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let base = format!("http://{}", listener.local_addr().unwrap());
-    tokio::spawn(async move {
-        axum::serve(listener, Router::new().fallback(any(echo)))
-            .await
-            .unwrap();
-    });
-    base
-}
-
-#[tokio::test]
-async fn relay_forwards_unported_routes_without_the_token() {
-    let legacy = spawn_legacy_echo().await;
-    let request = Request::builder()
-        .method(Method::POST)
-        .uri(format!(
-            "/api/settings/probe?role=agent&{}={TOKEN}",
-            token::QUERY_PARAM
-        ))
-        .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
-        .header(header::CONTENT_TYPE, "application/json")
-        .header(header::CONTENT_LENGTH, "11")
-        .body(Body::from("{\"a\":true}\n"))
-        .unwrap();
-    let response = app(Some(Relay::new(&legacy).unwrap()))
-        .oneshot(request)
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::OK);
-    assert_eq!(
-        response.headers()["cross-origin-resource-policy"],
-        "cross-origin"
-    );
-    let echoed = json_body(response).await;
-    assert_eq!(echoed["method"], "POST");
-    assert_eq!(echoed["path"], "/api/settings/probe");
-    assert_eq!(echoed["query"], "role=agent");
-    assert_eq!(echoed["authorization"], Value::Null);
-    assert_eq!(echoed["content_type"], "application/json");
-    assert_eq!(echoed["body"], "{\"a\":true}\n");
-}
-
-#[tokio::test]
-async fn relay_reports_an_unreachable_legacy_api() {
-    // Take a free port, then close it again.
-    let port = std::net::TcpListener::bind("127.0.0.1:0")
-        .unwrap()
-        .local_addr()
-        .unwrap()
-        .port();
-    let relay = Relay::new(&format!("http://127.0.0.1:{port}/")).unwrap();
-    let response = app(Some(relay))
-        .oneshot(
-            get("/api/generation/jobs")
-                .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(response.status(), StatusCode::BAD_GATEWAY);
-}
-
-#[test]
-fn relay_accepts_only_http_urls() {
-    assert!(Relay::new("http://127.0.0.1:18000/").is_ok());
-    assert!(Relay::new("ftp://127.0.0.1").is_err());
-    assert!(Relay::new("not a url").is_err());
-}
-
-#[test]
-fn token_query_parameter_is_stripped() {
-    let name = token::QUERY_PARAM;
-    assert_eq!(token::strip_from_query(&format!("{name}=abc")), None);
-    assert_eq!(
-        token::strip_from_query(&format!("a=1&{name}=abc&b=2")).as_deref(),
-        Some("a=1&b=2")
-    );
-    assert_eq!(
-        token::strip_from_query("after=3").as_deref(),
-        Some("after=3")
-    );
 }
 
 #[test]
@@ -347,7 +244,6 @@ async fn backend_serves_on_a_random_local_port() {
     // `Backend::start` spawns on the Tauri runtime, which also works in tests.
     let backend = Backend::start(super::BackendConfig {
         data_dir: dir.path().to_owned(),
-        legacy_api_url: None,
         secrets: Arc::new(MemorySecrets::default()),
     })
     .unwrap();

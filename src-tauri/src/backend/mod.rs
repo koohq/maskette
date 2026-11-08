@@ -2,8 +2,7 @@
 //!
 //! An axum server on 127.0.0.1 with a random port, guarded by a token made
 //! fresh on every launch. It serves the same `/api/...` paths as the old
-//! Python backend, so routers can move over one at a time; until a router is
-//! ported, its requests can be relayed to the old backend (see [`relay`]).
+//! Python backend that the UI calls; any other path is a 404.
 
 pub mod agent;
 pub mod audit;
@@ -16,7 +15,6 @@ mod health;
 mod ids;
 pub mod prompts;
 pub mod references;
-pub mod relay;
 mod safety;
 pub mod settings;
 pub mod token;
@@ -35,7 +33,6 @@ use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::set_header::SetResponseHeaderLayer;
 
 use chat_api::ChatApi;
-use relay::Relay;
 use settings::secrets::SecretStore;
 use settings::store::SettingsStore;
 use token::Token;
@@ -58,8 +55,6 @@ pub fn ui_origins() -> Vec<&'static str> {
 pub struct BackendConfig {
     /// Where Maskette keeps its data (the old backend's `runtime/`).
     pub data_dir: PathBuf,
-    /// Base URL of the old Python backend; `None` turns the relay off.
-    pub legacy_api_url: Option<String>,
     /// Where API keys are kept (the OS credential store outside tests).
     pub secrets: Arc<dyn SecretStore>,
 }
@@ -67,7 +62,6 @@ pub struct BackendConfig {
 pub struct AppState {
     pub token: Token,
     pub data_dir: PathBuf,
-    pub relay: Option<Relay>,
     pub settings: Arc<SettingsStore>,
     pub chat: ChatApi,
     pub agent: agent::Agent,
@@ -94,19 +88,6 @@ impl Backend {
         let port = listener.local_addr()?.port();
         let token = Token::generate()?;
 
-        let relay = match config.legacy_api_url {
-            Some(url) => match Relay::new(&url) {
-                Ok(relay) => {
-                    log::info!("relaying unported API routes to {}", relay.base_url());
-                    Some(relay)
-                }
-                Err(error) => {
-                    log::error!("legacy API relay is off: {error}");
-                    None
-                }
-            },
-            None => None,
-        };
         // Fixture backends are for development only.
         let settings =
             SettingsStore::open(&config.data_dir, config.secrets, cfg!(debug_assertions));
@@ -116,7 +97,6 @@ impl Backend {
             generation: generation::Services::new(&config.data_dir),
             audit: audit::Audit::default(),
             data_dir: config.data_dir,
-            relay,
             settings: Arc::new(settings),
             chat: ChatApi::new(),
             #[cfg(test)]
@@ -186,7 +166,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(generation::routes())
         .merge(audit::routes())
         .merge(prompts::routes())
-        .fallback(relay::fallback)
+        .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
         .layer(middleware::from_fn_with_state(
             state.clone(),
@@ -204,6 +184,10 @@ pub fn router(state: SharedState) -> Router {
 }
 
 /// A known path with another method, in the old backend's shape.
+async fn not_found() -> error::ApiError {
+    error::ApiError::new(axum::http::StatusCode::NOT_FOUND, "Not Found")
+}
+
 async fn method_not_allowed() -> error::ApiError {
     error::ApiError::new(
         axum::http::StatusCode::METHOD_NOT_ALLOWED,

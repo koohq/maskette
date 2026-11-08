@@ -71,15 +71,6 @@ fn query_token(query: &str) -> Option<&str> {
         .find_map(|pair| pair.strip_prefix(QUERY_PARAM)?.strip_prefix('='))
 }
 
-/// Drop the token parameter from a query string, keeping everything else.
-pub fn strip_from_query(query: &str) -> Option<String> {
-    let kept: Vec<&str> = query
-        .split('&')
-        .filter(|pair| !pair.is_empty() && pair.split('=').next() != Some(QUERY_PARAM))
-        .collect();
-    (!kept.is_empty()).then(|| kept.join("&"))
-}
-
 pub async fn require_token(
     State(state): State<SharedState>,
     request: Request,

@@ -158,7 +158,7 @@ struct Setup {
 
 async fn setup(policy: impl Fn(&[Value]) -> Reply + Send + Sync + 'static) -> Setup {
     let llm = fake_llm(policy).await;
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     backend
         .state
         .settings
@@ -1619,7 +1619,7 @@ async fn without_fixtures_the_tools_say_what_is_missing() {
         }
     })
     .await;
-    let backend = TestBackend::new(None, false);
+    let backend = TestBackend::new(false);
     backend
         .state
         .settings

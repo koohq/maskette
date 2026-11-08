@@ -172,7 +172,7 @@ fn models() -> Value {
 
 /// A backend set up for OpenRouter on the fake, with one front reference.
 fn openrouter_backend(fake: &Fake) -> (TestBackend, String) {
-    let backend = TestBackend::new(None, false);
+    let backend = TestBackend::new(false);
     backend
         .state
         .settings
@@ -416,7 +416,7 @@ async fn a_cancelled_job_stops_waiting() {
 
 #[tokio::test]
 async fn openrouter_needs_a_model_and_a_key() {
-    let backend = TestBackend::new(None, false);
+    let backend = TestBackend::new(false);
     let settings = |changes: &[(&str, &str)]| {
         let changes: Vec<(String, Option<String>)> = changes
             .iter()
@@ -465,7 +465,7 @@ async fn openrouter_needs_a_model_and_a_key() {
 // --- Analysis -----------------------------------------------------------------
 
 fn analysis_backend(fake: &Fake) -> (TestBackend, String) {
-    let backend = TestBackend::new(None, false);
+    let backend = TestBackend::new(false);
     backend
         .state
         .settings
@@ -613,7 +613,7 @@ async fn analysis_reports_rejected_and_broken_answers() {
 
 #[tokio::test]
 async fn analysis_needs_a_model() {
-    let backend = TestBackend::new(None, false);
+    let backend = TestBackend::new(false);
     backend
         .state
         .settings

@@ -241,7 +241,7 @@ fn the_built_in_texts_are_the_prompt_constants() {
 
 #[tokio::test]
 async fn the_inventory_lists_defaults_values_and_overrides() {
-    let backend = TestBackend::new(None, true);
+    let backend = TestBackend::new(true);
     let list = || async {
         let response = backend
             .app()

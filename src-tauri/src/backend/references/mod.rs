@@ -6,15 +6,11 @@
 //! `references/<id>/<file name>`. `GET /api/references/<object key>` serves
 //! any image under that folder: this router's uploads, and the files other
 //! routers keep there (agent conversations, detail crops, local revisions).
-//!
-//! While those other routers are still relayed, the old backend writes their
-//! images into its own `runtime/`; so with the relay on, an image that is not
-//! here is asked for there.
 
 use std::path::{Component, Path, PathBuf};
 
 use axum::extract::multipart::{Field, Multipart, MultipartRejection};
-use axum::extract::{DefaultBodyLimit, Request, State};
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
@@ -292,11 +288,9 @@ fn find_asset(data_dir: &Path, asset_path: &str) -> Result<Asset, ApiError> {
 async fn get_reference_asset(
     State(state): State<SharedState>,
     axum::extract::Path(asset_path): axum::extract::Path<String>,
-    request: Request,
 ) -> Result<Response, ApiError> {
     let data_dir = state.data_dir.clone();
-    let lookup = asset_path.clone();
-    let asset = tokio::task::spawn_blocking(move || find_asset(&data_dir, &lookup))
+    let asset = tokio::task::spawn_blocking(move || find_asset(&data_dir, &asset_path))
         .await
         .map_err(|error| ApiError::internal(format!("reference lookup failed: {error}")))??;
     match asset {
@@ -311,14 +305,10 @@ async fn get_reference_asset(
             )
                 .into_response())
         }
-        Asset::Missing => match &state.relay {
-            // Images the old backend still writes (its routers are relayed).
-            Some(relay) => Ok(relay.forward(request).await),
-            None => Err(ApiError::new(
-                StatusCode::NOT_FOUND,
-                "Reference asset not found",
-            )),
-        },
+        Asset::Missing => Err(ApiError::new(
+            StatusCode::NOT_FOUND,
+            "Reference asset not found",
+        )),
     }
 }
 

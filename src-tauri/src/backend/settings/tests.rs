@@ -19,7 +19,7 @@ use crate::backend::tests::{TestBackend, authed, json_body};
 
 fn backend() -> TestBackend {
     // Like the old test app, which allowed the fixtures.
-    TestBackend::new(None, true)
+    TestBackend::new(true)
 }
 
 async fn call(app: &Router, method: Method, uri: &str, body: Option<Value>) -> Response {
@@ -197,7 +197,7 @@ async fn a_body_of_the_wrong_shape_is_unprocessable() {
 #[tokio::test]
 async fn fixtures_are_hidden_and_refused_when_not_allowed() {
     // Release builds: the old backend's production / no-fixture setup.
-    let app = TestBackend::new(None, false).app();
+    let app = TestBackend::new(false).app();
     let body = read(&app).await;
     // Unset, analysis and images go to OpenRouter.
     assert_eq!(body["values"]["llm_provider"], "openai_compatible");
