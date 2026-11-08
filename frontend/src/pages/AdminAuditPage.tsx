@@ -104,13 +104,6 @@ function formatDateTime(value?: string | null) {
   });
 }
 
-function formatGenerationMode(value: string) {
-  if (value === "front_design") return "正视图";
-  if (value === "front_revision") return "重生成正视图";
-  if (value === "turnaround") return "四视图";
-  return value;
-}
-
 function statusColor(status: string) {
   if (status === "succeeded" || status === "accepted") return "teal";
   if (status === "failed" || status === "cancelled") return "red";
@@ -212,6 +205,7 @@ function GenerationImageGrid({
   return (
     <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
       {visibleImages.map((image, index) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: the same image URL can appear twice; the index keeps the keys unique
         <Paper key={`${image.image_url}-${index}`} className="audit-image-card" p="xs" radius={0}>
           <Stack gap="xs">
             <Image

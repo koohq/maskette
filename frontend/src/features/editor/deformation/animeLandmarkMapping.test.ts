@@ -112,7 +112,7 @@ describe("anime landmark mapping", () => {
   });
 
   it("derives wider eye patch regions from reliable HRNet eye contour points", () => {
-    const points: DetectedPoint[] = Array.from({ length: 28 }, (_, index) => ({
+    const points: DetectedPoint[] = Array.from({ length: 28 }, () => ({
       score: 1,
       x: 500,
       y: 500,

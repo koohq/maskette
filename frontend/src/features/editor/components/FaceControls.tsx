@@ -14,7 +14,7 @@ type FaceControlConfig = {
 };
 
 // Face shape keeps every feature in place; proportions deliberately move features apart or together.
-const controlGroups: Record<FaceControlGroup, FaceControlConfig[]> = {
+const controlGroups: Record<FaceControlGroup, [FaceControlConfig, ...FaceControlConfig[]]> = {
   shape: [
     { actualMax: 0.2, actualMin: -0.2, key: "faceWidth", label: "脸宽" },
     { actualMax: 0.2, actualMin: -0.2, key: "smallFace", label: "小脸" },
@@ -34,14 +34,14 @@ const controlGroups: Record<FaceControlGroup, FaceControlConfig[]> = {
 export type FaceControlGroup = "shape" | "proportion";
 
 export type FaceControlsProps = {
-  compact?: boolean;
-  group?: FaceControlGroup;
-  debugValues?: boolean;
+  compact?: boolean | undefined;
+  group?: FaceControlGroup | undefined;
+  debugValues?: boolean | undefined;
   values: EditRecipe["face"];
   onChange: (key: FaceControlKey, value: number) => void;
   onReset: (key: FaceControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: () => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: (() => void) | undefined;
 };
 
 export function FaceControls({
@@ -137,13 +137,13 @@ function FaceControlSlider({
   expandedRangeEnabled,
 }: {
   control: FaceControlConfig;
-  debugValues?: boolean;
+  debugValues?: boolean | undefined;
   expandedRangeEnabled: boolean;
   values: EditRecipe["face"];
   onChange: (key: FaceControlKey, value: number) => void;
   onReset: (key: FaceControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: () => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: (() => void) | undefined;
 }) {
   return (
     <ParameterSlider

@@ -252,7 +252,9 @@ function CreateProjectDialog({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop is a mouse shortcut for Cancel; the dialog buttons are the keyboard path
     <div className="ide-dialog-backdrop" onClick={onCancel} role="presentation">
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: the click handler only keeps clicks inside the dialog from reaching the backdrop */}
       <form
         className="ide-dialog"
         onClick={(event) => event.stopPropagation()}
@@ -260,6 +262,7 @@ function CreateProjectDialog({
       >
         <h2 className="text-base font-semibold">{t("workspace.newProject")}</h2>
         <input
+          // biome-ignore lint/a11y/noAutofocus: the dialog's only field takes focus when the dialog opens
           autoFocus
           className="ide-input"
           maxLength={80}

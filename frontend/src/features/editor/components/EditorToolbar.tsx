@@ -14,35 +14,35 @@ import type { KeyboardEvent, PointerEvent, ReactNode } from "react";
 import { ActionIcon, Button, Divider, Group, Slider, Text, Tooltip, useMediaQuery } from "../../../ui/mui";
 
 export type EditorToolbarProps = {
-  canRedo?: boolean;
-  canUndo?: boolean;
-  isComparingOriginal?: boolean;
-  isRecognizingFace?: boolean;
-  isRegenerating?: boolean;
-  landmarkDebugMode?: boolean;
-  landmarksVisible?: boolean;
-  regenerateLabel?: string;
-  secondaryRegenerateLabel?: string;
-  showCompareAction?: boolean;
-  showRegenerateActions?: boolean;
-  showLandmarkToggle?: boolean;
-  showPrimaryActions?: boolean;
-  showViewportActions?: boolean;
-  zoomPercent?: number;
-  onClearImage?: () => void;
-  onCompareEnd?: () => void;
-  onCompareStart?: () => void;
-  onFit?: () => void;
-  onRedo?: () => void;
-  onRegenerate?: () => void | Promise<void>;
-  onRecognizeFace?: () => void | Promise<void>;
-  onResetAll?: () => void;
-  onSecondaryRegenerate?: () => void | Promise<void>;
-  onSave?: () => void;
-  onToggleLandmarkDebugMode?: () => void;
-  onToggleLandmarks?: () => void;
-  onUndo?: () => void;
-  onZoomChange?: (value: number) => void;
+  canRedo?: boolean | undefined;
+  canUndo?: boolean | undefined;
+  isComparingOriginal?: boolean | undefined;
+  isRecognizingFace?: boolean | undefined;
+  isRegenerating?: boolean | undefined;
+  landmarkDebugMode?: boolean | undefined;
+  landmarksVisible?: boolean | undefined;
+  regenerateLabel?: string | undefined;
+  secondaryRegenerateLabel?: string | undefined;
+  showCompareAction?: boolean | undefined;
+  showRegenerateActions?: boolean | undefined;
+  showLandmarkToggle?: boolean | undefined;
+  showPrimaryActions?: boolean | undefined;
+  showViewportActions?: boolean | undefined;
+  zoomPercent?: number | undefined;
+  onClearImage?: (() => void) | undefined;
+  onCompareEnd?: (() => void) | undefined;
+  onCompareStart?: (() => void) | undefined;
+  onFit?: (() => void) | undefined;
+  onRedo?: (() => void) | undefined;
+  onRegenerate?: (() => void | Promise<void>) | undefined;
+  onRecognizeFace?: (() => void | Promise<void>) | undefined;
+  onResetAll?: (() => void) | undefined;
+  onSecondaryRegenerate?: (() => void | Promise<void>) | undefined;
+  onSave?: (() => void) | undefined;
+  onToggleLandmarkDebugMode?: (() => void) | undefined;
+  onToggleLandmarks?: (() => void) | undefined;
+  onUndo?: (() => void) | undefined;
+  onZoomChange?: ((value: number) => void) | undefined;
 };
 
 export function EditorToolbar({
@@ -366,13 +366,13 @@ function ToolbarIconButton({
   onClick,
   testId,
 }: {
-  active?: boolean;
+  active?: boolean | undefined;
   children: ReactNode;
-  compact?: boolean;
-  disabled?: boolean;
+  compact?: boolean | undefined;
+  disabled?: boolean | undefined;
   label: string;
-  onClick?: () => void;
-  testId?: string;
+  onClick?: (() => void) | undefined;
+  testId?: string | undefined;
 }) {
   return (
     <Tooltip label={label}>

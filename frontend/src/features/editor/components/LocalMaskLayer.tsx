@@ -66,8 +66,9 @@ function renderStroke(stroke: LocalMaskStroke, safeWidth: number, safeHeight: nu
   if (stroke.points.length === 0) return null;
   const color = stroke.mode === "erase" ? "black" : "white";
 
-  if (stroke.points.length === 1) {
-    const point = stroke.points[0];
+  const firstPoint = stroke.points[0];
+  if (stroke.points.length === 1 && firstPoint) {
+    const point = firstPoint;
     return (
       <circle
         key={stroke.id}

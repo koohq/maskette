@@ -53,7 +53,7 @@ import { useEditorDrafts } from "./useEditorDrafts";
 
 type Activity = "explorer" | EditorTool;
 
-const TURNAROUND_TOOLS: EditorTool[] = ["annotation", "liquify", "local-generate"];
+const TURNAROUND_TOOLS: [EditorTool, ...EditorTool[]] = ["annotation", "liquify", "local-generate"];
 const AGENT_OPEN_KEY = "kigcraft.agentPanel.v1";
 
 /** Draggable splitter west of the agent panel; double-click resets the width. */
@@ -66,6 +66,7 @@ function AgentResizeHandle({ onWidthChange }: { onWidthChange: (width: number) =
   }, [dragging]);
 
   return (
+    // biome-ignore lint/a11y/useSemanticElements: a draggable splitter with pointer handlers, not a static <hr> rule
     <div
       aria-orientation="vertical"
       className={`ide-agent-resizer${dragging ? " dragging" : ""}`}
@@ -128,6 +129,7 @@ export function WorkspacePage() {
   }, [toast]);
 
   // Reset per project.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: projectId is the trigger: reset the tabs when another project opens
   useEffect(() => {
     setOpenTabs([]);
     setActiveTabId(null);
@@ -151,7 +153,7 @@ export function WorkspacePage() {
       return;
     }
     const fresh = ids.filter((id) => !seenImageIds.current?.has(id));
-    fresh.forEach((id) => seenImageIds.current?.add(id));
+    for (const id of fresh) seenImageIds.current?.add(id);
     const newest = fresh[fresh.length - 1];
     if (!newest) return;
     if (editorRef.current?.isDirty()) {
@@ -257,6 +259,7 @@ export function WorkspacePage() {
         recipe: payload.recipe,
       });
       const created = updated.state.images[updated.state.images.length - 1];
+      if (!created) throw new Error("The saved version is missing from the project");
       seenImageIds.current?.add(created.id);
       drafts.discard(activeVersion.id);
       await refresh();
@@ -344,6 +347,7 @@ export function WorkspacePage() {
   const runState = conversation?.status === "error" ? "error" : running ? "running" : "idle";
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: file drop target for the whole window; the attach button is the keyboard path
     <div
       className="ide-root"
       onDragLeave={(event) => {
@@ -429,6 +433,7 @@ export function WorkspacePage() {
               if (!image) return null;
               const isActive = id === activeTabId;
               return (
+                // biome-ignore lint/a11y/useFocusableInteractive: the button inside each tab is the focusable control
                 <div className="ide-tab" data-active={isActive} key={id} role="tab" aria-selected={isActive}>
                   <button className="flex items-center gap-1.5" onClick={() => openVersion(id)} type="button">
                     <IconPhoto size={13} />
@@ -568,6 +573,7 @@ export function WorkspacePage() {
       <StatusBar activeVersion={activeVersion} editorStatus={activeVersion ? editorStatus : null} runState={runState} />
 
       {lightboxUrl ? (
+        // biome-ignore lint/a11y/noStaticElementInteractions: clicking anywhere closes the image preview that was opened with a click
         <div className="ide-lightbox" onClick={() => setLightboxUrl(null)} role="presentation">
           <img alt="" src={lightboxUrl} />
         </div>

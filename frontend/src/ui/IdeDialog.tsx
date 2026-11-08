@@ -10,9 +10,9 @@ import { useTranslation } from "react-i18next";
 type DialogBaseProps = {
   title: string;
   confirmLabel: string;
-  danger?: boolean;
+  danger?: boolean | undefined;
   onCancel: () => void;
-  errorMessage?: (error: unknown) => string;
+  errorMessage?: ((error: unknown) => string) | undefined;
 };
 
 export function ConfirmDialog({
@@ -65,6 +65,7 @@ export function PromptDialog({
     >
       <input
         aria-label={title}
+        // biome-ignore lint/a11y/noAutofocus: the dialog's only field takes focus when the dialog opens
         autoFocus
         className="ide-input"
         maxLength={maxLength}
@@ -106,6 +107,7 @@ function DialogShell({
   }
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop is a mouse shortcut for Cancel; Escape on the form is the keyboard path
     <div className="ide-dialog-backdrop" onClick={busy ? undefined : onCancel} role="presentation">
       <form
         aria-label={title}

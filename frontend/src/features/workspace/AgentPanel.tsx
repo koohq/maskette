@@ -42,6 +42,7 @@ export function AgentPanel({
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: events and running are the triggers: scroll to the newest message when the timeline changes
   useEffect(() => {
     const element = scrollRef.current;
     if (element) element.scrollTo({ top: element.scrollHeight, behavior: "smooth" });

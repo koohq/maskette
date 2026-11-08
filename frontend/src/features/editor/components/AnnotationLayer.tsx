@@ -13,33 +13,35 @@ import {
 import type { AnnotationMark, DetailRegion, LiquifyStroke } from "../deformation/recipe";
 
 export type AnnotationLayerProps = {
-  annotations?: AnnotationMark[];
-  brushPreview?: { active: boolean; mode: "scale" | "warp"; radius: number; x: number; y: number } | null;
-  debugFaceBox?: { height: number; width: number; x: number; y: number } | null;
-  debugHrnetBox?: { height: number; width: number; x: number; y: number } | null;
-  debugLandmarks?: Array<LandmarkPoint & { index: number; score?: number }>;
-  detailRegions?: DetailRegion[];
-  eyeRegionScale?: number;
+  annotations?: AnnotationMark[] | undefined;
+  brushPreview?: { active: boolean; mode: "scale" | "warp"; radius: number; x: number; y: number } | null | undefined;
+  debugFaceBox?: { height: number; width: number; x: number; y: number } | null | undefined;
+  debugHrnetBox?: { height: number; width: number; x: number; y: number } | null | undefined;
+  debugLandmarks?: Array<LandmarkPoint & { index: number; score?: number }> | undefined;
+  detailRegions?: DetailRegion[] | undefined;
+  eyeRegionScale?: number | undefined;
   height: number;
-  landmarks?: ManualLandmarks;
-  liquifySymmetryAxis?: number;
-  liquifyStrokes?: LiquifyStroke[];
+  landmarks?: ManualLandmarks | undefined;
+  liquifySymmetryAxis?: number | undefined;
+  liquifyStrokes?: LiquifyStroke[] | undefined;
   /** Draw brush and stroke circles at their true radius in preview pixels instead of a clamped hint size. */
-  exactBrushRadius?: boolean;
-  secondaryLandmarks?: LandmarkPoint[];
-  selectedAnnotationId?: string | null;
-  selectedLandmarkKey?: ManualLandmarkKey | null;
-  showLandmarkDebug?: boolean;
-  showLandmarks?: boolean;
-  showLiquifySymmetryAxis?: boolean;
-  showLiquifyStrokes?: boolean;
-  showSecondaryLandmarks?: boolean;
-  visible?: boolean;
+  exactBrushRadius?: boolean | undefined;
+  secondaryLandmarks?: LandmarkPoint[] | undefined;
+  selectedAnnotationId?: string | null | undefined;
+  selectedLandmarkKey?: ManualLandmarkKey | null | undefined;
+  showLandmarkDebug?: boolean | undefined;
+  showLandmarks?: boolean | undefined;
+  showLiquifySymmetryAxis?: boolean | undefined;
+  showLiquifyStrokes?: boolean | undefined;
+  showSecondaryLandmarks?: boolean | undefined;
+  visible?: boolean | undefined;
   width: number;
-  onAnnotationHandlePointerDown?: (annotationId: string, handle: string, event: PointerEvent<HTMLDivElement>) => void;
-  onAnnotationPointerDown?: (annotationId: string, event: PointerEvent<HTMLDivElement>) => void;
-  onAnnotationDelete?: (annotationId: string, event: PointerEvent<HTMLButtonElement>) => void;
-  onLandmarkPointerDown?: (key: ManualLandmarkKey, event: PointerEvent<HTMLDivElement>) => void;
+  onAnnotationHandlePointerDown?:
+    | ((annotationId: string, handle: string, event: PointerEvent<HTMLDivElement>) => void)
+    | undefined;
+  onAnnotationPointerDown?: ((annotationId: string, event: PointerEvent<HTMLDivElement>) => void) | undefined;
+  onAnnotationDelete?: ((annotationId: string, event: PointerEvent<HTMLButtonElement>) => void) | undefined;
+  onLandmarkPointerDown?: ((key: ManualLandmarkKey, event: PointerEvent<HTMLDivElement>) => void) | undefined;
 };
 
 const landmarkLabels: Array<{ key: ManualLandmarkKey; label: string }> = [
@@ -145,7 +147,8 @@ export function AnnotationLayer({
   const visibleLiquifyStrokes = showLiquifyStrokes
     ? liquifyStrokes.filter((stroke) => stroke.mode === "scale").slice(-1)
     : [];
-  const visibleLiquifyStartIndex = Math.max(0, liquifyStrokes.indexOf(visibleLiquifyStrokes[0]));
+  const firstVisibleLiquifyStroke = visibleLiquifyStrokes[0];
+  const visibleLiquifyStartIndex = firstVisibleLiquifyStroke ? liquifyStrokes.indexOf(firstVisibleLiquifyStroke) : 0;
 
   return (
     <div
@@ -216,6 +219,7 @@ export function AnnotationLayer({
         if (kind === "arrow") {
           return (
             <div key={annotation.id}>
+              {/* biome-ignore lint/a11y/noSvgWithoutTitle: decorative arrow over the image; the mark is named by its handle */}
               <svg
                 data-testid={`annotation-arrow-${index + 1}`}
                 style={{
@@ -291,6 +295,7 @@ export function AnnotationLayer({
         if (kind === "rect") {
           return (
             <div key={annotation.id}>
+              {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass */}
               <div
                 aria-label={`annotation ${label}`}
                 aria-selected={selected}
@@ -345,6 +350,7 @@ export function AnnotationLayer({
         if (kind === "text") {
           return (
             <div key={annotation.id}>
+              {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass */}
               <div
                 aria-label={`annotation ${label}`}
                 aria-selected={selected}
@@ -396,6 +402,7 @@ export function AnnotationLayer({
 
         return (
           <div key={annotation.id}>
+            {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass */}
             <div
               aria-label={`annotation ${index + 1}`}
               aria-selected={selected}
@@ -467,6 +474,7 @@ export function AnnotationLayer({
             const estimated = brow && !landmarks.brows;
 
             return (
+              // biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass
               <div
                 aria-label={`landmark ${translateLiteralString(label, i18n.language)}`}
                 aria-selected={selected}
@@ -545,28 +553,27 @@ export function AnnotationLayer({
             const brows = resolveBrowLandmarks(landmarks);
             const sides = [brows.left, brows.right];
             return (
-              <>
-                <svg
-                  aria-hidden="true"
-                  data-testid="brow-lines"
-                  preserveAspectRatio="none"
-                  style={{ height: "100%", inset: 0, pointerEvents: "none", position: "absolute", width: "100%" }}
-                  viewBox="0 0 100 100"
-                >
-                  {sides.map((brow, index) => (
-                    <polyline
-                      fill="none"
-                      key={index}
-                      points={[brow.inner, brow.peak, brow.outer]
-                        .map((point) => `${point.x * 100},${point.y * 100}`)
-                        .join(" ")}
-                      stroke="rgba(52, 211, 153, 0.85)"
-                      strokeWidth={2}
-                      vectorEffect="non-scaling-stroke"
-                    />
-                  ))}
-                </svg>
-              </>
+              <svg
+                aria-hidden="true"
+                data-testid="brow-lines"
+                preserveAspectRatio="none"
+                style={{ height: "100%", inset: 0, pointerEvents: "none", position: "absolute", width: "100%" }}
+                viewBox="0 0 100 100"
+              >
+                {sides.map((brow, index) => (
+                  <polyline
+                    fill="none"
+                    // biome-ignore lint/suspicious/noArrayIndexKey: the two brows always render in the same left, right order
+                    key={index}
+                    points={[brow.inner, brow.peak, brow.outer]
+                      .map((point) => `${point.x * 100},${point.y * 100}`)
+                      .join(" ")}
+                    stroke="rgba(52, 211, 153, 0.85)"
+                    strokeWidth={2}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                ))}
+              </svg>
             );
           })()
         : null}
@@ -686,6 +693,7 @@ export function AnnotationLayer({
         ? secondaryLandmarks.map((point, index) => (
             <span
               data-testid={`landmark-secondary-${index}`}
+              // biome-ignore lint/suspicious/noArrayIndexKey: detected points can share a position; the index keeps the keys unique
               key={`${point.x}-${point.y}-${index}`}
               style={{
                 background: "rgba(250, 204, 21, 0.52)",
@@ -714,6 +722,7 @@ export function AnnotationLayer({
             return (
               <div
                 data-testid={`liquify-stroke-${visibleLiquifyStartIndex + index + 1}`}
+                // biome-ignore lint/suspicious/noArrayIndexKey: strokes have no id; the index keeps identical strokes apart
                 key={`${stroke.mode}-${stroke.x}-${stroke.y}-${stroke.radius}-${stroke.scale ?? ""}-${visibleLiquifyStartIndex + index}`}
                 style={{
                   background: isScaleStroke

@@ -1023,32 +1023,32 @@ const patterns: LiteralPattern[] = [
   },
   {
     match: /^删除(.+)$/,
-    replace: ([, label], locale) =>
+    replace: ([, label = ""], locale) =>
       locale === "ja" ? `${translateExact(label, locale)}を削除` : `Delete ${translateExact(label, locale)}`,
   },
   {
     match: /^(.+)上传$/,
-    replace: ([, label], locale) =>
+    replace: ([, label = ""], locale) =>
       locale === "ja" ? `${translateExact(label, locale)}をアップロード` : `Upload ${translateExact(label, locale)}`,
   },
   {
     match: /^(.+)预览$/,
-    replace: ([, label], locale) =>
+    replace: ([, label = ""], locale) =>
       locale === "ja" ? `${translateExact(label, locale)}プレビュー` : `${translateExact(label, locale)} preview`,
   },
   {
     match: /^重置(.+)$/,
-    replace: ([, label], locale) =>
+    replace: ([, label = ""], locale) =>
       locale === "ja" ? `${translateExact(label, locale)}をリセット` : `Reset ${translateExact(label, locale)}`,
   },
   {
     match: /^(.+)减少$/,
-    replace: ([, label], locale) =>
+    replace: ([, label = ""], locale) =>
       locale === "ja" ? `${translateExact(label, locale)}を減らす` : `Decrease ${translateExact(label, locale)}`,
   },
   {
     match: /^(.+)增加$/,
-    replace: ([, label], locale) =>
+    replace: ([, label = ""], locale) =>
       locale === "ja" ? `${translateExact(label, locale)}を増やす` : `Increase ${translateExact(label, locale)}`,
   },
 ];

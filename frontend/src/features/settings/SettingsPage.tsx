@@ -74,7 +74,7 @@ export function SettingsPage() {
   function save() {
     void apply(() =>
       updateBackendSettings({
-        ...Object.fromEntries(changed.map((key) => [key, form[key].trim()])),
+        ...Object.fromEntries(changed.map((key) => [key, (form[key] ?? "").trim()])),
         ...Object.fromEntries(changedSecrets.map(([key, value]) => [key, value === null ? null : value.trim()])),
       }),
     );
@@ -124,15 +124,15 @@ export function SettingsPage() {
               onChange={set("agent_llm_provider")}
               settingKey="agent_llm_provider"
               title={t("settings.agentSection")}
-              value={form.agent_llm_provider}
+              value={form["agent_llm_provider"]}
             >
-              {form.agent_llm_provider === "claude_code" ? (
+              {form["agent_llm_provider"] === "claude_code" ? (
                 <TextField
                   disabled={disabled}
                   label={t("settings.model")}
                   onChange={set("agent_claude_code_model")}
                   placeholder={t("settings.modelDefault")}
-                  value={form.agent_claude_code_model}
+                  value={form["agent_claude_code_model"]}
                 />
               ) : (
                 <>
@@ -140,13 +140,13 @@ export function SettingsPage() {
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("agent_llm_base_url")}
-                    value={form.agent_llm_base_url}
+                    value={form["agent_llm_base_url"]}
                   />
                   <TextField
                     disabled={disabled}
                     label={t("settings.model")}
                     onChange={set("agent_llm_model")}
-                    value={form.agent_llm_model}
+                    value={form["agent_llm_model"]}
                   />
                   {secretField("agent_llm_api_key", t("settings.agentKeyHint"))}
                   <TextField
@@ -155,10 +155,10 @@ export function SettingsPage() {
                     label={t("settings.extraBody")}
                     onChange={set("agent_llm_extra_body")}
                     placeholder="{}"
-                    value={form.agent_llm_extra_body}
+                    value={form["agent_llm_extra_body"]}
                   />
-                  {data.values.agent_llm_provider === "openai_compatible" ? (
-                    <ProbePanel disabled={!data.writable} role="agent" unsaved={unsaved} />
+                  {data.values["agent_llm_provider"] === "openai_compatible" ? (
+                    <ProbePanel disabled={!data.writable} probeRole="agent" unsaved={unsaved} />
                   ) : null}
                 </>
               )}
@@ -170,23 +170,23 @@ export function SettingsPage() {
               onChange={set("llm_provider")}
               settingKey="llm_provider"
               title={t("settings.analysisSection")}
-              value={form.llm_provider}
+              value={form["llm_provider"]}
             >
-              {form.llm_provider === "openai_compatible" ? (
+              {form["llm_provider"] === "openai_compatible" ? (
                 <>
                   <TextField
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("analysis_llm_base_url")}
-                    placeholder={t("settings.sameAsAgent", { value: form.agent_llm_base_url })}
-                    value={form.analysis_llm_base_url}
+                    placeholder={t("settings.sameAsAgent", { value: form["agent_llm_base_url"] })}
+                    value={form["analysis_llm_base_url"]}
                   />
                   <TextField
                     disabled={disabled}
                     label={t("settings.model")}
                     onChange={set("analysis_llm_model")}
-                    placeholder={t("settings.sameAsAgent", { value: form.agent_llm_model })}
-                    value={form.analysis_llm_model}
+                    placeholder={t("settings.sameAsAgent", { value: form["agent_llm_model"] })}
+                    value={form["analysis_llm_model"]}
                   />
                   {secretField("analysis_llm_api_key", t("settings.analysisKeyHint"))}
                   <TextField
@@ -195,15 +195,15 @@ export function SettingsPage() {
                     label={t("settings.extraBody")}
                     onChange={set("analysis_llm_extra_body")}
                     placeholder={
-                      sharesAgentUrl(form.analysis_llm_base_url, form.agent_llm_base_url)
-                        ? t("settings.sameAsAgent", { value: form.agent_llm_extra_body || "{}" })
+                      sharesAgentUrl(form["analysis_llm_base_url"], form["agent_llm_base_url"])
+                        ? t("settings.sameAsAgent", { value: form["agent_llm_extra_body"] || "{}" })
                         : "{}"
                     }
-                    value={form.analysis_llm_extra_body}
+                    value={form["analysis_llm_extra_body"]}
                   />
                   <p className="text-xs text-(--ide-text-muted)">{t("settings.visionRequired")}</p>
-                  {data.values.llm_provider === "openai_compatible" ? (
-                    <ProbePanel disabled={!data.writable} role="analysis" unsaved={unsaved} />
+                  {data.values["llm_provider"] === "openai_compatible" ? (
+                    <ProbePanel disabled={!data.writable} probeRole="analysis" unsaved={unsaved} />
                   ) : null}
                 </>
               ) : null}
@@ -215,27 +215,27 @@ export function SettingsPage() {
               onChange={set("image_provider")}
               settingKey="image_provider"
               title={t("settings.imageSection")}
-              value={form.image_provider}
+              value={form["image_provider"]}
             >
-              {form.image_provider === "codex_bridge" ? (
+              {form["image_provider"] === "codex_bridge" ? (
                 <p className="text-xs text-(--ide-danger)" role="alert">
                   {t("settings.codexBridgeRemoved")}
                 </p>
               ) : null}
-              {form.image_provider === "openrouter" ? (
+              {form["image_provider"] === "openrouter" ? (
                 <>
                   <TextField
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("openrouter_base_url")}
-                    value={form.openrouter_base_url}
+                    value={form["openrouter_base_url"]}
                   />
                   <TextField
                     disabled={disabled}
                     hint={t("settings.openrouterModelHint")}
                     label={t("settings.model")}
                     onChange={set("openrouter_image_model")}
-                    value={form.openrouter_image_model}
+                    value={form["openrouter_image_model"]}
                   />
                   {secretField("openrouter_api_key", t("settings.openrouterKeyHint"))}
                   <TextField
@@ -244,40 +244,40 @@ export function SettingsPage() {
                     label={t("settings.extraBody")}
                     onChange={set("openrouter_extra_body")}
                     placeholder="{}"
-                    value={form.openrouter_extra_body}
+                    value={form["openrouter_extra_body"]}
                   />
                 </>
               ) : null}
-              {form.image_provider === "siliconflow" ? (
+              {form["image_provider"] === "siliconflow" ? (
                 <>
                   <TextField
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("siliconflow_base_url")}
-                    value={form.siliconflow_base_url}
+                    value={form["siliconflow_base_url"]}
                   />
                   <TextField
                     disabled={disabled}
                     label={t("settings.model")}
                     onChange={set("siliconflow_image_model")}
-                    value={form.siliconflow_image_model}
+                    value={form["siliconflow_image_model"]}
                   />
                   {secretField("siliconflow_api_key")}
                 </>
               ) : null}
-              {form.image_provider === "ark" ? (
+              {form["image_provider"] === "ark" ? (
                 <>
                   <TextField
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("ark_base_url")}
-                    value={form.ark_base_url}
+                    value={form["ark_base_url"]}
                   />
                   <TextField
                     disabled={disabled}
                     label={t("settings.model")}
                     onChange={set("ark_image_model")}
-                    value={form.ark_image_model}
+                    value={form["ark_image_model"]}
                   />
                   {secretField("ark_api_key")}
                 </>
@@ -421,8 +421,8 @@ function TextField({
 }: {
   label: string;
   value: string | undefined;
-  placeholder?: string;
-  hint?: string;
+  placeholder?: string | undefined;
+  hint?: string | undefined;
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
@@ -448,7 +448,7 @@ const probeIcons = {
 };
 
 /** Tests the saved settings of one LLM role with a real request and lists what works. */
-function ProbePanel({ role, unsaved, disabled }: { role: ProbeRole; unsaved: boolean; disabled: boolean }) {
+function ProbePanel({ probeRole, unsaved, disabled }: { probeRole: ProbeRole; unsaved: boolean; disabled: boolean }) {
   const { t } = useTranslation();
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ProbeResult | null>(null);
@@ -459,7 +459,7 @@ function ProbePanel({ role, unsaved, disabled }: { role: ProbeRole; unsaved: boo
     setError(null);
     setResult(null);
     try {
-      setResult(await probeBackend(role));
+      setResult(await probeBackend(probeRole));
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -476,7 +476,7 @@ function ProbePanel({ role, unsaved, disabled }: { role: ProbeRole; unsaved: boo
   }
 
   return (
-    <div className="flex flex-col gap-2" data-testid={`probe-${role}`}>
+    <div className="flex flex-col gap-2" data-testid={`probe-${probeRole}`}>
       <div className="flex items-center gap-2">
         <button
           className="ide-button"
@@ -520,7 +520,7 @@ function SecretField({
 }: {
   saved: BackendSettings["secrets"][string] | undefined;
   pending: string | null | undefined;
-  hint?: string;
+  hint?: string | undefined;
   disabled: boolean;
   onChange: (value: string | null) => void;
 }) {

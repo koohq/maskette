@@ -11,5 +11,28 @@
   // The docs are Japanese prose that several sessions edit by hand; padding every table
   // cell to the widest one turns each one-word edit into a whole-table diff.
   "markdown": { "formatter": { "enabled": false } },
-  "linter": { "enabled": true, "rules": { "recommended": true } }
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "complexity": {
+        // The frontend uses @tsconfig/strictest, whose noPropertyAccessFromIndexSignature
+        // requires `record["key"]` for index signatures; this rule asks for the opposite.
+        "useLiteralKeys": "off"
+      }
+    }
+  },
+  "overrides": [
+    {
+      // These stylesheets restyle MUI components, whose own styles come from emotion
+      // with higher specificity; !important is how they win.
+      "includes": ["frontend/src/styles/**"],
+      "linter": { "rules": { "complexity": { "noImportantStyles": "off" } } }
+    },
+    {
+      // In tests a non-null assertion is the check: a missing element fails the test at once.
+      "includes": ["**/*.test.ts", "**/*.test.tsx"],
+      "linter": { "rules": { "style": { "noNonNullAssertion": "off" } } }
+    }
+  ]
 }

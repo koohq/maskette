@@ -11,7 +11,7 @@ type BrowControlConfig = {
   label: string;
 };
 
-const browControls: BrowControlConfig[] = [
+const browControls: [BrowControlConfig, ...BrowControlConfig[]] = [
   { actualLimit: 0.5, key: "browVertical", label: "上下" },
   { actualLimit: 0.5, key: "browThickness", label: "粗细" },
   { actualLimit: 0.5, key: "browLength", label: "长短" },
@@ -22,13 +22,13 @@ const browControls: BrowControlConfig[] = [
 ];
 
 export type BrowControlsProps = {
-  compact?: boolean;
-  debugValues?: boolean;
+  compact?: boolean | undefined;
+  debugValues?: boolean | undefined;
   values: EditRecipe["brows"];
   onChange: (key: BrowControlKey, value: number) => void;
   onReset: (key: BrowControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: () => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: (() => void) | undefined;
 };
 
 export function BrowControls({

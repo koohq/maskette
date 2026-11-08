@@ -26,14 +26,18 @@ export type ManualLandmarks = {
   mouthCenter: LandmarkPoint;
   mouthLeft: LandmarkPoint;
   mouthRight: LandmarkPoint;
-  eyeRegions?: {
-    left: EyeRegion;
-    right: EyeRegion;
-  };
-  brows?: {
-    left: BrowLandmark;
-    right: BrowLandmark;
-  };
+  eyeRegions?:
+    | {
+        left: EyeRegion;
+        right: EyeRegion;
+      }
+    | undefined;
+  brows?:
+    | {
+        left: BrowLandmark;
+        right: BrowLandmark;
+      }
+    | undefined;
 };
 
 export type BrowLandmarkKey =

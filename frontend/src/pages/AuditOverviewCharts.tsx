@@ -87,8 +87,8 @@ function buildPlotPoints(points: TrendPoint[]) {
 
 function buildLinePath(plotPoints: Array<TrendPoint & { x: number; y: number }>) {
   if (!plotPoints.length) return "";
-  if (plotPoints.length === 1) {
-    const [point] = plotPoints;
+  const [point] = plotPoints;
+  if (plotPoints.length === 1 && point) {
     return `M ${CHART_PADDING.left} ${point.y} L ${CHART_WIDTH - CHART_PADDING.right} ${point.y}`;
   }
   return plotPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`).join(" ");

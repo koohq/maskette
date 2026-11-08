@@ -24,6 +24,10 @@ const browGroupIndexes = [
 ] as const;
 const controlLandmarkSourceIndexes = new Set([1, 2, 3, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27]);
 
+function isDefined<T>(value: T | undefined): value is T {
+  return value !== undefined;
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -33,7 +37,9 @@ function median(values: readonly number[]) {
 
   const sorted = [...values].sort((left, right) => left - right);
   const middle = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
+  // Both indexes are inside the non-empty array; the fallbacks only satisfy the index checks.
+  const upper = sorted[middle] ?? 0;
+  return sorted.length % 2 === 0 ? ((sorted[middle - 1] ?? 0) + upper) / 2 : upper;
 }
 
 function pickStableEyeCenterPoints(points: readonly DetectedPoint[]) {
@@ -72,16 +78,16 @@ function deriveMouthPoints(
   rightEye: LandmarkPoint,
   chin: LandmarkPoint,
 ) {
-  const mouthPoints = mouthContourIndexes.map((index) => points[index]).filter(Boolean);
+  const mouthPoints = mouthContourIndexes.map((index) => points[index]).filter(isDefined);
   const eyeCenter = {
     x: (leftEye.x + rightEye.x) / 2,
     y: (leftEye.y + rightEye.y) / 2,
   };
 
-  if (mouthPoints.length >= 2) {
-    const sortedByX = [...mouthPoints].sort((left, right) => left.x - right.x);
-    const left = sortedByX[0];
-    const right = sortedByX[sortedByX.length - 1];
+  const sortedByX = [...mouthPoints].sort((left, right) => left.x - right.x);
+  const left = sortedByX[0];
+  const right = sortedByX[sortedByX.length - 1];
+  if (mouthPoints.length >= 2 && left && right) {
     const center = {
       x: mouthPoints.reduce((sum, point) => sum + point.x, 0) / mouthPoints.length,
       y: mouthPoints.reduce((sum, point) => sum + point.y, 0) / mouthPoints.length,
@@ -112,10 +118,9 @@ function deriveEyePatchRegion(
   imageHeight: number,
   eyeDistance: number,
 ) {
-  const eyePoints = indexes.map((index) => points[index]).filter(Boolean);
+  const eyePoints = indexes.map((index) => points[index]).filter(isDefined);
   const stablePoints = pickStableEyeCenterPoints(eyePoints);
   const center = deriveEyeCenter(eyePoints);
-  const xs = eyePoints.map((point) => point.x);
   const ys = eyePoints.map((point) => point.y);
   const stableXs = stablePoints.map((point) => point.x);
   const stableYs = stablePoints.map((point) => point.y);
@@ -162,6 +167,8 @@ export function expandFaceBox(box: FaceBox, imageWidth: number, imageHeight: num
 export function decodeHrnetHeatmaps(data: Float32Array, box: FaceBox): DetectedPoint[] {
   const points: DetectedPoint[] = [];
   const planeSize = heatmapSize * heatmapSize;
+  // A read past the end stays NaN, as `undefined` arithmetic was before the index checks.
+  const at = (index: number) => data[index] ?? Number.NaN;
 
   for (let joint = 0; joint < animeLandmarkCount; joint += 1) {
     let max = Number.NEGATIVE_INFINITY;
@@ -169,7 +176,7 @@ export function decodeHrnetHeatmaps(data: Float32Array, box: FaceBox): DetectedP
     const base = joint * planeSize;
 
     for (let offset = 0; offset < planeSize; offset += 1) {
-      const value = data[base + offset];
+      const value = at(base + offset);
       if (value > max) {
         max = value;
         index = offset;
@@ -182,13 +189,11 @@ export function decodeHrnetHeatmaps(data: Float32Array, box: FaceBox): DetectedP
     let y = peakY;
 
     if (peakX > 0 && peakX < heatmapSize - 1) {
-      x +=
-        Math.sign(data[base + peakY * heatmapSize + peakX + 1] - data[base + peakY * heatmapSize + peakX - 1]) * 0.25;
+      x += Math.sign(at(base + peakY * heatmapSize + peakX + 1) - at(base + peakY * heatmapSize + peakX - 1)) * 0.25;
     }
     if (peakY > 0 && peakY < heatmapSize - 1) {
       y +=
-        Math.sign(data[base + (peakY + 1) * heatmapSize + peakX] - data[base + (peakY - 1) * heatmapSize + peakX]) *
-        0.25;
+        Math.sign(at(base + (peakY + 1) * heatmapSize + peakX) - at(base + (peakY - 1) * heatmapSize + peakX)) * 0.25;
     }
 
     points.push({
@@ -209,8 +214,8 @@ export function mapAnimePointsToManualLandmarks(
 ): ManualLandmarks | null {
   if (points.length < animeLandmarkCount) return null;
 
-  const leftEyePoints = leftEyeContourIndexes.map((index) => points[index]).filter(Boolean);
-  const rightEyePoints = rightEyeContourIndexes.map((index) => points[index]).filter(Boolean);
+  const leftEyePoints = leftEyeContourIndexes.map((index) => points[index]).filter(isDefined);
+  const rightEyePoints = rightEyeContourIndexes.map((index) => points[index]).filter(isDefined);
   const leftEye = deriveEyeCenter(leftEyePoints);
   const rightEye = deriveEyeCenter(rightEyePoints);
   const eyeDistance = Math.max(1, Math.abs(rightEye.x - leftEye.x));
@@ -249,18 +254,19 @@ function deriveBrows(
   imageWidth: number,
   imageHeight: number,
 ): ManualLandmarks["brows"] {
-  const groups = browGroupIndexes.map((indexes) => indexes.map((index) => points[index]).filter(Boolean));
-  if (groups.some((group) => group.length !== 3)) return undefined;
+  const groups = browGroupIndexes.map((indexes) => indexes.map((index) => points[index]).filter(isDefined));
+  const [first, second] = groups;
+  if (!first || !second || groups.some((group) => group.length !== 3)) return undefined;
 
   const meanX = (group: readonly DetectedPoint[]) => group.reduce((sum, point) => sum + point.x, 0) / group.length;
-  const [first, second] = groups;
   const firstIsLeft =
     Math.abs(meanX(first) - leftEye.x) + Math.abs(meanX(second) - rightEye.x) <=
     Math.abs(meanX(first) - rightEye.x) + Math.abs(meanX(second) - leftEye.x);
   const faceCenterX = (leftEye.x + rightEye.x) / 2;
-  const toBrow = (group: readonly DetectedPoint[]): BrowLandmark => {
+  const toBrow = (group: readonly DetectedPoint[]): BrowLandmark | undefined => {
     const byCenterDistance = [...group].sort((a, b) => Math.abs(a.x - faceCenterX) - Math.abs(b.x - faceCenterX));
     const [inner, middle, outer] = byCenterDistance;
+    if (!inner || !middle || !outer) return undefined;
     return {
       inner: normalizePoint(inner, imageWidth, imageHeight),
       outer: normalizePoint(outer, imageWidth, imageHeight),
@@ -271,7 +277,10 @@ function deriveBrows(
   const eyeY = Math.min(leftEye.y, rightEye.y);
   if (groups.some((group) => group.some((point) => point.y >= eyeY))) return undefined;
 
-  return firstIsLeft ? { left: toBrow(first), right: toBrow(second) } : { left: toBrow(second), right: toBrow(first) };
+  const firstBrow = toBrow(first);
+  const secondBrow = toBrow(second);
+  if (!firstBrow || !secondBrow) return undefined;
+  return firstIsLeft ? { left: firstBrow, right: secondBrow } : { left: secondBrow, right: firstBrow };
 }
 
 export function normalizeAnimeDetailPoints(

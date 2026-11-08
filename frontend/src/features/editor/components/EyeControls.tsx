@@ -14,7 +14,7 @@ type EyeControlConfig = {
   offset?: number;
 };
 
-const eyeControls: EyeControlConfig[] = [
+const eyeControls: [EyeControlConfig, ...EyeControlConfig[]] = [
   { actualMax: 0.3, actualMin: -0.3, key: "eyeSize", label: "大小" },
   { actualMax: 0.05, actualMin: -0.05, key: "eyeVertical", label: "上下" },
   { actualMax: 0.3, actualMin: -0.3, key: "eyeHeight", label: "眼高" },
@@ -35,13 +35,13 @@ const eyeControls: EyeControlConfig[] = [
 ];
 
 export type EyeControlsProps = {
-  compact?: boolean;
-  debugValues?: boolean;
+  compact?: boolean | undefined;
+  debugValues?: boolean | undefined;
   values: EditRecipe["eyes"];
   onChange: (key: EyeControlKey, value: number) => void;
   onReset: (key: EyeControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: (key: EyeControlKey) => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: ((key: EyeControlKey) => void) | undefined;
 };
 
 export function EyeControls({
@@ -135,13 +135,13 @@ function EyeControlSlider({
   expandedRangeEnabled,
 }: {
   control: EyeControlConfig;
-  debugValues?: boolean;
+  debugValues?: boolean | undefined;
   expandedRangeEnabled: boolean;
   values: EditRecipe["eyes"];
   onChange: (key: EyeControlKey, value: number) => void;
   onReset: (key: EyeControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: (key: EyeControlKey) => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: ((key: EyeControlKey) => void) | undefined;
 }) {
   return (
     <ParameterSlider

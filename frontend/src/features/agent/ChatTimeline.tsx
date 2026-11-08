@@ -52,15 +52,15 @@ export function ChatTimeline({
   onRegenerate,
 }: TimelineProps) {
   const { t } = useTranslation();
-  const events = allEvents.filter((event) => !event.deleted);
+  const events = allEvents.filter((event) => !event["deleted"]);
   const approvedIds = new Set(
     [conversation?.state.approved_design_id, conversation?.state.approved_front_id].filter(Boolean) as string[],
   );
   // Only the newest image of each approvable stage offers the approve button.
   const latestApprovable = new Map<string, string>();
   for (const event of events) {
-    const action = event.type === "image" ? approveActionFor(event.role as string) : null;
-    if (action) latestApprovable.set(action, event.image_id as string);
+    const action = event.type === "image" ? approveActionFor(event["role"] as string) : null;
+    if (action) latestApprovable.set(action, event["image_id"] as string);
   }
   const lastEvent = events[events.length - 1];
   const lastReplySeq = events.filter((event) => event.type === "assistant_message").at(-1)?.seq;
@@ -82,7 +82,7 @@ export function ChatTimeline({
               <li className="flex gap-2" key={event.seq}>
                 <Avatar />
                 <div className="min-w-0 flex-1">
-                  <div className="agent-bubble whitespace-pre-wrap wrap-break-word">{event.text as string}</div>
+                  <div className="agent-bubble whitespace-pre-wrap wrap-break-word">{event["text"] as string}</div>
                   {!running && (onDeleteMessage || onRegenerate) ? (
                     <div className="agent-message-actions">
                       {onRegenerate && event.seq === lastReplySeq ? (
@@ -117,11 +117,11 @@ export function ChatTimeline({
           case "image":
             return (
               <ImageCard
-                approved={approvedIds.has(event.image_id as string)}
+                approved={approvedIds.has(event["image_id"] as string)}
                 canApprove={
                   !running &&
-                  latestApprovable.get(approveActionFor(event.role as string) ?? "") === event.image_id &&
-                  !approvedIds.has(event.image_id as string)
+                  latestApprovable.get(approveActionFor(event["role"] as string) ?? "") === event["image_id"] &&
+                  !approvedIds.has(event["image_id"] as string)
                 }
                 event={event}
                 key={event.seq}
@@ -135,12 +135,12 @@ export function ChatTimeline({
               <li className="agent-notice agent-notice-error" key={event.seq}>
                 <IconAlertTriangle className="shrink-0" size={14} />
                 <span className="min-w-0 wrap-break-word">
-                  {t("agent.errors.generic", { message: event.message as string })}
+                  {t("agent.errors.generic", { message: event["message"] as string })}
                 </span>
               </li>
             );
           case "notice": {
-            const code = event.code as string;
+            const code = event["code"] as string;
             return (
               <li className="agent-notice" key={event.seq}>
                 {t(`agent.notices.${code}`, { defaultValue: code })}
@@ -207,10 +207,10 @@ function Avatar() {
 
 function UserMessage({ event, onOpenImage }: { event: AgentEvent; onOpenImage: (url: string) => void }) {
   const { t } = useTranslation();
-  const attachments = (event.attachments ?? []) as Array<{ id: string; url: string; kind: string }>;
-  const action = event.action as string | null | undefined;
+  const attachments = (event["attachments"] ?? []) as Array<{ id: string; url: string; kind: string }>;
+  const action = event["action"] as string | null | undefined;
   const text =
-    (event.text as string) ||
+    (event["text"] as string) ||
     (action === "approve_front"
       ? t("agent.approveMessage")
       : action === "approve_design"
@@ -225,7 +225,7 @@ function UserMessage({ event, onOpenImage }: { event: AgentEvent; onOpenImage: (
         <div className="agent-bubble agent-bubble-user max-w-[92%] whitespace-pre-wrap wrap-break-word">
           {actionLabel ? (
             <span className="mb-0.5 block text-[11px] font-semibold text-(--ide-accent)">
-              {actionLabel} · {event.image_id as string}
+              {actionLabel} · {event["image_id"] as string}
             </span>
           ) : null}
           {text}
@@ -237,7 +237,7 @@ function UserMessage({ event, onOpenImage }: { event: AgentEvent; onOpenImage: (
 
 function ReferencesAdded({ event, onOpenImage }: { event: AgentEvent; onOpenImage: (url: string) => void }) {
   const { t } = useTranslation();
-  const attachments = (event.attachments ?? []) as Array<{ id: string; url: string; kind: string }>;
+  const attachments = (event["attachments"] ?? []) as Array<{ id: string; url: string; kind: string }>;
   return (
     <li className="flex flex-col items-end gap-1.5">
       <span className="flex items-center gap-1 text-[11px] text-(--ide-text-muted)">
@@ -284,11 +284,11 @@ function phaseLabel(t: TFunction, phase: string): string {
 
 function ToolCard({ event }: { event: AgentEvent }) {
   const { t } = useTranslation();
-  const tool = event.tool as string;
-  const status = (event.status as string) || "running";
+  const tool = event["tool"] as string;
+  const status = (event["status"] as string) || "running";
   const running = status === "running";
-  const progress = Math.max(0, Math.min(100, Number(event.progress ?? 0)));
-  const reasoningTokens = Number(event.reasoning_tokens ?? 0);
+  const progress = Math.max(0, Math.min(100, Number(event["progress"] ?? 0)));
+  const reasoningTokens = Number(event["reasoning_tokens"] ?? 0);
   const elapsed = useElapsedSeconds(event.created_at as string | undefined, running);
   const label = TOOL_KEYS.has(tool) ? t(`agent.tools.${tool}`) : tool;
   return (
@@ -299,7 +299,7 @@ function ToolCard({ event }: { event: AgentEvent }) {
         {status === "failed" ? <IconX className="text-(--ide-danger)" size={14} /> : null}
         <span className="font-semibold">{label}</span>
         <span className="truncate text-(--ide-text-muted)">
-          · {running && event.phase ? phaseLabel(t, event.phase as string) : t(`agent.toolStatus.${status}`)}
+          · {running && event["phase"] ? phaseLabel(t, event["phase"] as string) : t(`agent.toolStatus.${status}`)}
           {elapsed !== null ? ` · ${t("agent.elapsed", { duration: formatElapsed(elapsed) })}` : ""}
         </span>
       </div>
@@ -317,8 +317,8 @@ function ToolCard({ event }: { event: AgentEvent }) {
           <span style={{ width: `${progress}%` }} />
         </div>
       ) : null}
-      {status === "failed" && event.error ? (
-        <p className="wrap-break-word text-[11px] text-(--ide-danger)">{event.error as string}</p>
+      {status === "failed" && event["error"] ? (
+        <p className="wrap-break-word text-[11px] text-(--ide-danger)">{event["error"] as string}</p>
       ) : null}
     </li>
   );
@@ -337,14 +337,14 @@ function ImageCard({
   canApprove: boolean;
   onApprove: (imageId: string) => void;
   onOpenImage: (url: string) => void;
-  onOpenVersion?: (imageId: string) => void;
+  onOpenVersion?: ((imageId: string) => void) | undefined;
 }) {
   const { t } = useTranslation();
-  const role = event.role as string;
+  const role = event["role"] as string;
   const isTurnaround = isTurnaroundRole(role);
-  const url = event.url as string;
-  const imageId = event.image_id as string;
-  const source = (event.source as string) || "agent";
+  const url = event["url"] as string;
+  const imageId = event["image_id"] as string;
+  const source = (event["source"] as string) || "agent";
   const open = () => (onOpenVersion ? onOpenVersion(imageId) : onOpenImage(url));
   return (
     <li className={`agent-image-card ml-8 ${isTurnaround ? "" : "max-w-60"}`}>
@@ -357,10 +357,10 @@ function ImageCard({
         <img
           alt={t(`workspace.roles.${role}`)}
           className="block w-full"
-          height={event.height as number}
+          height={event["height"] as number}
           loading="lazy"
           src={url}
-          width={event.width as number}
+          width={event["width"] as number}
         />
       </button>
       <div className="agent-image-card-footer">

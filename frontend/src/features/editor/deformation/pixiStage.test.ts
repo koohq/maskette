@@ -5,7 +5,6 @@ import {
   calculateDisplacementPixel,
   calculateRecipePreview,
   createEyeMeshTransforms,
-  createFeatureLiquifyStrokes,
   createMouthMeshTransforms,
   type EyeMeshTransform,
   getDisplacementTextureRadius,

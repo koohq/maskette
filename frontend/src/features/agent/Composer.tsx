@@ -21,8 +21,14 @@ export function Composer({ running, disabled = false, pendingFiles, onFilesChang
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const previews = useMemo(() => pendingFiles.map((file) => URL.createObjectURL(file)), [pendingFiles]);
 
-  useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
+  useEffect(
+    () => () => {
+      for (const url of previews) URL.revokeObjectURL(url);
+    },
+    [previews],
+  );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: text is the trigger: refit the textarea after each edit
   useEffect(() => fitTextarea(textareaRef.current), [text]);
 
   useEffect(() => {
@@ -31,6 +37,7 @@ export function Composer({ running, disabled = false, pendingFiles, onFilesChang
     if (!textarea || typeof ResizeObserver === "undefined") return;
     let lastWidth = 0;
     const observer = new ResizeObserver(([entry]) => {
+      if (!entry) return;
       if (Math.abs(entry.contentRect.width - lastWidth) < 1) return;
       lastWidth = entry.contentRect.width;
       fitTextarea(textarea);
@@ -70,6 +77,7 @@ export function Composer({ running, disabled = false, pendingFiles, onFilesChang
       {pendingFiles.length ? (
         <div className="flex flex-wrap gap-2 px-3 pt-3">
           {pendingFiles.map((file, index) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: two pending files can share a name; the index keeps the keys unique
             <div className="agent-thumb" key={`${file.name}-${index}`}>
               <img alt={file.name} src={previews[index]} />
               <button

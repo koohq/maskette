@@ -13,7 +13,7 @@ type MouthControlConfig = {
   step: number;
 };
 
-const mouthControls: MouthControlConfig[] = [
+const mouthControls: [MouthControlConfig, ...MouthControlConfig[]] = [
   { actualMax: 0.05, actualMin: -0.05, key: "mouthHorizontal", label: "左右位置", precision: 1, step: 0.1 },
   { actualMax: 0.06, actualMin: -0.06, key: "mouthVertical", label: "上下位置", precision: 2, step: 0.01 },
   { actualMax: 0.45, actualMin: -0.45, key: "mouthWidth", label: "嘴巴宽度", precision: 1, step: 0.1 },
@@ -22,13 +22,13 @@ const mouthControls: MouthControlConfig[] = [
 ];
 
 export type MouthControlsProps = {
-  compact?: boolean;
-  debugValues?: boolean;
+  compact?: boolean | undefined;
+  debugValues?: boolean | undefined;
   values: EditRecipe["mouth"];
   onChange: (key: MouthControlKey, value: number) => void;
   onReset: (key: MouthControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: () => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: (() => void) | undefined;
 };
 
 export function MouthControls({
@@ -108,12 +108,12 @@ function MouthControlSlider({
   onSliderInteractionStart,
 }: {
   control: MouthControlConfig;
-  debugValues?: boolean;
+  debugValues?: boolean | undefined;
   values: EditRecipe["mouth"];
   onChange: (key: MouthControlKey, value: number) => void;
   onReset: (key: MouthControlKey) => void;
-  onSliderInteractionEnd?: () => void;
-  onSliderInteractionStart?: () => void;
+  onSliderInteractionEnd?: (() => void) | undefined;
+  onSliderInteractionStart?: (() => void) | undefined;
 }) {
   return (
     <ParameterSlider

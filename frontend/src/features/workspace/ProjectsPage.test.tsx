@@ -46,7 +46,7 @@ describe("ProjectsPage", () => {
 
   it("deletes a project through the in-app dialog without using window.confirm", async () => {
     let projects = [project];
-    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === "DELETE") {
         projects = [];
         return json({ deleted: true });

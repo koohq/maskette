@@ -51,8 +51,8 @@ export function useConversation(conversationId: string | null) {
             lastSeq.current = Math.max(lastSeq.current, event.seq);
             setEvents((current) => applyEvent(current, event));
             if (event.type === "run_state") {
-              setRunning(event.status === "running");
-              if (event.status !== "running") void refresh();
+              setRunning(event["status"] === "running");
+              if (event["status"] !== "running") void refresh();
             }
             if (event.type === "image" || event.type === "front_approved" || event.type === "design_approved")
               void refresh();

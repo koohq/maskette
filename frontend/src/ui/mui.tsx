@@ -1,7 +1,6 @@
 import MuiAlert from "@mui/material/Alert";
 import MuiBox from "@mui/material/Box";
 import MuiButton from "@mui/material/Button";
-import MuiCard from "@mui/material/Card";
 import MuiChip from "@mui/material/Chip";
 import MuiCircularProgress from "@mui/material/CircularProgress";
 import MuiContainer from "@mui/material/Container";
@@ -30,32 +29,32 @@ type Responsive<T> = T | { base?: T; sm?: T; md?: T; lg?: T; xl?: T };
 type SpacingValue = number | string;
 
 type CommonStyleProps = {
-  bg?: string;
-  c?: string;
-  color?: string;
-  fw?: number | string;
-  h?: number | string;
-  maw?: number | string;
-  mb?: SpacingValue;
-  mih?: number | string;
-  miw?: number | string;
-  ml?: SpacingValue | "auto";
-  mr?: SpacingValue | "auto";
-  mt?: SpacingValue;
-  mx?: SpacingValue;
-  my?: SpacingValue;
-  p?: Responsive<SpacingValue>;
-  pb?: SpacingValue;
-  pl?: SpacingValue;
-  pr?: SpacingValue;
-  pt?: SpacingValue;
-  px?: Responsive<SpacingValue>;
-  py?: Responsive<SpacingValue>;
-  radius?: number | string;
-  style?: CSSProperties;
-  ta?: CSSProperties["textAlign"];
-  tt?: CSSProperties["textTransform"];
-  w?: number | string;
+  bg?: string | undefined;
+  c?: string | undefined;
+  color?: string | undefined;
+  fw?: number | string | undefined;
+  h?: number | string | undefined;
+  maw?: number | string | undefined;
+  mb?: SpacingValue | undefined;
+  mih?: number | string | undefined;
+  miw?: number | string | undefined;
+  ml?: SpacingValue | "auto" | undefined;
+  mr?: SpacingValue | "auto" | undefined;
+  mt?: SpacingValue | undefined;
+  mx?: SpacingValue | undefined;
+  my?: SpacingValue | undefined;
+  p?: Responsive<SpacingValue> | undefined;
+  pb?: SpacingValue | undefined;
+  pl?: SpacingValue | undefined;
+  pr?: SpacingValue | undefined;
+  pt?: SpacingValue | undefined;
+  px?: Responsive<SpacingValue> | undefined;
+  py?: Responsive<SpacingValue> | undefined;
+  radius?: number | string | undefined;
+  style?: CSSProperties | undefined;
+  ta?: CSSProperties["textAlign"] | undefined;
+  tt?: CSSProperties["textTransform"] | undefined;
+  w?: number | string | undefined;
 };
 
 function mapColor(color?: string) {
@@ -144,7 +143,7 @@ function normalizeStyleForSx(style: CSSProperties | undefined) {
 
 function responsiveValue<T>(value: Responsive<T> | undefined) {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-  const mapped: Record<string, T | undefined> = {};
+  const mapped: Partial<Record<"xs" | "sm" | "md" | "lg" | "xl", T | undefined>> = {};
   if ("base" in value) mapped.xs = value.base;
   if ("sm" in value) mapped.sm = value.sm;
   if ("md" in value) mapped.md = value.md;
@@ -238,7 +237,7 @@ function translateCommonProps<T extends object>(props: T, language: string) {
     if (typeof value === "string") translated[key] = translateLiteralString(value, language);
   }
   if ("children" in translated) {
-    translated.children = translateLiteralNode(translated.children as ReactNode, language);
+    translated["children"] = translateLiteralNode(translated["children"] as ReactNode, language);
   }
   return translated as T;
 }
@@ -248,10 +247,10 @@ export function Box({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  component?: ElementType | string;
+  children?: ReactNode | undefined;
+  component?: ElementType | string | undefined;
 }) {
-  const Component = MuiBox as any;
+  const Component: ElementType = MuiBox;
   const language = useLiteralLanguage();
   return (
     <Component
@@ -269,12 +268,12 @@ export function Stack({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  align?: CSSProperties["alignItems"];
-  children?: ReactNode;
-  gap?: SpacingValue;
-  justify?: CSSProperties["justifyContent"];
+  align?: CSSProperties["alignItems"] | undefined;
+  children?: ReactNode | undefined;
+  gap?: SpacingValue | undefined;
+  justify?: CSSProperties["justifyContent"] | undefined;
 }) {
-  const Component = MuiStack as any;
+  const Component: ElementType = MuiStack;
   const language = useLiteralLanguage();
   return (
     <Component
@@ -293,14 +292,14 @@ export function Group({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  align?: CSSProperties["alignItems"];
-  children?: ReactNode;
-  gap?: SpacingValue;
-  grow?: boolean;
-  justify?: CSSProperties["justifyContent"];
-  wrap?: CSSProperties["flexWrap"];
+  align?: CSSProperties["alignItems"] | undefined;
+  children?: ReactNode | undefined;
+  gap?: SpacingValue | undefined;
+  grow?: boolean | undefined;
+  justify?: CSSProperties["justifyContent"] | undefined;
+  wrap?: CSSProperties["flexWrap"] | undefined;
 }) {
-  const Component = MuiStack as any;
+  const Component: ElementType = MuiStack;
   const language = useLiteralLanguage();
   return (
     <Component
@@ -325,9 +324,9 @@ export function Text({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  component?: ElementType | string;
-  size?: "xs" | "sm" | "md" | "lg" | "xl" | string;
+  children?: ReactNode | undefined;
+  component?: ElementType | string | undefined;
+  size?: "xs" | "sm" | "md" | "lg" | "xl" | string | undefined;
 }) {
   const language = useLiteralLanguage();
   const fontSize =
@@ -355,9 +354,9 @@ export function Title({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  order?: 1 | 2 | 3 | 4 | 5 | 6;
-  size?: "h1" | "h2" | "h3" | "h4" | string;
+  children?: ReactNode | undefined;
+  order?: 1 | 2 | 3 | 4 | 5 | 6 | undefined;
+  size?: "h1" | "h2" | "h3" | "h4" | string | undefined;
 }) {
   const language = useLiteralLanguage();
   const variant = size && ["h1", "h2", "h3", "h4", "h5", "h6"].includes(size) ? size : (`h${order}` as const);
@@ -384,23 +383,23 @@ export function Button({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  color?: string;
-  component?: ElementType | string;
-  disabled?: boolean;
-  fullWidth?: boolean;
-  justify?: string;
-  leftSection?: ReactNode;
-  loading?: boolean;
-  rightSection?: ReactNode;
-  size?: "xs" | "sm" | "md" | "lg" | string;
-  variant?: "filled" | "light" | "subtle" | "default" | string;
+  children?: ReactNode | undefined;
+  color?: string | undefined;
+  component?: ElementType | string | undefined;
+  disabled?: boolean | undefined;
+  fullWidth?: boolean | undefined;
+  justify?: string | undefined;
+  leftSection?: ReactNode | undefined;
+  loading?: boolean | undefined;
+  rightSection?: ReactNode | undefined;
+  size?: "xs" | "sm" | "md" | "lg" | string | undefined;
+  variant?: "filled" | "light" | "subtle" | "default" | string | undefined;
 }) {
   const language = useLiteralLanguage();
   const muiVariant =
     variant === "filled" ? "contained" : variant === "text" ? "text" : variant === "contained" ? "contained" : "text";
   const muiSize = size === "xs" || size === "sm" ? "small" : size === "lg" ? "large" : "medium";
-  const Component = MuiButton as any;
+  const Component: ElementType = MuiButton;
   const isSoftVariant = variant === "light" || variant === "default";
   const isSubtleVariant = variant === "subtle";
   const propSx = sxFromProps(props);
@@ -466,11 +465,11 @@ export function ActionIcon({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  color?: string;
-  disabled?: boolean;
-  size?: "sm" | "md" | "lg" | "xl" | string;
-  variant?: string;
+  children?: ReactNode | undefined;
+  color?: string | undefined;
+  disabled?: boolean | undefined;
+  size?: "sm" | "md" | "lg" | "xl" | string | undefined;
+  variant?: string | undefined;
 }) {
   const language = useLiteralLanguage();
   const muiSize = size === "sm" ? "small" : size === "lg" || size === "xl" ? "large" : "medium";
@@ -529,9 +528,9 @@ export function Paper({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  shadow?: string;
-  withBorder?: boolean;
+  children?: ReactNode | undefined;
+  shadow?: string | undefined;
+  withBorder?: boolean | undefined;
 }) {
   const language = useLiteralLanguage();
   return (
@@ -557,11 +556,11 @@ export function Badge({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  color?: string;
-  leftSection?: ReactNode;
-  size?: string;
-  variant?: string;
+  children?: ReactNode | undefined;
+  color?: string | undefined;
+  leftSection?: ReactNode | undefined;
+  size?: string | undefined;
+  variant?: string | undefined;
 }) {
   const language = useLiteralLanguage();
   const propSx = sxFromProps(props);
@@ -612,10 +611,10 @@ export function Slider(props: CommonStyleProps & { [key: string]: unknown }) {
     ...rest
   } = stripCommonProps(props) as {
     [key: string]: unknown;
-    label?: unknown;
-    onChange?: (value: number) => void;
-    onChangeCommitted?: (event: Event | SyntheticEvent, value: number | number[]) => void;
-    thumbLabel?: unknown;
+    label?: unknown | undefined;
+    onChange?: ((value: number) => void) | undefined;
+    onChangeCommitted?: ((event: Event | SyntheticEvent, value: number | number[]) => void) | undefined;
+    thumbLabel?: unknown | undefined;
   };
   return (
     <MuiSlider
@@ -632,7 +631,7 @@ export function TextInput({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  label?: ReactNode;
+  label?: ReactNode | undefined;
 }) {
   const language = useLiteralLanguage();
   return (
@@ -682,8 +681,8 @@ export function NumberInput({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  onChange?: (value: string | number) => void;
-  value?: string | number;
+  onChange?: ((value: string | number) => void) | undefined;
+  value?: string | number | undefined;
 }) {
   const language = useLiteralLanguage();
   return (
@@ -707,11 +706,11 @@ export function Switch({
   label,
   onChange,
 }: {
-  "aria-label"?: string;
-  checked?: boolean;
-  "data-testid"?: string;
-  label?: ReactNode;
-  onChange?: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  "aria-label"?: string | undefined;
+  checked?: boolean | undefined;
+  "data-testid"?: string | undefined;
+  label?: ReactNode | undefined;
+  onChange?: ((event: React.ChangeEvent<HTMLInputElement>) => void) | undefined;
 }) {
   const language = useLiteralLanguage();
   const translatedLabel = translateLiteralNode(label, language);
@@ -740,9 +739,9 @@ export function SimpleGrid({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  cols?: Responsive<number>;
-  spacing?: SpacingValue;
+  children?: ReactNode | undefined;
+  cols?: Responsive<number> | undefined;
+  spacing?: SpacingValue | undefined;
 }) {
   const language = useLiteralLanguage();
   const mappedCols =
@@ -778,7 +777,7 @@ export function SegmentedControl<T extends string = string>({
 }: CommonStyleProps & {
   [key: string]: unknown;
   data: Array<{ label: string; value: T }>;
-  fullWidth?: boolean;
+  fullWidth?: boolean | undefined;
   onChange: (value: T) => void;
   value: T;
 }) {
@@ -831,9 +830,9 @@ export function Alert({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  color?: string;
-  variant?: string;
+  children?: ReactNode | undefined;
+  color?: string | undefined;
+  variant?: string | undefined;
 }) {
   const language = useLiteralLanguage();
   const propSx = sxFromProps(props);
@@ -857,8 +856,8 @@ export function Container({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  size?: "sm" | "md" | "lg" | "xl" | string;
+  children?: ReactNode | undefined;
+  size?: "sm" | "md" | "lg" | "xl" | string | undefined;
 }) {
   const language = useLiteralLanguage();
   return (
@@ -890,13 +889,13 @@ export function Image({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  alt?: string;
-  fit?: CSSProperties["objectFit"];
-  h?: number | string;
-  radius?: number | string;
-  src?: string;
-  title?: string;
-  w?: number | string;
+  alt?: string | undefined;
+  fit?: CSSProperties["objectFit"] | undefined;
+  h?: number | string | undefined;
+  radius?: number | string | undefined;
+  src?: string | undefined;
+  title?: string | undefined;
+  w?: number | string | undefined;
 }) {
   const language = useLiteralLanguage();
   const imageSx = {
@@ -926,10 +925,10 @@ export function ThemeIcon({
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
-  children?: ReactNode;
-  color?: string;
-  size?: number | string;
-  variant?: string;
+  children?: ReactNode | undefined;
+  color?: string | undefined;
+  size?: number | string | undefined;
+  variant?: string | undefined;
 }) {
   const language = useLiteralLanguage();
   const iconSx = {

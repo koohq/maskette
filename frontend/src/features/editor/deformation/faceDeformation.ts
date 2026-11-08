@@ -143,10 +143,10 @@ export function createFaceShapeTransform(recipe: EditRecipe, landmarks: ManualLa
         active = true;
         const scale = ((value / faceShapeSliderEnd) * (value < 0 ? profile.negativeScale : 1)) / 100;
         profile.inward.forEach((amount, index) => {
-          inward[index] += amount * scale;
+          inward[index] = (inward[index] ?? 0) + amount * scale;
         });
         profile.up.forEach((amount, index) => {
-          up[index] += amount * scale;
+          up[index] = (up[index] ?? 0) + amount * scale;
         });
       }
       return active ? { band: local ? localBand : broadBand, inward, up } : null;
@@ -193,7 +193,7 @@ function profileAt(table: readonly number[], s: number) {
   const position = Math.min(table.length - 1, Math.max(0, s / 0.25));
   const index = Math.min(table.length - 2, Math.floor(position));
   const amount = position - index;
-  return table[index] * (1 - amount) + table[index + 1] * amount;
+  return (table[index] ?? 0) * (1 - amount) + (table[index + 1] ?? 0) * amount;
 }
 
 /** Catmull-Rom samples through the control points, each with its contour parameter. */
@@ -202,6 +202,7 @@ function sampleContour(points: readonly { x: number; y: number }[], perSegment: 
   const samples: { s: number; x: number; y: number }[] = [];
   for (let segment = 0; segment < points.length - 1; segment += 1) {
     const [p0, p1, p2, p3] = padded.slice(segment, segment + 4);
+    if (!p0 || !p1 || !p2 || !p3) continue;
     for (let step = 0; step < perSegment; step += 1) {
       const t = step / perSegment;
       const t2 = t * t;
@@ -212,7 +213,7 @@ function sampleContour(points: readonly { x: number; y: number }[], perSegment: 
     }
   }
   const last = points[points.length - 1];
-  samples.push({ s: points.length - 1, x: last.x, y: last.y });
+  if (last) samples.push({ s: points.length - 1, x: last.x, y: last.y });
   return samples;
 }
 
@@ -222,7 +223,13 @@ function sampleContour(points: readonly { x: number; y: number }[], perSegment: 
  */
 export function createFaceShapeDeformer(transform: FaceShapeTransform, width: number, height: number) {
   const control = transform.contour.map((point) => ({ x: point.x * width, y: point.y * height }));
-  const faceWidth = Math.max(1, Math.hypot(control[5].x - control[1].x, control[5].y - control[1].y));
+  // faceContour always returns seven points: [1] and [5] are the outline beside each eye.
+  const eyeSideLeft = control[1];
+  const eyeSideRight = control[5];
+  const faceWidth =
+    eyeSideLeft && eyeSideRight
+      ? Math.max(1, Math.hypot(eyeSideRight.x - eyeSideLeft.x, eyeSideRight.y - eyeSideLeft.y))
+      : 1;
   const samples = sampleContour(control, 12);
   const bands = transform.bands.map((band) => {
     const reach = band.band * faceWidth;
@@ -261,12 +268,15 @@ export function createFaceShapeDeformer(transform: FaceShapeTransform, width: nu
       let weightedX = 0;
       let weightedY = 0;
       for (let index = 0; index < samples.length; index += 1) {
-        const distanceSquared = (x - samples[index].x) ** 2 + (y - samples[index].y) ** 2;
+        const sample = samples[index];
+        const offset = band.offsets[index];
+        if (!sample || !offset) continue;
+        const distanceSquared = (x - sample.x) ** 2 + (y - sample.y) ** 2;
         nearestSquared = Math.min(nearestSquared, distanceSquared);
         const weight = Math.exp(-distanceSquared / band.sigmaSquared);
         weightSum += weight;
-        weightedX += band.offsets[index].x * weight;
-        weightedY += band.offsets[index].y * weight;
+        weightedX += offset.x * weight;
+        weightedY += offset.y * weight;
       }
       const envelope = flatFalloff(Math.sqrt(nearestSquared) / band.reach);
       if (envelope === 0 || weightSum === 0) continue;

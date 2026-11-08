@@ -74,7 +74,7 @@ export const editorDrafts = {
       (store) => store.get(draftKey(projectId, versionId)),
       undefined,
     );
-    if (!record || record.schemaVersion !== 1) return undefined;
+    if (record?.schemaVersion !== 1) return undefined;
     return { ...record, recipe: normalizeEditRecipe(record.recipe) };
   },
   async put(projectId: string, versionId: string, state: EditorDraftState): Promise<void> {

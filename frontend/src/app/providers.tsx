@@ -20,7 +20,7 @@ export function Providers({ children }: { children: ReactNode }) {
   const theme = useMemo(() => createKigTheme(mode), [mode]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = mode;
+    document.documentElement.dataset["theme"] = mode;
     window.localStorage.setItem(THEME_STORAGE_KEY, mode);
   }, [mode]);
 

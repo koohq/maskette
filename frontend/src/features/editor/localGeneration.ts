@@ -45,7 +45,7 @@ export function hasLocalMaskPaint(strokes: readonly LocalMaskStroke[]) {
   if (!context) return false;
   const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
   for (let index = 3; index < data.length; index += 4) {
-    if (data[index] > 0) return true;
+    if ((data[index] ?? 0) > 0) return true;
   }
   return false;
 }
@@ -71,13 +71,14 @@ function renderLocalMaskStrokes(canvas: HTMLCanvasElement, strokes: readonly Loc
   context.lineJoin = "round";
 
   for (const stroke of strokes) {
-    if (stroke.points.length === 0) continue;
+    const start = stroke.points[0];
+    if (!start) continue;
     context.globalCompositeOperation = stroke.mode === "erase" ? "destination-out" : "source-over";
     context.strokeStyle = "rgba(255,255,255,1)";
     context.fillStyle = "rgba(255,255,255,1)";
     context.lineWidth = Math.max(1, stroke.radius * 2);
 
-    const firstPoint = toCanvasPoint(stroke.points[0], canvas.width, canvas.height);
+    const firstPoint = toCanvasPoint(start, canvas.width, canvas.height);
     context.beginPath();
     context.arc(firstPoint.x, firstPoint.y, stroke.radius, 0, Math.PI * 2);
     context.fill();

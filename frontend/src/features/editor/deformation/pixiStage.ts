@@ -115,7 +115,7 @@ function canvasToBlob(canvas: import("pixi.js").ICanvas): Promise<Blob> {
   if (canvas.convertToBlob) return canvas.convertToBlob({ type: "image/png" });
   if (!canvas.toBlob) return Promise.reject(new Error("Canvas PNG export is unavailable"));
   return new Promise((resolve, reject) => {
-    canvas.toBlob!((blob) => {
+    canvas.toBlob?.((blob) => {
       if (blob) {
         resolve(blob);
         return;
@@ -842,7 +842,7 @@ function fitImageToStage(
     y: number;
   } | null,
 ) {
-  if (!imageMesh || !imageMesh.texture.width || !imageMesh.texture.height) return;
+  if (!imageMesh?.texture.width || !imageMesh.texture.height) return;
 
   const rendererWidth = Math.max(1, app.renderer.screen?.width ?? app.renderer.width);
   const rendererHeight = Math.max(1, app.renderer.screen?.height ?? app.renderer.height);
@@ -1205,8 +1205,9 @@ function applyMeshDeformation(
 
   if (deform) {
     for (let index = 0; index < baseMeshPositions.length; index += 2) {
-      const baseX = baseMeshPositions[index];
-      const baseY = baseMeshPositions[index + 1];
+      // index + 1 stays inside the interleaved x, y positions.
+      const baseX = baseMeshPositions[index] ?? 0;
+      const baseY = baseMeshPositions[index + 1] ?? 0;
       const offset = deform(baseX * fitScale, baseY * fitScale);
       nextPositions[index] = baseX + offset.x / fitScale;
       nextPositions[index + 1] = baseY + offset.y / fitScale;

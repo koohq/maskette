@@ -52,7 +52,7 @@ export type AnimeLandmarkDebugInfo = {
   imageWidth: number;
   points: Array<DetectedPoint & { index: number }>;
   /** Every face box that was tried in single-face mode, with how well the landmark model fitted it. */
-  candidates?: Array<{ box: FaceBox; detectorScore: number; quality: number }>;
+  candidates?: Array<{ box: FaceBox; detectorScore: number; quality: number }> | undefined;
 };
 
 export type AnimeLandmarkDetection = {
@@ -236,12 +236,14 @@ function preprocessCrop(image: HTMLImageElement, box: FaceBox, ort: OrtModule) {
     for (let x = 0; x < modelSize; x += 1) {
       const pixelOffset = (y * modelSize + x) * 4;
       const tensorOffset = y * modelSize + x;
-      const rgb = [pixels[pixelOffset] / 255, pixels[pixelOffset + 1] / 255, pixels[pixelOffset + 2] / 255];
-
-      for (let channel = 0; channel < 3; channel += 1) {
-        input[channel * modelSize * modelSize + tensorOffset] =
-          (rgb[channel] - imageNetMean[channel]) / imageNetStd[channel];
-      }
+      const planeSize = modelSize * modelSize;
+      // getImageData returns modelSize² RGBA pixels, so every read below is in range.
+      const red = (pixels[pixelOffset] ?? 0) / 255;
+      const green = (pixels[pixelOffset + 1] ?? 0) / 255;
+      const blue = (pixels[pixelOffset + 2] ?? 0) / 255;
+      input[tensorOffset] = (red - imageNetMean[0]) / imageNetStd[0];
+      input[planeSize + tensorOffset] = (green - imageNetMean[1]) / imageNetStd[1];
+      input[2 * planeSize + tensorOffset] = (blue - imageNetMean[2]) / imageNetStd[2];
     }
   }
 
@@ -279,6 +281,12 @@ export async function detectAnimeFaceBox(image: HTMLImageElement): Promise<Anime
   };
 }
 
+function firstName(names: readonly string[], kind: "input" | "output"): string {
+  const [name] = names;
+  if (name === undefined) throw new Error(`The HRNet landmark model has no ${kind}`);
+  return name;
+}
+
 export async function detectAnimeLandmarksWithModel(
   image: HTMLImageElement,
   modelUrl = hrnetModelUrl,
@@ -308,18 +316,22 @@ export async function detectAnimeLandmarksWithModel(
     console.warn("Anime face detector failed, using centered landmark crop", error);
   }
   const { session: hrnetSession } = hrnetRuntime;
+  const hrnetInputName = firstName(hrnetSession.inputNames, "input");
+  const hrnetOutputName = firstName(hrnetSession.outputNames, "output");
 
-  async function fit(entry: { box: FaceBox; score: number }) {
+  async function fitLandmarks(entry: { box: FaceBox; score: number }) {
     const hrnetBox = expandFaceBox(entry.box, width, height);
     const result = await runHrnetSession(
       hrnetSession,
       {
-        [hrnetSession.inputNames[0]]: preprocessCrop(image, hrnetBox, ort),
+        [hrnetInputName]: preprocessCrop(image, hrnetBox, ort),
       },
       signal,
     );
     signal?.throwIfAborted();
-    const data = result[hrnetSession.outputNames[0]].data;
+    const output = result[hrnetOutputName];
+    if (!output) throw new Error("The HRNet landmark model returned no output");
+    const data = output.data;
     if (!(data instanceof Float32Array)) return null;
     const points = decodeHrnetHeatmaps(data, hrnetBox);
     const controls = mapAnimePointsToManualLandmarks(points, width, height, entry.box);
@@ -328,14 +340,14 @@ export async function detectAnimeLandmarksWithModel(
     return { box: entry.box, detectorScore: entry.score, hrnetBox, points, controls, quality };
   }
 
-  let chosen: NonNullable<Awaited<ReturnType<typeof fit>>> | null = null;
+  let chosen: NonNullable<Awaited<ReturnType<typeof fitLandmarks>>> | null = null;
   let candidates: AnimeLandmarkDebugInfo["candidates"];
   if (!requireSingleFace) {
-    chosen = await fit(ranked[0] ?? createFallbackFaceBox(width, height));
+    chosen = await fitLandmarks(ranked[0] ?? createFallbackFaceBox(width, height));
   } else {
-    const attempts: NonNullable<Awaited<ReturnType<typeof fit>>>[] = [];
+    const attempts: NonNullable<Awaited<ReturnType<typeof fitLandmarks>>>[] = [];
     for (const entry of distinctFaceBoxes(ranked)) {
-      const attempt = await fit(entry);
+      const attempt = await fitLandmarks(entry);
       if (attempt) attempts.push(attempt);
     }
     candidates = attempts.map(({ box, detectorScore, quality }) => ({ box, detectorScore, quality }));

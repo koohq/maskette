@@ -9,15 +9,15 @@ export type ParameterSliderProps = {
   label: string;
   max: number;
   min: number;
-  precision?: number;
+  precision?: number | undefined;
   step: number;
   value: number;
-  defaultValue?: number;
-  debugValue?: string;
-  debugValueFormatter?: (value: number) => string;
+  defaultValue?: number | undefined;
+  debugValue?: string | undefined;
+  debugValueFormatter?: ((value: number) => string) | undefined;
   onChange: (value: number) => void;
-  onInteractionEnd?: () => void;
-  onInteractionStart?: () => void;
+  onInteractionEnd?: (() => void) | undefined;
+  onInteractionStart?: (() => void) | undefined;
   onReset: () => void;
 };
 
@@ -61,6 +61,7 @@ export function ParameterSlider({
     onChangeRef.current = onChange;
   }, [onChange]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-normalizes the shown value when the range or step changes; normalizeSliderValue is recreated each render from those props
   useEffect(() => {
     if (isInteractingRef.current) return;
     const nextValue = normalizeSliderValue(value);
@@ -69,6 +70,7 @@ export function ParameterSlider({
     setLocalValue(nextValue);
   }, [dataTestId, max, min, precision, step, value]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: unmount-only cleanup; both helpers only touch refs and listeners
   useEffect(
     () => () => {
       removeFinishListeners();

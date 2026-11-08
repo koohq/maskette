@@ -109,55 +109,57 @@ export type { EditorDraftState } from "./drafts/localDrafts";
 export type { EditorLocalGeneratePayload, EditorLocalReferenceOption } from "./localGeneration";
 
 export type EditorWorkspaceProps = {
-  availableTools?: EditorTool[];
+  availableTools?: EditorTool[] | undefined;
   /** "ide": render only the canvas inline; tool panel and viewport toolbar go into the given portal targets. */
-  layout?: "card" | "ide";
-  activeTool?: EditorTool;
-  onActiveToolChange?: (tool: EditorTool) => void;
-  panelTarget?: HTMLElement | null;
-  toolbarTarget?: HTMLElement | null;
+  layout?: "card" | "ide" | undefined;
+  activeTool?: EditorTool | undefined;
+  onActiveToolChange?: ((tool: EditorTool) => void) | undefined;
+  panelTarget?: HTMLElement | null | undefined;
+  toolbarTarget?: HTMLElement | null | undefined;
   /** Download the edited image when saving (off in the IDE, where downloads use the watermarked version). */
-  downloadOnSave?: boolean;
+  downloadOnSave?: boolean | undefined;
   /** Overrides the image URL used for the editor's own export/download naming. */
-  onStatusChange?: (status: EditorStatus) => void;
+  onStatusChange?: ((status: EditorStatus) => void) | undefined;
   candidateIndex: number;
-  imageHeight?: number;
+  imageHeight?: number | undefined;
   /**
    * Anchor the recipe to source-image pixels once the image is laid out, so edits look the same at any preview size
    * and a restored draft replays exactly. Off by default: the recipe then stays in preview (CSS pixel) units.
    */
-  imageCoordinateEditing?: boolean;
-  initialLandmarks?: ManualLandmarks | null;
-  imageUrl?: string;
-  imageWidth?: number;
-  isRegenerating?: boolean;
-  localReferenceOptions?: EditorLocalReferenceOption[];
-  recipe?: EditRecipe;
-  regenerateLabel?: string;
-  secondaryRegenerateLabel?: string;
-  showRegenerateActions?: boolean;
-  onRecipeChange?: (recipe: EditRecipe) => void;
-  onClearImage?: () => void;
-  onLocalGenerate?: (payload: EditorLocalGeneratePayload) => void | Promise<void>;
-  onRegenerate?: (payload: EditorRegeneratePayload) => void | Promise<void>;
-  onSecondaryRegenerate?: (payload: EditorRegeneratePayload) => void | Promise<void>;
-  onSave?: (payload: EditorImageSavePayload) => void | Promise<void>;
+  imageCoordinateEditing?: boolean | undefined;
+  initialLandmarks?: ManualLandmarks | null | undefined;
+  imageUrl?: string | undefined;
+  imageWidth?: number | undefined;
+  isRegenerating?: boolean | undefined;
+  localReferenceOptions?: EditorLocalReferenceOption[] | undefined;
+  recipe?: EditRecipe | undefined;
+  regenerateLabel?: string | undefined;
+  secondaryRegenerateLabel?: string | undefined;
+  showRegenerateActions?: boolean | undefined;
+  onRecipeChange?: ((recipe: EditRecipe) => void) | undefined;
+  onClearImage?: (() => void) | undefined;
+  onLocalGenerate?: ((payload: EditorLocalGeneratePayload) => void | Promise<void>) | undefined;
+  onRegenerate?: ((payload: EditorRegeneratePayload) => void | Promise<void>) | undefined;
+  onSecondaryRegenerate?: ((payload: EditorRegeneratePayload) => void | Promise<void>) | undefined;
+  onSave?: ((payload: EditorImageSavePayload) => void | Promise<void>) | undefined;
   /** Restored draft state for the first image (the recipe and landmarks come in via `recipe`/`initialLandmarks`). */
-  initialMaskStrokes?: LocalMaskStroke[];
-  initialLocalEditNote?: string;
+  initialMaskStrokes?: LocalMaskStroke[] | undefined;
+  initialLocalEditNote?: string | undefined;
   /** Called with the unsaved state whenever it changes, so the host can keep a local draft. */
-  onDraftChange?: (state: EditorDraftState) => void;
+  onDraftChange?: ((state: EditorDraftState) => void) | undefined;
 };
 
 export type EditorRegeneratePayload = {
   annotationPrompt: string;
-  annotatedImageBlob?: Blob;
+  annotatedImageBlob?: Blob | undefined;
   editedImageBlob: Blob;
-  promptNote?: string;
-  extraReference?: {
-    description: string;
-    file: File;
-  };
+  promptNote?: string | undefined;
+  extraReference?:
+    | {
+        description: string;
+        file: File;
+      }
+    | undefined;
   recipe: EditRecipe;
 };
 
@@ -224,13 +226,13 @@ const touchMoveTolerance = 10;
 type LiquifyHistoryEntry = {
   after: LiquifyStroke[];
   before: LiquifyStroke[];
-  key?: string;
+  key?: string | undefined;
 };
 
 type AnnotationHistoryEntry = {
   after: AnnotationMark[];
   before: AnnotationMark[];
-  key?: string;
+  key?: string | undefined;
 };
 
 type ViewportRect = {
@@ -521,7 +523,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const [localLockOutside, setLocalLockOutside] = useState(false);
   const [selectedLocalReferenceKeys, setSelectedLocalReferenceKeys] = useState<string[]>([]);
   const [localUploadedReferenceFile, setLocalUploadedReferenceFile] = useState<File | null>(null);
-  const [localUploadedReferenceDescription, setLocalUploadedReferenceDescription] = useState("");
+  const [, setLocalUploadedReferenceDescription] = useState("");
   const [localGenerateError, setLocalGenerateError] = useState<string | null>(null);
   const [saveMenuPosition, setSaveMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [pixiHostElement, setPixiHostElement] = useState<HTMLDivElement | null>(null);
@@ -561,12 +563,6 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const currentScaleDragAmountRef = useRef(liquifyScaleAmount);
   const lastStagePointRef = useRef({ x: 0.5, y: 0.5 });
   const lastLiquifyStrokePointRef = useRef<{ x: number; y: number } | null>(null);
-  const annotationPendingPointRef = useRef<{
-    pointerId: number;
-    point: { x: number; y: number };
-    startClientX: number;
-    startClientY: number;
-  } | null>(null);
   const annotationDragRef = useRef<{
     annotationId: string;
     offsetX: number;
@@ -641,7 +637,6 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const imageToPreviewScale = imageViewportRect.width > 0 ? imageViewportRect.width / stageWidth : 1;
   /** Preview CSS pixels per brush-radius unit: anchored recipes keep radii in effect units times `effectScale`. */
   const effectToPreviewScale = recipe.imageCoordinates ? recipe.imageCoordinates.effectScale * imageToPreviewScale : 1;
-  const hasImage = Boolean(imageUrl);
   const currentLandmarks = recipe.landmarks;
   const normalizedDebugFaceBox = landmarkDebugInfo
     ? normalizeDebugBox(landmarkDebugInfo.faceBox, landmarkDebugInfo.imageWidth, landmarkDebugInfo.imageHeight)
@@ -746,6 +741,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     };
   }, [pixiHostElement]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: a new Pixi stage (pixiStageVersion) needs the image again; the recipe is applied with the image, then kept current by the next effect
   useEffect(() => {
     const stage = pixiStageRef.current;
     if (!stage || !imageUrl) {
@@ -776,6 +772,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     };
   }, [imageUrl, pixiStageVersion]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: pixiStageVersion re-applies the recipe to a newly created Pixi stage
   useEffect(() => {
     const stage = pixiStageRef.current;
     if (!stage) return;
@@ -797,6 +794,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     };
   }, [previewRecipe, pixiStageVersion]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: follows controlledRecipe only; setRecipeWithoutHistory is recreated each render but only writes refs and state
   useEffect(() => {
     if (controlledRecipe) {
       const nextRecipe = normalizeEditRecipe(controlledRecipe);
@@ -807,6 +805,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     }
   }, [controlledRecipe]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: recipe.imageCoordinates re-checks the anchor after the recipe changes (the effect reads it through latestRecipeRef); setRecipeWithoutHistory only writes refs and state
   useEffect(() => {
     if (!imageCoordinateEditing || !imageViewportReady) return;
     const current = latestRecipeRef.current;
@@ -833,6 +832,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     recipe.imageCoordinates,
   ]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setActiveTool is recreated each render; the check only depends on the tool and the enabled tools
   useEffect(() => {
     if (enabledToolSet.has(activeTool)) return;
     setActiveTool(enabledTools[0] ?? "annotation");
@@ -935,6 +935,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     }
   }, [onRecipeChange, recipe]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: resets the editor when imageUrl changes; initialLandmarks is synced by the next effect, and the helpers only write refs and state
   useEffect(() => {
     landmarkDetectionRunRef.current += 1;
     setDetectedImageSize(null);
@@ -964,6 +965,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     landmarkFallbackRef.current = false;
   }, [imageUrl]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: setRecipeWithoutHistory is recreated each render but only writes refs and state
   useEffect(() => {
     if (!imageUrl || !initialLandmarks) return;
     if (JSON.stringify(latestRecipeRef.current.landmarks ?? null) === JSON.stringify(initialLandmarks)) return;
@@ -977,12 +979,13 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     landmarkFallbackRef.current = false;
   }, [imageUrl, initialLandmarks]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: detection runs per image and landmark source; the helpers are recreated each render but only write refs and state
   useEffect(() => {
     if (!imageUrl || !canShowLandmarkToggle || initialLandmarks || imageLoadVersion === 0) return;
     if (latestRecipeRef.current.landmarks && !landmarkFallbackRef.current) return;
 
     const image = baseImageRef.current;
-    if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+    if (!image?.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
 
     const runId = ++landmarkDetectionRunRef.current;
     let cancelled = false;
@@ -1055,7 +1058,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     syncAnnotationHistoryAvailability();
   }
 
-  function setRecipeWithoutHistory(nextRecipe: EditRecipe, options: { notify?: boolean } = {}) {
+  function setRecipeWithoutHistory(nextRecipe: EditRecipe, options: { notify?: boolean | undefined } = {}) {
     latestRecipeRef.current = nextRecipe;
     shouldNotifyRecipeRef.current = Boolean(options.notify);
     setRecipe(nextRecipe);
@@ -1064,9 +1067,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   function recordLiquifyHistory(previousLiquify: LiquifyStroke[], nextLiquify: LiquifyStroke[], historyKey?: string) {
     if (JSON.stringify(previousLiquify) === JSON.stringify(nextLiquify)) return;
 
-    if (historyKey && activeHistoryKeyRef.current === historyKey && undoStackRef.current.length > 0) {
-      const previousEntries = undoStackRef.current;
-      const lastEntry = previousEntries[previousEntries.length - 1];
+    const previousEntries = undoStackRef.current;
+    const lastEntry = previousEntries[previousEntries.length - 1];
+    if (historyKey && activeHistoryKeyRef.current === historyKey && lastEntry) {
       undoStackRef.current = [...previousEntries.slice(0, -1), { ...lastEntry, after: nextLiquify }];
       redoStackRef.current = [];
       syncLiquifyHistoryAvailability();
@@ -1092,13 +1095,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     const before = previousAnnotations.map((annotation) => ({ ...annotation }));
     const after = nextAnnotations.map((annotation) => ({ ...annotation }));
 
-    if (
-      historyKey &&
-      activeAnnotationHistoryKeyRef.current === historyKey &&
-      annotationUndoStackRef.current.length > 0
-    ) {
-      const previousEntries = annotationUndoStackRef.current;
-      const lastEntry = previousEntries[previousEntries.length - 1];
+    const previousEntries = annotationUndoStackRef.current;
+    const lastEntry = previousEntries[previousEntries.length - 1];
+    if (historyKey && activeAnnotationHistoryKeyRef.current === historyKey && lastEntry) {
       annotationUndoStackRef.current = [...previousEntries.slice(0, -1), { ...lastEntry, after }];
       annotationRedoStackRef.current = [];
       syncAnnotationHistoryAvailability();
@@ -1115,7 +1114,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
 
   function updateRecipe(
     updater: (currentRecipe: EditRecipe) => EditRecipe,
-    options: { history?: "annotation" | "liquify"; historyKey?: string } = {},
+    options: { history?: "annotation" | "liquify"; historyKey?: string | undefined } = {},
   ) {
     const currentRecipe = latestRecipeRef.current;
     const nextRecipe = normalizeEditRecipe(updater(currentRecipe));
@@ -1134,11 +1133,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     setRecipeWithoutHistory(nextRecipe, { notify: true });
   }
 
-  function setRecipeWithHistory(nextRecipe: EditRecipe) {
-    setRecipeWithoutHistory(normalizeEditRecipe(nextRecipe), { notify: true });
-  }
-
-  function ensureFallbackLandmarks(options: { notify?: boolean } = {}) {
+  function ensureFallbackLandmarks(options: { notify?: boolean | undefined } = {}) {
     if (latestRecipeRef.current.landmarks && !landmarkFallbackRef.current) {
       setShowLandmarkControls(true);
       return;
@@ -1219,6 +1214,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     syncAnnotationHistoryAvailability();
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: the shortcut is registered per tool; the undo and redo handlers read the history through refs
   useEffect(() => {
     if (activeTool !== "annotation") return;
 
@@ -1274,8 +1270,8 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   }
 
   function getViewportGestureMetrics(points: StagePointerPoint[]) {
-    if (points.length < 2) return null;
     const [first, second] = points;
+    if (!first || !second) return null;
     return {
       center: {
         x: (first.clientX + second.clientX) / 2,
@@ -1726,7 +1722,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       save: handleSave,
       isDirty: () => recipeHasEdits(latestRecipeRef.current),
     }),
-    [handleRegenerate, handleSecondaryRegenerate, handleSave],
+    // No dependency list: the handlers are recreated each render, so the handle is too.
   );
 
   useEffect(() => {
@@ -1936,8 +1932,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       return;
     }
 
-    if (landmarkDragRef.current) {
-      updateRecipe((currentRecipe) => updateManualLandmark(currentRecipe, landmarkDragRef.current!.key, point));
+    const landmarkDrag = landmarkDragRef.current;
+    if (landmarkDrag) {
+      updateRecipe((currentRecipe) => updateManualLandmark(currentRecipe, landmarkDrag.key, point));
       return;
     }
 
@@ -2137,7 +2134,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     if (!imageUrl || !canShowLandmarkToggle) return;
 
     const image = baseImageRef.current;
-    if (!image || !image.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
+    if (!image?.complete || image.naturalWidth <= 0 || image.naturalHeight <= 0) return;
 
     const runId = ++landmarkDetectionRunRef.current;
     setIsDetectingLandmarks(true);
@@ -2367,80 +2364,6 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 />
               ) : null}
             </Stack>
-          ) : null}
-        </Stack>
-      );
-
-      return (
-        <Stack gap={1.25} data-testid="annotation-controls">
-          {recipe.annotations.length > 0 ? (
-            <Group gap={0.75} wrap="wrap">
-              {recipe.annotations.map((annotation, index) => (
-                <Button
-                  data-testid={`annotation-select-${annotation.id}`}
-                  key={annotation.id}
-                  onClick={() => setSelectedAnnotationId(annotation.id)}
-                  size="xs"
-                  variant={selectedAnnotationId === annotation.id ? "filled" : "default"}
-                >
-                  {index + 1}
-                </Button>
-              ))}
-            </Group>
-          ) : (
-            <Text c="dimmed" size="sm">
-              点击图像添加标记点。
-            </Text>
-          )}
-
-          {selectedAnnotation ? (
-            <Stack
-              gap={1}
-              p={1}
-              style={{
-                background: "var(--kb-panel-soft)",
-                border: "1px solid var(--kb-line)",
-                borderRadius: 0,
-                boxShadow: "var(--kb-hard-shadow-sm)",
-              }}
-            >
-              <Group align="center" gap={1} justify="space-between" wrap="nowrap">
-                <Text c="white" fw={800} size="sm">
-                  标注 {selectedAnnotationIndex + 1}
-                </Text>
-                <ActionIcon
-                  aria-label="删除标注"
-                  color="red"
-                  onClick={() => {
-                    const annotationId = selectedAnnotation?.id;
-                    if (!annotationId) return;
-                    updateRecipe((currentRecipe) => removeAnnotationMark(currentRecipe, annotationId));
-                    setSelectedAnnotationId(null);
-                  }}
-                  size="sm"
-                  variant="subtle"
-                >
-                  <IconTrash size={16} />
-                </ActionIcon>
-              </Group>
-              <Textarea
-                data-testid={`annotation-note-input-${selectedAnnotation?.id ?? "none"}`}
-                minRows={4}
-                onChange={(event: ChangeEvent<HTMLTextAreaElement>) => {
-                  const annotationId = selectedAnnotation?.id;
-                  if (!annotationId) return;
-                  updateRecipe((currentRecipe) =>
-                    updateAnnotationNote(currentRecipe, annotationId, event.currentTarget.value),
-                  );
-                }}
-                placeholder="输入这处需要保留、修正或强调的内容"
-                value={selectedAnnotation?.note ?? ""}
-              />
-            </Stack>
-          ) : recipe.annotations.length > 0 ? (
-            <Text c="dimmed" data-testid="annotation-select-hint" size="sm">
-              选择一个标记点后填写说明。
-            </Text>
           ) : null}
         </Stack>
       );

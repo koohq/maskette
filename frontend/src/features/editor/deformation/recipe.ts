@@ -94,7 +94,7 @@ export type DetailSettings = {
 };
 
 export type EditRecipe = {
-  imageCoordinates?: ImageCoordinates;
+  imageCoordinates?: ImageCoordinates | undefined;
   face: Record<FaceControlKey, number>;
   eyes: Record<EyeControlKey, number>;
   brows: Record<BrowControlKey, number>;
@@ -102,7 +102,7 @@ export type EditRecipe = {
   liquify: LiquifyStroke[];
   annotations: AnnotationMark[];
   details: DetailSettings;
-  landmarks?: ManualLandmarks;
+  landmarks?: ManualLandmarks | undefined;
 };
 
 const faceControlKeys = [

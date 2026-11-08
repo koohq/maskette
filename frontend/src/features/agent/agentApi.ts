@@ -179,7 +179,7 @@ export function startLocalRevision(
     editNote: string;
     lockOutside: boolean;
     referenceIds: string[];
-    referenceFile?: File;
+    referenceFile?: File | undefined;
   },
 ) {
   const form = new FormData();
@@ -286,8 +286,8 @@ export function subscribeToEvents(
 export function applyEvent(events: AgentEvent[], event: AgentEvent): AgentEvent[] {
   if (events.some((existing) => existing.seq === event.seq)) return events;
   if (event.type === "event_patch") {
-    const target = event.target_seq as number;
-    const patch = (event.patch ?? {}) as Record<string, unknown>;
+    const target = event["target_seq"] as number;
+    const patch = (event["patch"] ?? {}) as Record<string, unknown>;
     return events.map((existing) => (existing.seq === target ? { ...existing, ...patch } : existing));
   }
   return [...events, event];
@@ -314,5 +314,5 @@ export async function prepareUpload(file: File, maxSide = 2048): Promise<File> {
   bitmap.close();
   const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
   if (!blob) return file;
-  return new File([blob], file.name.replace(/\.[^.]+$/, "") + ".jpg", { type: "image/jpeg" });
+  return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.jpg`, { type: "image/jpeg" });
 }

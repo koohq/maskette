@@ -1,18 +1,15 @@
 {
+  "$schema": "https://www.schemastore.org/tsconfig",
+  "extends": "@tsconfig/strictest/tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
-    "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
-    "allowJs": false,
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "allowSyntheticDefaultImports": true,
-    "strict": true,
-    "forceConsistentCasingInFileNames": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
-    "isolatedModules": true,
+    "useDefineForClassFields": true,
+    "allowJs": false,
+    "checkJs": false,
     "noEmit": true,
     "jsx": "react-jsx"
   },

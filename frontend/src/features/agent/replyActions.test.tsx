@@ -68,7 +68,9 @@ class FakeEventSource {
     FakeEventSource.instances.push(this);
   }
   addEventListener(type: string, listener: (event: unknown) => void) {
-    (this.listeners[type] ??= []).push(listener);
+    const listeners = this.listeners[type] ?? [];
+    this.listeners[type] = listeners;
+    listeners.push(listener);
   }
   emit(type: string, event: unknown = {}) {
     for (const listener of this.listeners[type] ?? []) listener(event);

@@ -8,9 +8,7 @@ vi.mock("@mediapipe/tasks-vision", () => ({
 vi.mock("onnxruntime-web/wasm", () => ({
   env: { wasm: {} },
   InferenceSession: { create: mock.session },
-  Tensor: class {
-    constructor(..._args: unknown[]) {}
-  },
+  Tensor: class {},
 }));
 afterEach(() => {
   vi.resetModules();
