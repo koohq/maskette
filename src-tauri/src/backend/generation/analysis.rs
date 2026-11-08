@@ -141,6 +141,58 @@ const DETAIL_KIND_ALIASES: [(&str, &str); 76] = [
     ("眼妆", "eyes"),
     ("眉毛", "expression"),
 ];
+/// Japanese and Chinese words inside a kind, and the kind they mean. The
+/// first row that matches wins: clothing first (it is dropped), then
+/// decorations, so 「髪飾り」 and 「目の飾り」 are headwear rather than hair
+/// or eyes, then the parts of the head.
+const CJK_KIND_TERMS: [(&[&str], &str); 8] = [
+    (&["衣装", "服", "衣", "裙"], "outfit"),
+    (&["眼鏡", "眼镜", "メガネ", "めがね"], "accessory"),
+    (
+        &[
+            "飾り",
+            "饰",
+            "アクセサリー",
+            "リボン",
+            "ピン",
+            "髪留め",
+            "ヘアバンド",
+            "カチューシャ",
+            "帽",
+            "蝴蝶结",
+            "夹",
+            "簪",
+            "かんざし",
+            "ティアラ",
+            "冠",
+        ],
+        "headwear",
+    ),
+    (&["耳", "ツノ", "犄角"], "ears"),
+    (&["目", "瞳", "眼", "睫", "まつ毛", "まつげ"], "eyes"),
+    (
+        &["表情", "口", "頬", "眉", "嘴", "脸颊", "腮"],
+        "expression",
+    ),
+    (
+        &[
+            "髪",
+            "髮",
+            "发",
+            "毛",
+            "ヘア",
+            "辫",
+            "刘海",
+            "三つ編み",
+            "おさげ",
+            "テール",
+            "頭",
+            "头",
+        ],
+        "hair",
+    ),
+    (&["色"], "color"),
+];
 
 pub const DETAIL_ANALYSIS_PROMPT: &str = r#"Analyze the uploaded character references and user notes.
 Return JSON only with keys: features, crops, warnings.
@@ -580,10 +632,25 @@ pub fn detail_analysis_prompt(request: &AnalysisRequest, overrides: &Overrides) 
         language,
     ];
     lines.extend(DETAIL_ANALYSIS_RULES);
-    lines.extend(["", USER_DATA_HEADING]);
+    let kinds = kind_rule();
+    lines.extend([kinds.as_str(), "", USER_DATA_HEADING]);
     let data = user_data(request);
     lines.push(&data);
     lines.join("\n")
+}
+
+/// The kinds the analysis may use: the ones [`filter_head_details`] keeps.
+/// Built here rather than in the overridable prompt, so a `prompts.json`
+/// written before this rule still gets it.
+fn kind_rule() -> String {
+    format!(
+        "Each feature kind must be exactly one of these English words: {}, or requirement for the user's \
+         requirement. Choose kind from this list only and never translate it, even when label and \
+         description are in another language. Use headwear for anything worn on the hair or head (ribbons, \
+         hairpins, hair clips, hats, headbands) and accessory for items worn on the face (glasses, face \
+         stickers).",
+        HEAD_DETAIL_KINDS.join(", ")
+    )
 }
 
 pub fn reference_safety_prompt(request: &AnalysisRequest, overrides: &Overrides) -> String {
@@ -734,8 +801,18 @@ fn normalize_kind(value: Option<&Value>) -> &'static str {
     } else if has("color") {
         "color"
     } else {
-        "other"
+        cjk_kind(&normalized)
     }
+}
+
+/// The kind a Japanese or Chinese name means, or `other`.
+fn cjk_kind(name: &str) -> &'static str {
+    // 「ピンク」 is a colour, not a pin.
+    let name = name.replace("ピンク", "");
+    CJK_KIND_TERMS
+        .iter()
+        .find(|(terms, _)| terms.iter().any(|term| name.contains(term)))
+        .map_or("other", |(_, kind)| kind)
 }
 
 fn is_head_detail(kind: &str, label: &str, description: &str) -> bool {
@@ -854,6 +931,109 @@ mod tests {
         assert_eq!(kind("something"), "other");
         assert_eq!(normalize_kind(Some(&json!(3))), "other");
         assert_eq!(normalize_kind(None), "other");
+    }
+
+    #[test]
+    fn japanese_and_chinese_kinds_are_mapped_by_their_words() {
+        let kind = |name: &str| normalize_kind(Some(&json!(name)));
+        for (name, expected) in [
+            ("前髪", "hair"),
+            ("後ろ髪", "hair"),
+            ("髪色", "hair"),
+            ("アホ毛", "hair"),
+            ("ピンクの髪", "hair"),
+            ("刘海", "hair"),
+            ("发色", "hair"),
+            ("獣耳", "ears"),
+            ("猫耳朵", "ears"),
+            ("瞳", "eyes"),
+            ("目の色", "eyes"),
+            ("まつ毛", "eyes"),
+            ("眼睛颜色", "eyes"),
+            ("表情", "expression"),
+            ("頬の赤み", "expression"),
+            ("左の眉毛", "expression"),
+            ("脸颊红晕", "expression"),
+            ("頭部アクセサリー", "headwear"),
+            ("リボン", "headwear"),
+            ("星のヘアピン", "headwear"),
+            ("髪飾り", "headwear"),
+            ("发饰", "headwear"),
+            ("头饰", "headwear"),
+            ("丸い眼鏡", "accessory"),
+            ("服のリボン", "outfit"),
+            ("上衣", "outfit"),
+            ("背景", "other"),
+        ] {
+            assert_eq!(kind(name), expected, "{name}");
+        }
+        // A decoration on a part of the head is the decoration, not the part.
+        assert_eq!(kind("目の飾り"), "headwear");
+        assert_eq!(kind("耳飾り"), "headwear");
+        // Exact names keep their old meaning.
+        assert_eq!(kind("アクセサリー"), "accessory");
+        assert_eq!(kind("顔"), "other");
+        // English names are read as before, and win over the CJK words.
+        assert_eq!(kind("hair_リボン"), "hair");
+        assert_eq!(kind("Headwear"), "headwear");
+    }
+
+    #[test]
+    fn an_answer_with_japanese_kinds_keeps_its_head_details() {
+        // Like a real Codex answer: eleven features, with Japanese kinds.
+        let answer = json!({
+            "features": [
+                {"id": USER_REQUIREMENT_FEATURE_ID, "kind": "ユーザー要望", "label": "要望", "description": "キャラクターAの猫耳を残す"},
+                {"id": "f1", "kind": "前髪", "label": "前髪", "description": "眉にかかるぱっつんの前髪"},
+                {"id": "f2", "kind": "後ろ髪", "label": "後ろ髪", "description": "肩までのストレート"},
+                {"id": "f3", "kind": "髪色", "label": "髪色", "description": "淡い水色"},
+                {"id": "f4", "kind": "瞳", "label": "瞳", "description": "大きな金色の瞳"},
+                {"id": "f5", "kind": "獣耳", "label": "猫耳", "description": "頭の上に左右対称の猫耳"},
+                {"id": "f6", "kind": "表情", "label": "表情", "description": "穏やかな微笑み"},
+                {"id": "f7", "kind": "頬", "label": "頬の赤み", "description": "薄い赤み"},
+                {"id": "f8", "kind": "頭部アクセサリー", "label": "リボン", "description": "頭の右側に赤いリボン"},
+                {"id": "f9", "kind": "ヘアピン", "label": "星のヘアピン", "description": "左の前髪に黄色い星のヘアピン"},
+                {"id": "f10", "kind": "衣装", "label": "衣装", "description": "セーラー服"},
+            ],
+            "crops": [],
+            "warnings": [],
+        });
+        let parsed = parse_detail_analysis(&answer.to_string()).unwrap();
+        assert_eq!(parsed.features.len(), 11);
+        let kept = filter_head_details(parsed);
+        let kinds: Vec<(&str, &str)> = kept
+            .features
+            .iter()
+            .map(|f| (f.id.as_str(), f.kind.as_str()))
+            .collect();
+        assert_eq!(
+            kinds,
+            [
+                (USER_REQUIREMENT_FEATURE_ID, "other"),
+                ("f1", "hair"),
+                ("f2", "hair"),
+                ("f3", "hair"),
+                ("f4", "eyes"),
+                ("f5", "ears"),
+                ("f6", "expression"),
+                ("f7", "expression"),
+                ("f8", "headwear"),
+                ("f9", "headwear"),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_prompt_lists_the_kinds_the_filter_keeps() {
+        let prompt = detail_analysis_prompt(&AnalysisRequest::default(), &Overrides::default());
+        let rule = kind_rule();
+        assert!(prompt.contains(&format!("\n{rule}\n\n{USER_DATA_HEADING}")));
+        for kind in HEAD_DETAIL_KINDS {
+            assert!(rule.contains(kind), "{kind}");
+            assert_eq!(normalize_kind(Some(&json!(kind))), kind);
+            assert!(is_head_detail(kind, "", ""), "{kind}");
+        }
+        assert_eq!(normalize_kind(Some(&json!("requirement"))), "requirement");
     }
 
     #[test]
