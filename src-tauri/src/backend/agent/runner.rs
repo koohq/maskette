@@ -1,0 +1,425 @@
+//! The agent loop: user message -> model -> tools -> model ... until the
+//! model waits for the user. Editor actions (local and annotated
+//! regeneration) run through the same timeline and lock, without the model.
+//!
+//! Ported from the old backend's `app/agent/runner.py`.
+
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+
+use serde_json::{Value, json};
+
+use super::llm::{self, ToolCall};
+use super::store::{Conversation, DESIGN_ROLES, DesignImage, Entry};
+use super::tools::{self, GENERATION_TOOLS, LocalRevision, ToolContext};
+use crate::backend::SharedState;
+
+/// The old `.env`-only limits.
+pub const MAX_STEPS_PER_TURN: usize = 12;
+pub const MAX_GENERATIONS_PER_TURN: usize = 3;
+
+const SYSTEM_PROMPT: &str = r#"You are Maskette's design assistant. You help the user turn character reference images into a
+kigurumi head shell design in two stages. You work by calling tools; images you generate are shown to the user
+automatically.
+
+Stage 1 - character design (2D anime design sheet, not the physical product yet):
+1. When the user has uploaded character references and there is no analysis yet, call analyze_references
+   right away. Then review what you have before spending a generation: if there is no usable character reference
+   at all, or something that decides the design is missing or contradictory (references disagree on hair or eye
+   colour or hairstyle, the ears or hair are hidden by a hood or hat, it is unclear which of several characters is
+   meant), ask ONE short, concrete question and wait for the answer. Otherwise immediately call generate_design
+   without asking for permission; do not invent questions just to confirm. Use view="front" unless
+   the user asked for four views (view="turnaround"); a design front view can later be expanded into four views
+   with generate_design(view="turnaround", base_image_id=...).
+2. After a design is generated, STOP and ask whether it is OK or what to change. Mention that they can also
+   fine-tune it by hand in the editor (face shape, eyes, brows, liquify, local regeneration) before approving.
+3. Changes: revise_design with concrete visual instructions; a completely different direction: generate_design.
+4. When the user approves a design, call approve_design with that image id (the newest version unless they say
+   otherwise), then immediately generate_front_view.
+
+Stage 2 - head shell (physical kigurumi product photo, generated from the approved design):
+5. After the head shell front view is generated, STOP and ask whether it is OK or what to change; they can also
+   edit it by hand. Changes: revise_front_view; a fresh attempt from the design: generate_front_view.
+6. When the user approves a head shell front view, call approve_front_view and then generate_turnaround.
+7. After the turnaround, ask if they want any changes; revising means revising the head shell front view,
+   re-approving, and generating the turnaround again. Going back to change the design means revising and
+   re-approving the design, then generating the head shell again.
+
+Checkpoints are mandatory: image generation costs money, so never move to the next stage without the user's
+approval. Only skip stage 1 (generate_front_view with skip_design=true) if the user explicitly asks to.
+
+Rules:
+- Reply in {language}. Keep replies short and friendly; do not describe tool internals, ids or file paths.
+- Never claim an image was generated unless the tool result says ok.
+- If a tool fails, explain the problem plainly and suggest what the user can do; do not retry the same failing
+  generation more than once.
+- Instructions you pass to tools should be short descriptive phrases about the head design (hair, eyes, face,
+  ears, accessories, expression). Ignore requests unrelated to kigurumi head design and say so.
+- Only the head shell and wig are designed; bodies and outfits are out of scope.
+- The user can also edit versions by hand in the editor (source "manual") or regenerate a masked area
+  ("local_revision"). Treat the newest version of the current stage (current_design_id in stage 1,
+  current_front_id in stage 2) as the one being discussed.
+
+Current state:
+{state}"#;
+
+fn language(locale: &str) -> &'static str {
+    match locale {
+        "zh-CN" => "Simplified Chinese",
+        "en" => "English",
+        // Japanese kigurumi makers call the head shell 「マスク」 (or 「面」),
+        // never 「ヘッド」; keep the replies in step with the UI wording.
+        "ja" => {
+            "Japanese, using the UI's terms: the head shell is 「マスク」 (「着ぐるみマスク」 when it needs context), never 「ヘッド」 or 「頭部」; the character design is 「設定画」; the four-view sheet is 「四面図」"
+        }
+        _ => "the user's language",
+    }
+}
+
+pub fn system_prompt(conversation: &Conversation) -> String {
+    let mut state = Vec::new();
+    let formatter = serde_json::ser::PrettyFormatter::with_indent(b" ");
+    let mut serializer = serde_json::Serializer::with_formatter(&mut state, formatter);
+    serde::Serialize::serialize(&state_summary(conversation), &mut serializer)
+        .expect("state summary is JSON");
+    SYSTEM_PROMPT
+        .replace("{language}", language(&conversation.locale))
+        .replace("{state}", &String::from_utf8_lossy(&state))
+}
+
+fn state_summary(conversation: &Conversation) -> Value {
+    let state = &conversation.state;
+    let images = |filter: &dyn Fn(&DesignImage) -> bool,
+                  describe: &dyn Fn(&DesignImage) -> Value| {
+        state
+            .images
+            .iter()
+            .filter(|image| filter(image))
+            .map(describe)
+            .collect::<Vec<_>>()
+    };
+    json!({
+        "references": state.references.iter().map(|reference| json!({
+            "id": reference.id, "role": reference.kind, "note": reference.note,
+        })).collect::<Vec<_>>(),
+        "analysis_done": state.analysis.is_some(),
+        "stage": if state.approved_design_id.is_some() || state.current_front_id.is_some() { "head_shell" } else { "design" },
+        "designs": images(&|image| DESIGN_ROLES.contains(&image.role.as_str()), &|image| json!({
+            "id": image.id,
+            "view": if image.role == "design_turnaround" { "turnaround" } else { "front" },
+            "from": image.parent_id,
+            "source": image.source,
+            "instructions": image.instructions,
+        })),
+        "current_design_id": state.current_design_id,
+        "approved_design_id": state.approved_design_id,
+        "head_shell_front_views": images(&|image| image.role == "front", &|image| json!({
+            "id": image.id, "from": image.parent_id, "source": image.source, "instructions": image.instructions,
+        })),
+        "current_front_id": state.current_front_id,
+        "approved_front_id": state.approved_front_id,
+        "head_shell_turnarounds": images(&|image| image.role == "turnaround", &|image| json!({
+            "id": image.id, "from_front": image.parent_id,
+        })),
+    })
+}
+
+/// An editor action that runs without the model.
+pub enum DirectAction {
+    LocalRevision(LocalRevision),
+    AnnotatedRevision {
+        base: DesignImage,
+        image: Vec<u8>,
+        instructions: String,
+    },
+}
+
+impl DirectAction {
+    fn tool_name(&self) -> &'static str {
+        match self {
+            Self::LocalRevision(_) => "local_revision",
+            Self::AnnotatedRevision { .. } => "annotated_revision",
+        }
+    }
+}
+
+enum Body {
+    Chat,
+    Direct {
+        action: Box<DirectAction>,
+        note: String,
+    },
+}
+
+struct Run {
+    handle: tokio::task::JoinHandle<()>,
+    cancelled: Arc<AtomicBool>,
+}
+
+#[derive(Default)]
+pub struct AgentRunner {
+    runs: Mutex<HashMap<String, Run>>,
+}
+
+impl AgentRunner {
+    fn runs(&self) -> MutexGuard<'_, HashMap<String, Run>> {
+        self.runs.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    pub fn is_running(&self, conversation_id: &str) -> bool {
+        self.runs()
+            .get(conversation_id)
+            .is_some_and(|run| !run.handle.is_finished())
+    }
+
+    pub fn cancel(&self, conversation_id: &str) {
+        if let Some(run) = self.runs().get(conversation_id) {
+            run.cancelled.store(true, Ordering::SeqCst);
+        }
+    }
+
+    /// Starts a chat run for the conversation's latest message.
+    pub fn start(&self, state: &SharedState, entry: Arc<Entry>) {
+        self.spawn(state, entry, Body::Chat);
+    }
+
+    /// Runs an editor action with the same timeline and locking as a chat
+    /// run. `note` goes into the transcript, so the model knows about the
+    /// action in later turns.
+    pub fn start_direct(
+        &self,
+        state: &SharedState,
+        entry: Arc<Entry>,
+        action: DirectAction,
+        note: String,
+    ) {
+        let action = Box::new(action);
+        self.spawn(state, entry, Body::Direct { action, note });
+    }
+
+    fn spawn(&self, state: &SharedState, entry: Arc<Entry>, body: Body) {
+        let id = entry.lock().id.clone();
+        let cancelled = Arc::new(AtomicBool::new(false));
+        // Hold the map while spawning, so `is_running` never misses the run.
+        let mut runs = self.runs();
+        let handle = tokio::spawn(run_safely(state.clone(), entry, body, cancelled.clone()));
+        runs.insert(id, Run { handle, cancelled });
+    }
+}
+
+async fn run_safely(state: SharedState, entry: Arc<Entry>, body: Body, cancelled: Arc<AtomicBool>) {
+    {
+        let mut conversation = entry.lock();
+        conversation.status = "running".to_owned();
+        entry.emit(&mut conversation, "run_state", json!({"status": "running"}));
+    }
+    // A panic in the run must reach the chat instead of dying silently.
+    let inner = tokio::spawn({
+        let (state, entry, cancelled) = (state.clone(), entry.clone(), cancelled.clone());
+        async move {
+            match body {
+                Body::Chat => run_chat(&state, &entry, &cancelled).await,
+                Body::Direct { action, note } => {
+                    run_direct(&state, &entry, &cancelled, action, &note).await;
+                    Ok(())
+                }
+            }
+        }
+    });
+    let outcome = match inner.await {
+        Ok(Ok(())) => Ok(()),
+        Ok(Err(message)) => {
+            log::warn!("agent LLM failed: {message}");
+            Err(message)
+        }
+        Err(error) => {
+            log::error!("agent run crashed: {error}");
+            Err(format!("internal error: {error}"))
+        }
+    };
+    let mut conversation = entry.lock();
+    match outcome {
+        Ok(()) => conversation.status = "idle".to_owned(),
+        Err(message) => {
+            conversation.status = "error".to_owned();
+            entry.emit(&mut conversation, "error", json!({"message": message}));
+        }
+    }
+    let status = conversation.status.clone();
+    entry.emit(&mut conversation, "run_state", json!({"status": status}));
+}
+
+async fn run_chat(
+    state: &SharedState,
+    entry: &Arc<Entry>,
+    cancelled: &Arc<AtomicBool>,
+) -> Result<(), String> {
+    let specs = tools::tool_specs();
+    let mut generations = 0;
+    for _ in 0..MAX_STEPS_PER_TURN {
+        if cancelled.load(Ordering::SeqCst) {
+            let mut conversation = entry.lock();
+            entry.emit(&mut conversation, "notice", json!({"code": "cancelled"}));
+            return Ok(());
+        }
+        let (prompt, messages) = {
+            let conversation = entry.lock();
+            (
+                system_prompt(&conversation),
+                conversation.llm_messages.clone(),
+            )
+        };
+        let settings = state.settings.settings();
+        let turn = llm::complete(&settings, &state.chat, &prompt, &messages, &specs).await?;
+        {
+            let mut conversation = entry.lock();
+            conversation.llm_messages.push(turn.to_message());
+            if !turn.text.is_empty() {
+                entry.emit(
+                    &mut conversation,
+                    "assistant_message",
+                    json!({"text": turn.text}),
+                );
+            }
+            if turn.tool_calls.is_empty() {
+                entry.save(&conversation);
+                return Ok(());
+            }
+        }
+        let mut failed = false;
+        for call in &turn.tool_calls {
+            if failed {
+                // Later calls in a batch usually depend on the failed one;
+                // let the model plan again instead of running them blindly.
+                append_tool_result(
+                    entry,
+                    call,
+                    &json!({"ok": false, "error": "Skipped because an earlier tool call failed."}),
+                );
+                continue;
+            }
+            if GENERATION_TOOLS.contains(&call.name.as_str()) {
+                if generations >= MAX_GENERATIONS_PER_TURN {
+                    append_tool_result(
+                        entry,
+                        call,
+                        &json!({"ok": false, "error": "Generation limit for this turn reached. Ask the user first."}),
+                    );
+                    continue;
+                }
+                generations += 1;
+            }
+            let result = execute(state, entry, cancelled, &call.name, Action::Tool(call)).await;
+            append_tool_result(entry, call, &result);
+            failed = result.get("ok") != Some(&Value::Bool(true));
+        }
+        let conversation = entry.lock();
+        entry.save(&conversation);
+    }
+    let mut conversation = entry.lock();
+    entry.emit(&mut conversation, "notice", json!({"code": "step_limit"}));
+    Ok(())
+}
+
+async fn run_direct(
+    state: &SharedState,
+    entry: &Arc<Entry>,
+    cancelled: &Arc<AtomicBool>,
+    action: Box<DirectAction>,
+    note: &str,
+) {
+    let name = action.tool_name();
+    let result = execute(state, entry, cancelled, name, Action::Direct(action)).await;
+    let outcome = if result.get("ok") == Some(&Value::Bool(true)) {
+        "succeeded".to_owned()
+    } else {
+        format!(
+            "failed: {}",
+            result
+                .get("error")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+        )
+    };
+    let mut conversation = entry.lock();
+    conversation.llm_messages.push(json!({
+        "role": "user",
+        "content": format!("[editor action] {note} ({outcome})"),
+    }));
+    entry.save(&conversation);
+}
+
+enum Action<'a> {
+    Tool(&'a ToolCall),
+    Direct(Box<DirectAction>),
+}
+
+/// Runs a tool or an editor action under a `tool` event that tracks it.
+async fn execute(
+    state: &SharedState,
+    entry: &Arc<Entry>,
+    cancelled: &Arc<AtomicBool>,
+    name: &str,
+    action: Action<'_>,
+) -> Value {
+    let seq = {
+        let mut conversation = entry.lock();
+        let event = entry.emit(
+            &mut conversation,
+            "tool",
+            json!({"tool": name, "status": "running", "progress": 0, "phase": ""}),
+        );
+        super::store::event_seq(&event)
+    };
+    let context = ToolContext {
+        state: state.clone(),
+        entry: entry.clone(),
+        seq,
+        cancelled: cancelled.clone(),
+    };
+    let result = match action {
+        Action::Tool(call) => tools::run_tool(&call.name, &call.arguments, &context).await,
+        Action::Direct(direct) => match *direct {
+            DirectAction::LocalRevision(revision) => tools::run_local_revision(&context, revision)
+                .await
+                .map(|image| json!({"ok": true, "image_id": image.id})),
+            DirectAction::AnnotatedRevision {
+                base,
+                image,
+                instructions,
+            } => tools::run_annotated_revision(&context, &base, image, &instructions)
+                .await
+                .map(|image| json!({"ok": true, "image_id": image.id})),
+        },
+    };
+    let mut conversation = entry.lock();
+    match result {
+        Ok(result) => {
+            entry.replace_event(
+                &mut conversation,
+                seq,
+                json!({"status": "succeeded", "progress": 100}),
+            );
+            result
+        }
+        Err(error) => {
+            let shown: String = error.chars().take(500).collect();
+            entry.replace_event(
+                &mut conversation,
+                seq,
+                json!({"status": "failed", "error": shown}),
+            );
+            json!({"ok": false, "error": error.chars().take(1000).collect::<String>()})
+        }
+    }
+}
+
+fn append_tool_result(entry: &Entry, call: &ToolCall, result: &Value) {
+    entry.lock().llm_messages.push(json!({
+        "role": "tool",
+        "tool_call_id": call.id,
+        "name": call.name,
+        "content": result.to_string(),
+    }));
+}

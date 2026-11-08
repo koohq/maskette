@@ -60,7 +60,6 @@ pub fn root(data_dir: &Path) -> PathBuf {
 }
 
 /// The `/api/...` URL that serves an object key (`references/...`).
-#[allow(dead_code)] // For the routers that hand out reference images.
 pub fn asset_url(object_key: &str) -> String {
     format!("/api/references/{object_key}")
 }
@@ -144,25 +143,6 @@ fn valid_kind(kind: &str) -> bool {
             .all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-')
 }
 
-/// A random UUID (version 4) in the usual 8-4-4-4-12 form, like Python's
-/// `str(uuid.uuid4())`.
-fn uuid4() -> Result<String, ApiError> {
-    let mut bytes = [0u8; 16];
-    getrandom::fill(&mut bytes)
-        .map_err(|error| ApiError::internal(format!("no randomness: {error}")))?;
-    bytes[6] = (bytes[6] & 0x0f) | 0x40;
-    bytes[8] = (bytes[8] & 0x3f) | 0x80;
-    let hex: String = bytes.iter().map(|byte| format!("{byte:02x}")).collect();
-    Ok(format!(
-        "{}-{}-{}-{}-{}",
-        &hex[0..8],
-        &hex[8..12],
-        &hex[12..16],
-        &hex[16..20],
-        &hex[20..32]
-    ))
-}
-
 #[derive(Serialize)]
 struct ReferenceUpload {
     object_key: String,
@@ -232,7 +212,7 @@ async fn upload_reference(
     let file_name = safe_filename(file.file_name.as_deref())?;
     validate_image_upload(&file_name, file.content_type.as_deref())?;
 
-    let upload_id = uuid4()?;
+    let upload_id = super::ids::uuid4();
     let upload_dir = root(&state.data_dir).join(&upload_id);
     let save = async {
         tokio::fs::create_dir_all(&upload_dir).await?;

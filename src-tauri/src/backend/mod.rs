@@ -5,13 +5,17 @@
 //! Python backend, so routers can move over one at a time; until a router is
 //! ported, its requests can be relayed to the old backend (see [`relay`]).
 
+pub mod agent;
 pub mod chat_api;
 #[cfg(debug_assertions)]
 pub mod dev_handoff;
 mod error;
+pub mod generation;
 mod health;
+mod ids;
 pub mod references;
 pub mod relay;
+mod safety;
 pub mod settings;
 pub mod token;
 
@@ -64,6 +68,10 @@ pub struct AppState {
     pub relay: Option<Relay>,
     pub settings: Arc<SettingsStore>,
     pub chat: ChatApi,
+    pub agent: agent::Agent,
+    /// Every generation request, by job id, for the tests to inspect.
+    #[cfg(test)]
+    pub generation_log: std::sync::Mutex<Vec<(String, generation::GenerationRequest)>>,
 }
 
 pub type SharedState = Arc<AppState>;
@@ -100,10 +108,13 @@ impl Backend {
             SettingsStore::open(&config.data_dir, config.secrets, cfg!(debug_assertions));
         let state = Arc::new(AppState {
             token: token.clone(),
+            agent: agent::Agent::new(&config.data_dir),
             data_dir: config.data_dir,
             relay,
             settings: Arc::new(settings),
             chat: ChatApi::new(),
+            #[cfg(test)]
+            generation_log: Default::default(),
         });
         let app = router(state);
 
@@ -165,6 +176,8 @@ pub fn router(state: SharedState) -> Router {
         .route("/api/health", get(health::health))
         .merge(settings::routes())
         .merge(references::routes())
+        .merge(agent::routes())
+        .merge(generation::routes())
         .fallback(relay::fallback)
         .method_not_allowed_fallback(method_not_allowed)
         .layer(middleware::from_fn_with_state(

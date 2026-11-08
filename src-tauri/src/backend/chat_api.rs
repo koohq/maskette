@@ -11,8 +11,11 @@
 //! RetryInfo `retryDelay`; a suggested wait longer than [`MAX_RETRY_DELAY`]
 //! (e.g. a daily quota) is not waited out.
 //!
-//! Ported from the old backend's `app/core/chat_api.py` (the non-streaming
-//! half; streaming moves over with the agent).
+//! [`ChatApi::stream_chat_completion`] reads the answer as server-sent events
+//! instead: chunks arrive while the model still thinks, so the timeout applies
+//! between chunks rather than to the whole silent generation.
+//!
+//! Ported from the old backend's `app/core/chat_api.py`.
 
 use std::collections::HashSet;
 use std::sync::Mutex;
@@ -189,6 +192,140 @@ impl ChatApi {
         }
     }
 
+    /// `POST /chat/completions` with `stream: true`, the deltas put back
+    /// together into one assistant message (content, `reasoning_content`
+    /// and `tool_calls`). `timeout` limits the wait for the answer to start
+    /// and then for each chunk.
+    pub async fn stream_chat_completion(
+        &self,
+        base_url: &str,
+        api_key: &str,
+        payload: &JsonObject,
+        extra_body: &JsonObject,
+        timeout: Duration,
+    ) -> Result<ChatResult, ChatError> {
+        let model = payload
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or_default()
+            .to_owned();
+        let mut stream_payload = payload.clone();
+        stream_payload.insert("stream".to_owned(), Value::Bool(true));
+        let use_extra = !extra_body.is_empty() && !self.extra_body_rejected(base_url, &model);
+        let body = if use_extra {
+            let mut merged = stream_payload.clone();
+            merged.extend(extra_body.clone());
+            merged
+        } else {
+            stream_payload.clone()
+        };
+
+        let mut answer = self
+            .stream_with_retries(base_url, api_key, &body, timeout, &model)
+            .await?;
+        let mut dropped = false;
+        if let StreamAnswer::Failed(reply) = &answer
+            && use_extra
+            && reply.status == 400
+            && mentions_any(&reply.text, extra_body)
+        {
+            let mut fields: Vec<&String> = extra_body.keys().collect();
+            fields.sort();
+            log::warn!(
+                "chat API rejected extra fields {fields:?} for model={model}; retrying without them"
+            );
+            self.rejected().insert((base_url.to_owned(), model.clone()));
+            answer = self
+                .stream_with_retries(base_url, api_key, &stream_payload, timeout, &model)
+                .await?;
+            dropped = true;
+        }
+        match answer {
+            StreamAnswer::Failed(reply) => Err(ChatError {
+                message: format!("HTTP {}: {}", reply.status, truncate(&reply.text)),
+                status: Some(reply.status),
+            }),
+            StreamAnswer::Live(response) => Ok(ChatResult {
+                message: consume_stream(response, timeout).await?,
+                extra_body_dropped: dropped,
+            }),
+        }
+    }
+
+    async fn stream_with_retries(
+        &self,
+        base_url: &str,
+        api_key: &str,
+        body: &JsonObject,
+        timeout: Duration,
+        model: &str,
+    ) -> Result<StreamAnswer, ChatError> {
+        for (attempt, default_delay) in self.retry_delays.iter().enumerate() {
+            let answer = self.send_stream(base_url, api_key, body, timeout).await?;
+            let StreamAnswer::Failed(reply) = &answer else {
+                return Ok(answer);
+            };
+            if !RETRYABLE_STATUSES.contains(&reply.status) {
+                return Ok(answer);
+            }
+            let delay = reply.suggested_retry_delay().unwrap_or(*default_delay);
+            if delay > MAX_RETRY_DELAY {
+                return Ok(answer);
+            }
+            log::warn!(
+                "chat API answered HTTP {} for model={model}; retrying in {:.0}s ({}/{})",
+                reply.status,
+                delay.as_secs_f64(),
+                attempt + 1,
+                self.retry_delays.len()
+            );
+            tokio::time::sleep(delay).await;
+        }
+        self.send_stream(base_url, api_key, body, timeout).await
+    }
+
+    async fn send_stream(
+        &self,
+        base_url: &str,
+        api_key: &str,
+        body: &JsonObject,
+        timeout: Duration,
+    ) -> Result<StreamAnswer, ChatError> {
+        let mut request = self
+            .client
+            .post(format!("{base_url}/chat/completions"))
+            .json(body);
+        if !api_key.is_empty() {
+            request = request.bearer_auth(api_key);
+        }
+        let failed = |error: reqwest::Error| ChatError {
+            message: format!("request failed: {}", error_chain(&error)),
+            status: None,
+        };
+        let response = tokio::time::timeout(timeout, request.send())
+            .await
+            .map_err(|_| timed_out("request failed", timeout))?
+            .map_err(failed)?;
+        let status = response.status().as_u16();
+        if status < 400 {
+            return Ok(StreamAnswer::Live(response));
+        }
+        let retry_after = response
+            .headers()
+            .get(RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned);
+        let text = tokio::time::timeout(timeout, response.text())
+            .await
+            .map_err(|_| timed_out("request failed", timeout))?
+            .map_err(failed)?;
+        Ok(StreamAnswer::Failed(Reply {
+            status,
+            retry_after,
+            text,
+        }))
+    }
+
     /// Send, and send again after a wait while the server answers busy or
     /// rate limited (see the module docs).
     async fn with_retries(
@@ -259,6 +396,176 @@ struct Reply {
     status: u16,
     retry_after: Option<String>,
     text: String,
+}
+
+enum StreamAnswer {
+    /// A success status: the events are still to be read.
+    Live(reqwest::Response),
+    Failed(Reply),
+}
+
+fn timed_out(what: &str, timeout: Duration) -> ChatError {
+    ChatError {
+        message: format!("{what}: no answer within {}s", timeout.as_secs()),
+        status: None,
+    }
+}
+
+/// The `data:` payload of one server-sent event line, if it carries one.
+fn event_data(line: &str) -> Option<&str> {
+    let data = line.strip_prefix("data:")?.trim();
+    (!data.is_empty()).then_some(data)
+}
+
+/// Reads the stream to its end (or `[DONE]`) and joins the deltas.
+async fn consume_stream(
+    response: reqwest::Response,
+    timeout: Duration,
+) -> Result<JsonObject, ChatError> {
+    use futures_util::StreamExt;
+
+    let mut assembler = StreamAssembler::default();
+    let mut stream = response.bytes_stream();
+    let mut pending: Vec<u8> = Vec::new();
+    'read: loop {
+        let chunk = match tokio::time::timeout(timeout, stream.next()).await {
+            Err(_) => return Err(timed_out("stream failed", timeout)),
+            Ok(None) => break,
+            Ok(Some(Err(error))) => {
+                return Err(ChatError {
+                    message: format!("stream failed: {}", error_chain(&error)),
+                    status: None,
+                });
+            }
+            Ok(Some(Ok(chunk))) => chunk,
+        };
+        pending.extend_from_slice(&chunk);
+        while let Some(end) = pending.iter().position(|byte| *byte == b'\n') {
+            let line: Vec<u8> = pending.drain(..=end).collect();
+            let line = String::from_utf8_lossy(&line);
+            if !assembler.line(line.trim_end_matches(['\r', '\n'])) {
+                break 'read;
+            }
+        }
+    }
+    if !pending.is_empty() {
+        assembler.line(String::from_utf8_lossy(&pending).trim_end_matches('\r'));
+    }
+    Ok(assembler.finish())
+}
+
+/// Puts streamed chat deltas back together into one message.
+#[derive(Default)]
+pub struct StreamAssembler {
+    content: String,
+    reasoning: String,
+    /// By the delta's `index`, in order.
+    tool_calls: std::collections::BTreeMap<i64, JsonObject>,
+}
+
+impl StreamAssembler {
+    /// Takes one line of the stream; `false` once the stream says `[DONE]`.
+    pub fn line(&mut self, line: &str) -> bool {
+        let Some(data) = event_data(line) else {
+            return true; // comments and keep-alives
+        };
+        if data == "[DONE]" {
+            return false;
+        }
+        let Ok(chunk) = serde_json::from_str::<Value>(data) else {
+            return true;
+        };
+        let Some(delta) = chunk
+            .get("choices")
+            .and_then(|choices| choices.get(0))
+            .and_then(|choice| choice.get("delta"))
+        else {
+            return true;
+        };
+        if let Some(Value::String(text)) = delta.get("content") {
+            self.content.push_str(text);
+        }
+        if let Some(Value::String(text)) = delta.get("reasoning_content") {
+            self.reasoning.push_str(text);
+        }
+        if let Some(Value::Array(calls)) = delta.get("tool_calls") {
+            for raw in calls {
+                self.tool_call(raw);
+            }
+        }
+        true
+    }
+
+    fn tool_call(&mut self, raw: &Value) {
+        let index = raw.get("index").and_then(Value::as_i64).unwrap_or(0);
+        let entry = self.tool_calls.entry(index).or_insert_with(|| {
+            let Value::Object(entry) =
+                serde_json::json!({"id": "", "type": "function", "function": {"name": "", "arguments": ""}})
+            else {
+                unreachable!()
+            };
+            entry
+        });
+        for key in ["id", "type"] {
+            if let Some(value) = raw.get(key).filter(|value| truthy(value)) {
+                entry.insert(key.to_owned(), Value::String(plain_text(value)));
+            }
+        }
+        let Some(function) = raw.get("function") else {
+            return;
+        };
+        let Some(Value::Object(target)) = entry.get_mut("function") else {
+            return;
+        };
+        for key in ["name", "arguments"] {
+            if let Some(value) = function.get(key).filter(|value| truthy(value)) {
+                let mut joined = target
+                    .get(key)
+                    .and_then(Value::as_str)
+                    .unwrap_or_default()
+                    .to_owned();
+                joined.push_str(&plain_text(value));
+                target.insert(key.to_owned(), Value::String(joined));
+            }
+        }
+    }
+
+    pub fn finish(self) -> JsonObject {
+        let mut message = JsonObject::new();
+        message.insert("role".to_owned(), Value::from("assistant"));
+        message.insert("content".to_owned(), Value::String(self.content));
+        if !self.reasoning.is_empty() {
+            message.insert(
+                "reasoning_content".to_owned(),
+                Value::String(self.reasoning),
+            );
+        }
+        if !self.tool_calls.is_empty() {
+            let calls = self.tool_calls.into_values().map(Value::Object).collect();
+            message.insert("tool_calls".to_owned(), Value::Array(calls));
+        }
+        message
+    }
+}
+
+/// Python's truthiness for a JSON value.
+fn truthy(value: &Value) -> bool {
+    match value {
+        Value::Null => false,
+        Value::Bool(flag) => *flag,
+        Value::String(text) => !text.is_empty(),
+        Value::Array(items) => !items.is_empty(),
+        Value::Object(fields) => !fields.is_empty(),
+        Value::Number(number) => number.as_f64() != Some(0.0),
+    }
+}
+
+/// Python's `str()` of a JSON value: strings without their quotes.
+fn plain_text(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
 }
 
 impl Reply {
@@ -350,6 +657,34 @@ mod tests {
         assert_eq!(message_text(message.as_object().unwrap()), "ab");
         let message = serde_json::json!({"content": null});
         assert_eq!(message_text(message.as_object().unwrap()), "");
+    }
+
+    #[test]
+    fn streamed_deltas_are_joined_into_one_message() {
+        let mut assembler = StreamAssembler::default();
+        let lines = [
+            ": keep-alive",
+            r#"data: {"choices": [{"delta": {"content": "好"}}]}"#,
+            r#"data: {"choices": [{"delta": {"reasoning_content": "hmm"}}]}"#,
+            r#"data: {"choices": [{"delta": {"tool_calls": [{"index": 0, "id": "c1", "function": {"name": "gen", "arguments": "{\"a\""}}]}}]}"#,
+            r#"data: {"choices": [{"delta": {"tool_calls": [{"index": 0, "function": {"arguments": ": 1}"}}]}}]}"#,
+            r#"data: {"choices": [{"delta": {"content": "的"}}]}"#,
+            "data: not json",
+        ];
+        for line in lines {
+            assert!(assembler.line(line));
+        }
+        assert!(!assembler.line("data: [DONE]"));
+        let message = Value::Object(assembler.finish());
+        assert_eq!(
+            message,
+            serde_json::json!({
+                "role": "assistant",
+                "content": "好的",
+                "reasoning_content": "hmm",
+                "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "gen", "arguments": "{\"a\": 1}"}}],
+            })
+        );
     }
 
     #[test]

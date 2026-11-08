@@ -52,6 +52,8 @@ impl TestBackend {
             settings: Arc::new(store),
             // Retries must not wait in tests.
             chat: ChatApi::with_retry_delays(vec![std::time::Duration::ZERO; 3]),
+            agent: super::agent::Agent::new(data_dir),
+            generation_log: Default::default(),
         })
     }
 
