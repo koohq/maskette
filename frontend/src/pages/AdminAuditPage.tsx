@@ -114,16 +114,17 @@ function statusColor(status: string) {
 function formatAuditGenerationMode(value: string) {
   if (value === "front_design") return "正视图";
   if (value === "front_revision") return "重生成正视图";
+  if (value === "front_local_revision") return "局部生成";
   if (value === "turnaround") return "四视图";
   return value;
 }
 
 function formatAuditJobStatus(status: string) {
-  if (status === "succeeded" || status === "accepted") return "succeeded";
-  if (status === "failed") return "failed";
-  if (status === "cancelled") return "cancelled";
-  if (status === "queued") return "queued";
-  return "running";
+  if (status === "succeeded" || status === "accepted") return "成功";
+  if (status === "failed") return "失败";
+  if (status === "cancelled") return "已取消";
+  if (status === "queued") return "排队中";
+  return "生成中";
 }
 
 function formatAuditJobTitle(job: AuditGenerationJob) {
@@ -308,8 +309,9 @@ function GenerationJobRecords({
                             {formatAuditJobTitle(job)}
                           </Text>
                           <Text c="var(--kb-concrete-grey)" size="xs">
-                            {formatDateTime(job.updated_at ?? job.created_at)} · 输出 {job.outputs.length} 张 · 参考{" "}
-                            {job.references.length} 张
+                            {formatDateTime(job.updated_at ?? job.created_at)}
+                            {" · "}
+                            {`输出 ${job.outputs.length} 张 · 参考 ${job.references.length} 张`}
                           </Text>
                         </Stack>
                         <IconChevronRight size={20} />
@@ -338,7 +340,7 @@ function GenerationJobRecords({
                       </Text>
                     </Box>
                     <Badge color={statusColor(selectedJob.status)} variant="light">
-                      {selectedJob.status}
+                      {formatAuditJobStatus(selectedJob.status)}
                     </Badge>
                   </Group>
 
@@ -540,7 +542,7 @@ export function AdminAuditPage() {
               </Badge>
               <Box>
                 <Text c="var(--kb-ink)" fw={900}>
-                  KigBuddy 审计
+                  Maskette 审计
                 </Text>
                 <Text c="var(--kb-concrete-grey)" size="xs">
                   生成统计、队列状态、token 用量和配额策略

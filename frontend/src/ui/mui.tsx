@@ -676,11 +676,13 @@ export function Textarea(props: CommonStyleProps & { [key: string]: unknown; aut
 }
 
 export function NumberInput({
+  label,
   onChange,
   value,
   ...props
 }: CommonStyleProps & {
   [key: string]: unknown;
+  label?: ReactNode | undefined;
   onChange?: ((value: string | number) => void) | undefined;
   value?: string | number | undefined;
 }) {
@@ -695,6 +697,7 @@ export function NumberInput({
       onChange={(event) => onChange?.(event.currentTarget.value)}
       sx={sxFromProps(props)}
       {...translateCommonProps(stripCommonProps(props), language)}
+      label={translateLiteralNode(label, language)}
     />
   );
 }

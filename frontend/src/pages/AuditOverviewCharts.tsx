@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import type { AuditGenerationJob, AuditSummary } from "../api/client";
+import { translateLiteralString } from "../i18n/literalTranslations";
 import { Box, Paper, SimpleGrid, Stack, Text, Title } from "../ui/mui";
 
 type TrendPoint = {
@@ -109,6 +111,7 @@ function TrendLineChart({
   totalHint?: string;
   yAxisHint: string;
 }) {
+  const { i18n } = useTranslation();
   if (!points.length) {
     return (
       <Text c="var(--kb-concrete-grey)" data-testid={testId} size="sm">
@@ -131,7 +134,7 @@ function TrendLineChart({
       ) : null}
       <Box className="audit-trend-chart" style={{ color }}>
         <svg
-          aria-label={yAxisHint}
+          aria-label={translateLiteralString(yAxisHint, i18n.language)}
           height={CHART_HEIGHT}
           role="img"
           viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
