@@ -114,6 +114,40 @@ describe("ProjectsPage", () => {
     expect(JSON.parse(String(patch?.[1]?.body))).toEqual({ title: "新名字" });
   });
 
+  it("opens the new-project dialog with its field focused and closes it on Escape", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json([project])),
+    );
+    renderPage();
+
+    const opener = screen.getAllByRole("button", { name: "新建项目" })[0]!;
+    opener.focus();
+    fireEvent.click(opener);
+    const dialog = screen.getByRole("dialog", { name: "新建项目" });
+    expect(screen.getByRole("textbox", { name: "新建项目" })).toHaveFocus();
+    expect(screen.getByRole("button", { name: "创建" })).toBeEnabled();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(opener).toHaveFocus();
+  });
+
+  it("creates a project without a name and shows a failure inside the dialog", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) =>
+      init?.method === "POST" ? json({ detail: "conversation_running" }, 409) : json([project]),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    fireEvent.click(screen.getAllByRole("button", { name: "新建项目" })[0]!);
+    fireEvent.click(screen.getByRole("button", { name: "创建" }));
+
+    expect((await screen.findByRole("alert")).textContent).toBe("上一步还在进行中，请稍等。");
+    expect(screen.getByRole("dialog", { name: "新建项目" })).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true);
+  });
+
   it("offers the .vkp export in the project menu and an import button", async () => {
     vi.stubGlobal(
       "fetch",

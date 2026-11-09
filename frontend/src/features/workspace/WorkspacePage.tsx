@@ -4,9 +4,7 @@ import {
   IconDownload,
   IconFiles,
   IconLayoutSidebarRight,
-  IconPhoto,
   IconSparkles,
-  IconX,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -50,49 +48,17 @@ import { AgentPanel } from "./AgentPanel";
 import {
   AGENT_OPEN_STORAGE_KEY,
   AGENT_WIDTH_STORAGE_KEY,
-  clampAgentWidth,
-  DEFAULT_AGENT_WIDTH,
   readStoredAgentOpen,
   readStoredAgentWidth,
 } from "./agentWidth";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { ThemeToggle } from "./ThemeToggle";
 import { useEditorDrafts } from "./useEditorDrafts";
+import { AgentResizeHandle, EditorTab, ImageLightbox } from "./WorkspaceChrome";
 
 type Activity = "explorer" | EditorTool;
 
 const TURNAROUND_TOOLS: [EditorTool, ...EditorTool[]] = ["annotation", "liquify", "local-generate"];
-
-/** Draggable splitter west of the agent panel; double-click resets the width. */
-function AgentResizeHandle({ onWidthChange }: { onWidthChange: (width: number) => void }) {
-  const [dragging, setDragging] = useState(false);
-
-  useEffect(() => {
-    document.body.classList.toggle("agent-resizing", dragging);
-    return () => document.body.classList.remove("agent-resizing");
-  }, [dragging]);
-
-  return (
-    // biome-ignore lint/a11y/useSemanticElements: a draggable splitter with pointer handlers, not a static <hr> rule
-    <div
-      aria-orientation="vertical"
-      className={`ide-agent-resizer${dragging ? " dragging" : ""}`}
-      onDoubleClick={() => onWidthChange(DEFAULT_AGENT_WIDTH)}
-      onPointerDown={(event) => {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        setDragging(true);
-      }}
-      onPointerMove={(event) => {
-        if (dragging) onWidthChange(clampAgentWidth(window.innerWidth - event.clientX, window.innerWidth));
-      }}
-      onPointerUp={(event) => {
-        event.currentTarget.releasePointerCapture(event.pointerId);
-        setDragging(false);
-      }}
-      role="separator"
-    />
-  );
-}
 
 export function WorkspacePage() {
   const { t } = useTranslation();
@@ -354,7 +320,7 @@ export function WorkspacePage() {
   const runState = conversation?.status === "error" ? "error" : running ? "running" : "idle";
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: file drop target for the whole window; the attach button is the keyboard path
+    // biome-ignore lint/a11y/noStaticElementInteractions: drop target for image files dragged from the OS onto the window; dropping has no keyboard form, and the composer's attach button adds the same files to the pending message
     <div
       className="ide-root"
       onDragLeave={(event) => {
@@ -434,31 +400,21 @@ export function WorkspacePage() {
         ) : null}
 
         <section className="ide-editor">
-          <div className="ide-tabs" role="tablist">
+          <div className="ide-tabs">
             {openTabs.map((id) => {
               const image = images.find((item) => item.id === id);
               if (!image) return null;
               const isActive = id === activeTabId;
               return (
-                // biome-ignore lint/a11y/useFocusableInteractive: the button inside each tab is the focusable control
-                <div className="ide-tab" data-active={isActive} key={id} role="tab" aria-selected={isActive}>
-                  <button className="flex items-center gap-1.5" onClick={() => openVersion(id)} type="button">
-                    <IconPhoto size={13} />
-                    {id}
-                    <span className="text-(--ide-text-faint)">{t(`workspace.roles.${image.role}`)}</span>
-                  </button>
-                  {(isActive && dirty) || drafts.draftIds.has(id) ? (
-                    <span className="ide-tab-dirty" title={t("workspace.unsaved")} />
-                  ) : null}
-                  <button
-                    aria-label={t("workspace.closeTab")}
-                    className="ide-tab-close"
-                    onClick={() => closeTab(id)}
-                    type="button"
-                  >
-                    <IconX size={12} />
-                  </button>
-                </div>
+                <EditorTab
+                  active={isActive}
+                  id={id}
+                  key={id}
+                  onClose={() => closeTab(id)}
+                  onOpen={() => openVersion(id)}
+                  roleLabel={t(`workspace.roles.${image.role}`)}
+                  unsaved={(isActive && dirty) || drafts.draftIds.has(id)}
+                />
               );
             })}
           </div>
@@ -553,7 +509,7 @@ export function WorkspacePage() {
 
         {agentOpen ? (
           <>
-            <AgentResizeHandle onWidthChange={setAgentWidth} />
+            <AgentResizeHandle onWidthChange={setAgentWidth} width={agentWidth} />
             <AgentPanel
               conversation={conversation}
               events={events}
@@ -579,12 +535,7 @@ export function WorkspacePage() {
 
       <StatusBar activeVersion={activeVersion} editorStatus={activeVersion ? editorStatus : null} runState={runState} />
 
-      {lightboxUrl ? (
-        // biome-ignore lint/a11y/noStaticElementInteractions: clicking anywhere closes the image preview that was opened with a click
-        <div className="ide-lightbox" onClick={() => setLightboxUrl(null)} role="presentation">
-          <img alt="" src={lightboxUrl} />
-        </div>
-      ) : null}
+      {lightboxUrl ? <ImageLightbox onClose={() => setLightboxUrl(null)} url={lightboxUrl} /> : null}
       {deletingReply !== null ? (
         <ConfirmDialog
           confirmLabel={t("agent.deleteMessage")}

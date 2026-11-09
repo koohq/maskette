@@ -604,8 +604,13 @@
 }
 
 .ide-agent-resizer:hover::before,
-.ide-agent-resizer.dragging::before {
+.ide-agent-resizer.dragging::before,
+.ide-agent-resizer:focus-visible::before {
   background: var(--ide-accent);
+}
+
+.ide-agent-resizer:focus-visible {
+  outline: none;
 }
 
 body.agent-resizing {
@@ -826,6 +831,12 @@ body.agent-resizing {
   gap: 14px;
   padding: 18px;
   width: min(420px, calc(100vw - 32px));
+}
+
+/* The dialog and the image preview take focus themselves only so Escape and Tab work; their controls show focus. */
+.ide-dialog:focus,
+.ide-lightbox:focus {
+  outline: none;
 }
 
 .ide-lightbox {

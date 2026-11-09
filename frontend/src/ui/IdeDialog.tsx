@@ -1,11 +1,15 @@
-import { type FormEvent, type ReactNode, useState } from "react";
+import { type FormEvent, type ReactNode, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useModalFocus } from "./useModalFocus";
 
 /**
  * In-app replacements for window.confirm / window.prompt. Native dialogs are silently suppressed in some
  * embedded browsers and webviews, which made actions behind them look broken.
  *
  * `onConfirm` may throw; the message is shown in the dialog and it stays open so the user can retry or cancel.
+ *
+ * Keyboard: focus moves into the dialog when it opens (to the field of a prompt, else the dialog itself), Tab stays
+ * inside, Escape cancels, and focus goes back to the opening button when it closes.
  */
 type DialogBaseProps = {
   title: string;
@@ -43,6 +47,7 @@ export function PromptDialog({
   initialValue = "",
   placeholder,
   maxLength,
+  allowEmpty = false,
   confirmLabel,
   onCancel,
   onConfirm,
@@ -51,13 +56,15 @@ export function PromptDialog({
   initialValue?: string;
   placeholder?: string;
   maxLength?: number;
+  /** Let the user confirm an empty value (a new project without a name is "untitled"). */
+  allowEmpty?: boolean;
   onConfirm: (value: string) => Promise<void> | void;
 }) {
   const [value, setValue] = useState(initialValue);
   return (
     <DialogShell
       confirmLabel={confirmLabel}
-      disabled={!value.trim()}
+      disabled={!allowEmpty && !value.trim()}
       errorMessage={errorMessage}
       onCancel={onCancel}
       onSubmit={() => onConfirm(value.trim())}
@@ -65,9 +72,8 @@ export function PromptDialog({
     >
       <input
         aria-label={title}
-        // biome-ignore lint/a11y/noAutofocus: the dialog's only field takes focus when the dialog opens
-        autoFocus
         className="ide-input"
+        data-autofocus
         maxLength={maxLength}
         onChange={(event) => setValue(event.target.value)}
         onFocus={(event) => event.target.select()}
@@ -91,6 +97,9 @@ function DialogShell({
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const titleId = useId();
+  const dialogRef = useRef<HTMLFormElement | null>(null);
+  useModalFocus(dialogRef);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
@@ -107,19 +116,24 @@ function DialogShell({
   }
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop is a mouse shortcut for Cancel; Escape on the form is the keyboard path
+    // biome-ignore lint/a11y/noStaticElementInteractions: a pointer-only shortcut for Cancel; keyboard users have Escape and the Cancel button, and focus is already inside the dialog (useModalFocus)
     <div className="ide-dialog-backdrop" onClick={busy ? undefined : onCancel} role="presentation">
       <form
-        aria-label={title}
+        aria-labelledby={titleId}
+        aria-modal="true"
         className="ide-dialog"
         onClick={(event) => event.stopPropagation()}
         onKeyDown={(event) => {
           if (event.key === "Escape" && !busy) onCancel();
         }}
         onSubmit={(event) => void submit(event)}
+        ref={dialogRef}
         role="dialog"
+        tabIndex={-1}
       >
-        <h2 className="text-base font-semibold">{title}</h2>
+        <h2 className="text-base font-semibold" id={titleId}>
+          {title}
+        </h2>
         {children}
         {error ? (
           <p className="text-sm text-(--ide-danger)" role="alert">

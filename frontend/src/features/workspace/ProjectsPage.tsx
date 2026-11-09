@@ -8,7 +8,7 @@ import {
   IconUpload,
 } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type FormEvent, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 import { normalizeLocale } from "../../i18n/locales";
@@ -202,7 +202,18 @@ export function ProjectsPage() {
         )}
       </main>
 
-      {creating ? <CreateProjectDialog onCancel={() => setCreating(false)} onCreate={create} /> : null}
+      {creating ? (
+        <PromptDialog
+          allowEmpty
+          confirmLabel={t("workspace.create")}
+          errorMessage={actionError}
+          maxLength={80}
+          onCancel={() => setCreating(false)}
+          onConfirm={create}
+          placeholder={t("workspace.projectNamePlaceholder")}
+          title={t("workspace.newProject")}
+        />
+      ) : null}
       {deleting ? (
         <ConfirmDialog
           confirmLabel={t("workspace.deleteProject")}
@@ -226,59 +237,6 @@ export function ProjectsPage() {
           title={t("workspace.rename")}
         />
       ) : null}
-    </div>
-  );
-}
-
-function CreateProjectDialog({
-  onCancel,
-  onCreate,
-}: {
-  onCancel: () => void;
-  onCreate: (name: string) => Promise<void>;
-}) {
-  const { t } = useTranslation();
-  const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  async function submit(event: FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    try {
-      await onCreate(name.trim());
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: clicking the backdrop is a mouse shortcut for Cancel; the dialog buttons are the keyboard path
-    <div className="ide-dialog-backdrop" onClick={onCancel} role="presentation">
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: the click handler only keeps clicks inside the dialog from reaching the backdrop */}
-      <form
-        className="ide-dialog"
-        onClick={(event) => event.stopPropagation()}
-        onSubmit={(event) => void submit(event)}
-      >
-        <h2 className="text-base font-semibold">{t("workspace.newProject")}</h2>
-        <input
-          // biome-ignore lint/a11y/noAutofocus: the dialog's only field takes focus when the dialog opens
-          autoFocus
-          className="ide-input"
-          maxLength={80}
-          onChange={(event) => setName(event.target.value)}
-          placeholder={t("workspace.projectNamePlaceholder")}
-          value={name}
-        />
-        <div className="flex justify-end gap-2">
-          <button className="ide-button" onClick={onCancel} type="button">
-            {t("workspace.cancel")}
-          </button>
-          <button className="ide-button ide-button-primary" disabled={busy} type="submit">
-            {t("workspace.create")}
-          </button>
-        </div>
-      </form>
     </div>
   );
 }

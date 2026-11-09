@@ -967,6 +967,25 @@ export const literalTranslations: Record<LiteralLocale, Record<string, string>> 
 
 const patterns: LiteralPattern[] = [
   {
+    // Names of the marks on the editor canvas (AnnotationLayer); a text mark appends its text after ": ".
+    match: /^(标注|箭头标注|矩形标注|文字标注)\s+(\d+)$/,
+    replace: ([, kind, index], locale) => {
+      const names: Record<string, [ja: string, en: string]> = {
+        标注: ["注釈", "Annotation"],
+        箭头标注: ["矢印の注釈", "Arrow annotation"],
+        矩形标注: ["矩形の注釈", "Rectangle annotation"],
+        文字标注: ["文字の注釈", "Text annotation"],
+      };
+      const [ja, en] = names[kind ?? ""] ?? ["注釈", "Annotation"];
+      return `${locale === "ja" ? ja : en} ${index}`;
+    },
+  },
+  {
+    match: /^关键点\s+(.+)$/,
+    replace: ([, label = ""], locale) =>
+      locale === "ja" ? `${translateExact(label, locale)}のキーポイント` : `${translateExact(label, locale)} landmark`,
+  },
+  {
     match: /^候选\s+(\S+)\s+编辑画布$/,
     replace: ([, index], locale) =>
       locale === "ja" ? `候補 ${index} 編集キャンバス` : `Candidate ${index} editing canvas`,

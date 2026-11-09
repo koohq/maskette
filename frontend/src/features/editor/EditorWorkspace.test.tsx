@@ -608,7 +608,7 @@ describe("EditorWorkspace", () => {
         }),
       ),
     );
-    expect(screen.getByTestId("annotation-pin-1")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("annotation-pin-1")).toHaveAttribute("data-selected", "true");
 
     fireEvent.pointerDown(screen.getByTestId("annotation-delete-annotation-1"), { pointerId: 3 });
 
@@ -1008,7 +1008,7 @@ describe("EditorWorkspace", () => {
         }),
       ),
     );
-    expect(screen.getByTestId("landmark-leftEye")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("landmark-leftEye")).toHaveAttribute("data-selected", "true");
   });
 
   it("applies deformation brush drags with direction and distance from pointer movement", async () => {

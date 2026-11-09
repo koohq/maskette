@@ -167,6 +167,10 @@ export function AnnotationLayer({
         const selected = selectedAnnotationId === annotation.id;
         const color = annotationColor(annotation);
         const label = String(index + 1);
+        // Marks are pointer-only drag targets, so they are named graphics (role="img") for screen readers and keep
+        // their selection in data-selected: aria-selected belongs to roles such as option or tab, which would
+        // promise keyboard selection the canvas does not have. Selecting and editing a mark needs the pointer.
+        const markName = (kindLabel: string) => translateLiteralString(`${kindLabel} ${label}`, i18n.language);
         const rectLeft = Math.min(annotation.x, annotation.endX);
         const rectTop = Math.min(annotation.y, annotation.endY);
         const rectWidth = Math.max(0.01, Math.abs(annotation.endX - annotation.x) || annotation.width);
@@ -185,7 +189,7 @@ export function AnnotationLayer({
         const selectedAction = selectedActionPosition(annotation);
         const deleteButton = selected ? (
           <button
-            aria-label="删除标注"
+            aria-label={translateLiteralString("删除标注", i18n.language)}
             data-testid={`annotation-delete-${annotation.id}`}
             onPointerDown={(event) => {
               event.stopPropagation();
@@ -219,9 +223,11 @@ export function AnnotationLayer({
         if (kind === "arrow") {
           return (
             <div key={annotation.id}>
-              {/* biome-ignore lint/a11y/noSvgWithoutTitle: decorative arrow over the image; the mark is named by its handle */}
               <svg
+                aria-label={markName("箭头标注")}
+                data-selected={selected || undefined}
                 data-testid={`annotation-arrow-${index + 1}`}
+                role="img"
                 style={{
                   height: "100%",
                   inset: 0,
@@ -295,15 +301,15 @@ export function AnnotationLayer({
         if (kind === "rect") {
           return (
             <div key={annotation.id}>
-              {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass */}
               <div
-                aria-label={`annotation ${label}`}
-                aria-selected={selected}
+                aria-label={markName("矩形标注")}
+                data-selected={selected || undefined}
                 data-testid={`annotation-rect-${index + 1}`}
                 onPointerDown={(event) => {
                   event.stopPropagation();
                   onAnnotationPointerDown?.(annotation.id, event);
                 }}
+                role="img"
                 style={{
                   background: selected ? `${color}22` : `${color}12`,
                   border: `${selected ? 3 : 2}px solid ${color}`,
@@ -350,15 +356,17 @@ export function AnnotationLayer({
         if (kind === "text") {
           return (
             <div key={annotation.id}>
-              {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass */}
               <div
-                aria-label={`annotation ${label}`}
-                aria-selected={selected}
+                aria-label={
+                  annotation.text?.trim() ? `${markName("文字标注")}: ${annotation.text.trim()}` : markName("文字标注")
+                }
+                data-selected={selected || undefined}
                 data-testid={`annotation-text-${index + 1}`}
                 onPointerDown={(event) => {
                   event.stopPropagation();
                   onAnnotationPointerDown?.(annotation.id, event);
                 }}
+                role="img"
                 style={{
                   border: selected ? `2px solid ${color}` : "2px solid transparent",
                   color,
@@ -402,15 +410,15 @@ export function AnnotationLayer({
 
         return (
           <div key={annotation.id}>
-            {/* biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass */}
             <div
-              aria-label={`annotation ${index + 1}`}
-              aria-selected={selected}
+              aria-label={markName("标注")}
+              data-selected={selected || undefined}
               data-testid={`annotation-pin-${index + 1}`}
               onPointerDown={(event) => {
                 event.stopPropagation();
                 onAnnotationPointerDown?.(annotation.id, event);
               }}
+              role="img"
               style={{
                 alignItems: "center",
                 background: selected ? "var(--kb-dirty-yellow)" : color,
@@ -474,17 +482,18 @@ export function AnnotationLayer({
             const estimated = brow && !landmarks.brows;
 
             return (
-              // biome-ignore lint/a11y/useAriaPropsSupportedByRole: kept from VSK: tests and the landmark tools find marks by this label; a proper role is a separate a11y pass
+              // Named graphic with data-selected, for the same reason as the annotation marks above.
               <div
-                aria-label={`landmark ${translateLiteralString(label, i18n.language)}`}
-                aria-selected={selected}
+                aria-label={translateLiteralString(`关键点 ${label}`, i18n.language)}
                 data-estimated={estimated || undefined}
+                data-selected={selected || undefined}
                 data-testid={`landmark-${key}`}
                 key={key}
                 onPointerDown={(event) => {
                   event.stopPropagation();
                   onLandmarkPointerDown?.(key, event);
                 }}
+                role="img"
                 style={{
                   alignItems: "center",
                   cursor: "grab",
