@@ -62,7 +62,7 @@ pub async fn generate(
         &prompt,
         json!({"cli": "codex exec", "images": images.len()}),
     );
-    job.step("generating", 45, "生成中");
+    job.step("generating", 45, "Generating");
     let run = cli::codex::run(
         &state.cli,
         &workspace,
@@ -75,7 +75,7 @@ pub async fn generate(
     if let Some(usage) = run.usage {
         job.record_usage(usage, None);
     }
-    job.step("saving_outputs", 90, "保存结果");
+    job.step("saving_outputs", 90, "Saving outputs");
     let (job_id, request) = (job_id.to_owned(), request.clone());
     blocking(move || {
         let generated = run

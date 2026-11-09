@@ -8,6 +8,11 @@
 //!
 //! A job that was still running when the app stopped is marked failed the
 //! next time the records are opened, as before.
+//!
+//! `phase_label` and each event's `message` are English notes for the record
+//! (the old backend wrote them in Chinese). No screen shows them: the agent
+//! panel hears the status code and the audit page titles a job from its
+//! status, each translated by the UI.
 
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
@@ -96,7 +101,7 @@ impl JobStore {
                     &mut record,
                     "failed",
                     progress,
-                    "服务重启，任务已中断",
+                    "Interrupted by an app restart",
                     "failed",
                     None,
                 );
@@ -175,7 +180,7 @@ impl JobStore {
             outputs: Vec::new(),
             events: Vec::new(),
         };
-        transition(&mut record, "queued", 0, "排队中", "queued", None);
+        transition(&mut record, "queued", 0, "Queued", "queued", None);
         self.write(&record);
         Job {
             store: self,
@@ -314,11 +319,11 @@ impl<'a> Job<'a> {
                 record,
                 "generating",
                 85,
-                "结果 1/1 已完成",
+                "Result 1/1 ready",
                 "candidate_ready",
                 None,
             );
-            transition(record, "succeeded", 100, "生成完成", "succeeded", None);
+            transition(record, "succeeded", 100, "Generated", "succeeded", None);
         });
     }
 
@@ -326,11 +331,18 @@ impl<'a> Job<'a> {
         self.change(|record| {
             let progress = record.progress;
             let message = if message.is_empty() {
-                "生成失败"
+                "Generation failed"
             } else {
                 message
             };
-            transition(record, "failed", progress, "生成失败", "failed", None);
+            transition(
+                record,
+                "failed",
+                progress,
+                "Generation failed",
+                "failed",
+                None,
+            );
             if let Some(event) = record.events.last_mut() {
                 event.message = message.to_owned();
             }
@@ -340,7 +352,14 @@ impl<'a> Job<'a> {
     pub fn cancel(&self) {
         self.change(|record| {
             let progress = record.progress;
-            transition(record, "cancelled", progress, "已取消", "cancelled", None);
+            transition(
+                record,
+                "cancelled",
+                progress,
+                "Cancelled",
+                "cancelled",
+                None,
+            );
         });
     }
 }
@@ -363,7 +382,7 @@ mod tests {
             "vendor/model",
         );
         let id = job.id();
-        job.step("generating", 45, "生成中");
+        job.step("generating", 45, "Generating");
         job.record_prompt("the prompt", json!({"url": "u"}));
         let record = store.get(&id).unwrap();
         assert_eq!(record.status, "generating");

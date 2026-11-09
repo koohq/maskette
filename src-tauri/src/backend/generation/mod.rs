@@ -356,11 +356,11 @@ impl ImageBackend {
         job_id: &str,
         request: &GenerationRequest,
     ) -> Result<GeneratedImage, String> {
-        job.step("preparing_references", 15, "准备素材");
+        job.step("preparing_references", 15, "Preparing references");
         let data_dir = state.data_dir.clone();
         let mut api = match self {
             Self::Fixture => {
-                job.step("generating", 45, "生成中");
+                job.step("generating", 45, "Generating");
                 let (job_id, request) = (job_id.to_owned(), request.clone());
                 return blocking(move || fixture_image(&data_dir, &job_id, &request)).await;
             }
@@ -398,7 +398,7 @@ impl ImageBackend {
             .await?
         };
         job.record_prompt(&prepared.prompt, image_api::request_summary(&api_request));
-        job.step("generating", 45, "生成中");
+        job.step("generating", 45, "Generating");
         let answer = image_api::request_image(
             &state.generation.client,
             api.api(),
@@ -410,7 +410,7 @@ impl ImageBackend {
         if let Some(usage) = answer.usage {
             job.record_usage(usage, answer.cost);
         }
-        job.step("saving_outputs", 90, "保存结果");
+        job.step("saving_outputs", 90, "Saving outputs");
         let bytes = answer.bytes;
         let (job_id, request) = (job_id.to_owned(), request.clone());
         blocking(move || {
