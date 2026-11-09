@@ -3,6 +3,8 @@
 **Maskette — 着ぐるみマスクのデザインツール**
 **Maskette · Kigurumi 头壳设计工具**
 
+[日本語](README.ja.md) · [简体中文](README.zh-CN.md) (how to install and use)
+
 Maskette is a desktop app for designing kigurumi masks from character art.
 Give it reference pictures of a character, and its design assistant helps
 you work out a 2D design, then a finished-mask front view and four views.
@@ -43,7 +45,7 @@ Other scripts:
 | `pnpm test` | Run the frontend tests (Vitest) |
 | `pnpm build` | Build the frontend into `frontend/dist` |
 | `pnpm cargo:check` | `cargo check` the Tauri crate |
-| `pnpm bundle` | Build the desktop installer (`tauri build`) |
+| `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`) |
 | `pnpm lint` | Biome check |
 
 Layout:
