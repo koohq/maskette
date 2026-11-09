@@ -224,6 +224,31 @@ const en: TranslationResource = {
       too_many_files: "Up to 6 images per message.",
       load: "Failed to load the chat: {{message}}",
     },
+    // Failures the backend sends as a code (`code` / `params`), with the CLI's own words in `detail`.
+    failures: {
+      cli_not_found:
+        "The {{name}} CLI ({{program}}) was not found. Install it and log in, or choose a backend that uses an API key in the settings.",
+      cli_start_failed: "Could not start the {{name}} CLI.",
+      cli_timeout: "The {{name}} CLI did not answer within {{seconds}} seconds, so it was stopped. Try again.",
+      cli_failed: "The {{name}} CLI failed.",
+      cli_failed_silently: "The {{name}} CLI failed without printing anything.",
+      cli_login_required:
+        "{{name}} is not logged in, or its login has expired. Run {{command}} in a terminal to log in, then try again.",
+      cli_usage_limit:
+        "{{name}} has reached its usage limit. Try again later, or choose a backend that uses an API key in the settings.",
+      cli_offline: "{{name}} could not reach its server. Check your network and try again.",
+      cli_empty_reply: "{{name}} gave an empty answer. Try again.",
+      cli_ran_command: "{{name}} tried to run a command, so its result was not used.",
+      codex_home_unknown:
+        "Codex's home folder is unknown, so the image it made cannot be collected (check CODEX_HOME).",
+      codex_no_image: "Codex did not make an image with its image generation tool. Try again.",
+      codex_bridge_removed:
+        "Codex Bridge is no longer available. Choose Codex (or a backend that uses an API key) under Image backend in the settings.",
+      exitCode: "Exit code {{exitCode}}.",
+      outdated: "The CLI may be out of date. Update it and try again.",
+      detail: "Details: {{detail}}",
+      gap: " ",
+    },
   },
   generation: {
     statusTitle: "Generation Status",

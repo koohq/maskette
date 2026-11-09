@@ -13,6 +13,7 @@ import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { type AgentEvent, approveActionFor, type Conversation, isDesignRole, isTurnaroundRole } from "./agentApi";
+import { failureText } from "./failureText";
 
 type TimelineProps = {
   events: AgentEvent[];
@@ -135,7 +136,9 @@ export function ChatTimeline({
               <li className="agent-notice agent-notice-error" key={event.seq}>
                 <IconAlertTriangle className="shrink-0" size={14} />
                 <span className="min-w-0 wrap-break-word">
-                  {t("agent.errors.generic", { message: event["message"] as string })}
+                  {t("agent.errors.generic", {
+                    message: failureText(t, event["code"], event["params"], event["message"] as string),
+                  })}
                 </span>
               </li>
             );
@@ -318,7 +321,9 @@ function ToolCard({ event }: { event: AgentEvent }) {
         </div>
       ) : null}
       {status === "failed" && event["error"] ? (
-        <p className="wrap-break-word text-[11px] text-(--ide-danger)">{event["error"] as string}</p>
+        <p className="wrap-break-word text-[11px] text-(--ide-danger)">
+          {failureText(t, event["error_code"], event["error_params"], event["error"] as string)}
+        </p>
       ) : null}
     </li>
   );

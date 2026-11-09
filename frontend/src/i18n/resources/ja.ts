@@ -218,6 +218,30 @@ const ja: TranslationResource = {
       too_many_files: "1回のメッセージで最大6枚までです。",
       load: "チャットの読み込みに失敗しました：{{message}}",
     },
+    // Failures the backend sends as a code (`code` / `params`), with the CLI's own words in `detail`.
+    failures: {
+      cli_not_found:
+        "{{name}} の CLI（{{program}}）が見つかりません。インストールしてログインするか、設定で API キーの経路を選んでください。",
+      cli_start_failed: "{{name}} の CLI を起動できませんでした。",
+      cli_timeout: "{{name}} の CLI が {{seconds}} 秒以内に答えなかったので止めました。もう一度試してください。",
+      cli_failed: "{{name}} の CLI が失敗しました。",
+      cli_failed_silently: "{{name}} の CLI が何も出力せずに失敗しました。",
+      cli_login_required:
+        "{{name}} にログインしていないか、ログインの期限が切れています。ターミナルで {{command}} を実行してログインしてから、もう一度試してください。",
+      cli_usage_limit: "{{name}} の利用上限に達しました。時間をおいて試すか、設定で API キーの経路を選んでください。",
+      cli_offline: "{{name}} がサーバーにつながりませんでした。ネットワークを確かめて、もう一度試してください。",
+      cli_empty_reply: "{{name}} の返事が空でした。もう一度試してください。",
+      cli_ran_command: "{{name}} がコマンドを実行しようとしたので、結果を使いませんでした。",
+      codex_home_unknown:
+        "Codex のホームフォルダが分からないので、生成した画像を受け取れません（CODEX_HOME を確かめてください）。",
+      codex_no_image: "Codex が画像生成ツールで画像を作りませんでした。もう一度試してください。",
+      codex_bridge_removed:
+        "Codex Bridge は無くなりました。設定の「画像生成バックエンド」で Codex（または API キーの経路）を選んでください。",
+      exitCode: "終了コードは {{exitCode}} でした。",
+      outdated: "CLI が古い可能性があります。更新してから試してください。",
+      detail: "詳細：{{detail}}",
+      gap: "",
+    },
   },
   generation: {
     statusTitle: "生成ステータス",
