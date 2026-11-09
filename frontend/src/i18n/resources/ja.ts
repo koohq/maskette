@@ -237,6 +237,27 @@ const ja: TranslationResource = {
       codex_no_image: "Codex が画像生成ツールで画像を作りませんでした。もう一度試してください。",
       codex_bridge_removed:
         "Codex Bridge は無くなりました。設定の「画像生成バックエンド」で Codex（または API キーの経路）を選んでください。",
+      api_unreachable:
+        "{{service}} につながりませんでした。ネットワークと、設定の API URL を確かめて、もう一度試してください。",
+      api_unauthorized:
+        "{{service}} が API キーを受け付けませんでした（HTTP {{status}}）。設定のキーを確かめてください。",
+      api_rate_limited:
+        "{{service}} がリクエストを制限しているか、アカウントのクレジットや利用枠が尽きています（HTTP 429）。少し待ってから試してください。",
+      api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間をおいて試してください。",
+      api_http_error: "{{service}} がエラーを返しました（HTTP {{status}}）。",
+      api_timeout: "{{service}} が {{seconds}} 秒以内に答えませんでした。もう一度試してください。",
+      api_no_image: "{{service}} の答えに画像がありませんでした。もう一度試してください。",
+      api_key_missing: "API キーが設定されていません（{{settings}}）。設定で入れてください。",
+      setting_missing: "必要な設定が空です（{{settings}}）。設定で入れてください。",
+      analysis_invalid: "分析の結果を読み取れませんでした（{{name}}）。もう一度試してください。",
+      cancelled: "止めました。",
+      reference_rejected: "この参考画像は使えません：{{reason}}",
+      rejectReason: {
+        reference_adult_explicit: "性的に露骨な画像とみられます。",
+        reference_unusable: "マスクのデザインに使えるほどキャラクターが分かりません。",
+      },
+      no_references: "参考画像がまだありません。キャラクターの画像を 1 枚以上アップロードしてください。",
+      no_front_reference: "メインの参考画像がありません。正面を向いた画像をメインにしてください。",
       exitCode: "終了コードは {{exitCode}} でした。",
       outdated: "CLI が古い可能性があります。更新してから試してください。",
       detail: "詳細：{{detail}}",

@@ -244,6 +244,26 @@ const en: TranslationResource = {
       codex_no_image: "Codex did not make an image with its image generation tool. Try again.",
       codex_bridge_removed:
         "Codex Bridge is no longer available. Choose Codex (or a backend that uses an API key) under Image backend in the settings.",
+      api_unreachable:
+        "Could not reach {{service}}. Check your network and the API URL in the settings, then try again.",
+      api_unauthorized: "{{service}} did not accept the API key (HTTP {{status}}). Check the key in the settings.",
+      api_rate_limited:
+        "{{service}} is limiting requests, or the account has run out of credit or quota (HTTP 429). Wait a little and try again.",
+      api_server_error: "{{service}} had a server error (HTTP {{status}}). Try again later.",
+      api_http_error: "{{service}} returned an error (HTTP {{status}}).",
+      api_timeout: "{{service}} did not answer within {{seconds}} seconds. Try again.",
+      api_no_image: "{{service}} answered without an image. Try again.",
+      api_key_missing: "The API key is not set ({{settings}}). Enter it in the settings.",
+      setting_missing: "Required settings are empty ({{settings}}). Fill them in in the settings.",
+      analysis_invalid: "Could not read the analysis result ({{name}}). Try again.",
+      cancelled: "Stopped.",
+      reference_rejected: "This reference image cannot be used: {{reason}}",
+      rejectReason: {
+        reference_adult_explicit: "it looks sexually explicit.",
+        reference_unusable: "the character cannot be made out well enough for a mask design.",
+      },
+      no_references: "There are no reference images yet. Upload at least one image of the character.",
+      no_front_reference: "No reference image is marked as the main one. Mark the main front-facing image.",
       exitCode: "Exit code {{exitCode}}.",
       outdated: "The CLI may be out of date. Update it and try again.",
       detail: "Details: {{detail}}",
