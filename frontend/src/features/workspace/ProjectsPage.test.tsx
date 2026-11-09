@@ -40,8 +40,34 @@ describe("ProjectsPage", () => {
 
   afterEach(() => {
     cleanup();
+    delete window.__MASKETTE_BACKEND__;
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+  });
+
+  it("names the app in the header when opened in a plain browser", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json([project])),
+    );
+    const { container } = renderPage();
+
+    const header = container.querySelector("header")!;
+    expect(header.textContent).toContain("Maskette");
+    expect(screen.getByRole("img", { name: "Maskette" })).toBeTruthy();
+  });
+
+  it("leaves the name to the OS title bar in the Maskette window but keeps it for screen readers", () => {
+    window.__MASKETTE_BACKEND__ = { baseUrl: "http://127.0.0.1:4321", token: "test-token" };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json([project])),
+    );
+    const { container } = renderPage();
+
+    const header = container.querySelector("header")!;
+    expect(header.textContent).not.toContain("Maskette");
+    expect(screen.getByRole("img", { name: "Maskette" })).toBeTruthy();
   });
 
   it("deletes a project through the in-app dialog without using window.confirm", async () => {

@@ -11,6 +11,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
+import { inDesktopWindow } from "../../api/backend";
 import { normalizeLocale } from "../../i18n/locales";
 import { ConfirmDialog, PromptDialog } from "../../ui/IdeDialog";
 import {
@@ -80,7 +81,8 @@ export function ProjectsPage() {
     <div className="ide-home">
       <header className="ide-titlebar" style={{ height: 44 }}>
         <img alt="Maskette" className="h-6 w-6" src="/logo.png" />
-        <span className="text-sm font-semibold">Maskette</span>
+        {/* In the window the OS title bar already says Maskette; the logo's alt keeps the name for screen readers. */}
+        {inDesktopWindow() ? null : <span className="text-sm font-semibold">Maskette</span>}
         <span className="flex-1" />
         <SettingsLink />
         <ThemeToggle />

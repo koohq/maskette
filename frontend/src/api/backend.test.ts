@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiFetch, apiUrl, resolveApiUrls, TOKEN_QUERY_PARAM } from "./backend";
+import { apiFetch, apiUrl, inDesktopWindow, resolveApiUrls, TOKEN_QUERY_PARAM } from "./backend";
 
 const info = { baseUrl: "http://127.0.0.1:4321", token: "test-token" };
 
@@ -20,9 +20,19 @@ describe("without the injected backend (plain browser on the dev server)", () =>
     const body = { url: "/api/generated/a.png" };
     expect(resolveApiUrls(body)).toBe(body);
   });
+
+  it("does not count as the desktop window", () => {
+    expect(inDesktopWindow()).toBe(false);
+  });
 });
 
 describe("with the injected backend (Maskette window)", () => {
+  it("counts as the desktop window", () => {
+    window.__MASKETTE_BACKEND__ = info;
+
+    expect(inDesktopWindow()).toBe(true);
+  });
+
   it("sends fetches to the backend with the bearer token", async () => {
     window.__MASKETTE_BACKEND__ = info;
     const fetchMock = vi.fn().mockResolvedValue(new Response("{}"));

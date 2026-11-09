@@ -25,6 +25,14 @@ export function backendInfo(): BackendInfo | undefined {
   return typeof window === "undefined" ? undefined : window.__MASKETTE_BACKEND__;
 }
 
+/**
+ * True inside the Maskette window, where the OS title bar already shows the app name, so the page can leave its own
+ * copy out. Uses the same injected info as the API calls; a plain browser on the dev server gets false.
+ */
+export function inDesktopWindow(): boolean {
+  return backendInfo() !== undefined;
+}
+
 function isApiPath(value: string): boolean {
   return value === "/api" || value.startsWith("/api/") || value.startsWith("/api?");
 }
