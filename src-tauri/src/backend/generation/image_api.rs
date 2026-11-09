@@ -21,7 +21,8 @@ use super::{
     FRONT_SIZE, GeneratedImage, GenerationRequest, LocalEdit, Mode, TURNAROUND_SIZE, clean_root,
     generated_root, generated_url, watermark,
 };
-use crate::backend::chat_api::JsonObject;
+use crate::backend::chat_api::{self, JsonObject};
+use crate::backend::failure::Failure;
 use crate::backend::prompts::Overrides;
 use crate::backend::references;
 
@@ -35,8 +36,6 @@ const CONTACT_SHEET_HEIGHT: u32 = 1024;
 const CONTACT_SHEET_GAP: u32 = 32;
 const LOCAL_EDIT_MARGIN_RATIO: f64 = 0.15;
 const LOCAL_EDIT_MIN_SIDE: u32 = 384;
-/// How much of an error body is kept in the message.
-const ERROR_TEXT_CHARS: usize = 300;
 
 /// One request to a hosted image API.
 pub struct ApiRequest {
@@ -615,9 +614,10 @@ pub async fn request_image(
     request: &ApiRequest,
     trace_id: &str,
     retry_delays: &[Duration],
-) -> Result<ApiOutput, String> {
+) -> Result<ApiOutput, Failure> {
     let name = api.display_name();
     let max_retries = api.max_retries();
+    let seconds = api.timeout().as_secs();
     let mut attempt = 0;
     loop {
         let started = std::time::Instant::now();
@@ -628,17 +628,27 @@ pub async fn request_image(
         for (header, value) in &request.headers {
             builder = builder.header(*header, value);
         }
-        let (failure, retryable) = match builder.send().await {
+        // What went wrong, the HTTP status if one came, the API's own
+        // words, and whether trying again may help.
+        let (failure, status, detail, retryable) = match builder.send().await {
             Err(error) if error.is_timeout() => {
                 // The server accepted the job but never answered; retrying
                 // would multiply the wait without changing the outcome.
-                return Err(format!(
-                    "{name} did not respond within {}s (model {}, trace_id={trace_id}); the model may be overloaded",
-                    api.timeout().as_secs(),
-                    api.model()
+                return Err(Failure::api_timeout(
+                    name,
+                    seconds,
+                    format!(
+                        "{name} did not respond within {seconds}s (model {}, trace_id={trace_id}); the model may be overloaded",
+                        api.model()
+                    ),
                 ));
             }
-            Err(error) => (format!("request failed: {error}"), true),
+            Err(error) => (
+                format!("request failed: {error}"),
+                None,
+                error.to_string(),
+                true,
+            ),
             Ok(response) => {
                 let status = response.status().as_u16();
                 let server_trace = api
@@ -647,18 +657,26 @@ pub async fn request_image(
                 let text = match response.text().await {
                     Ok(text) => text,
                     Err(error) if error.is_timeout() => {
-                        return Err(format!(
-                            "{name} did not finish its answer within {}s (trace_id={server_trace})",
-                            api.timeout().as_secs()
+                        return Err(Failure::api_timeout(
+                            name,
+                            seconds,
+                            format!(
+                                "{name} did not finish its answer within {seconds}s (trace_id={server_trace})"
+                            ),
                         ));
                     }
                     Err(error) => format!("unreadable answer: {error}"),
                 };
                 if status == 200 {
                     let body = serde_json::from_str::<Value>(&text).unwrap_or_default();
-                    let image = api
-                        .extract_image(&body)
-                        .ok_or_else(|| format!("{name} response did not include an image"))?;
+                    let no_image = || {
+                        Failure::coded(
+                            "api_no_image",
+                            format!("{name} response did not include an image"),
+                        )
+                        .with("service", name)
+                    };
+                    let image = api.extract_image(&body).ok_or_else(no_image)?;
                     let reported = body.get("usage");
                     let usage = reported.and_then(TokenUsage::parse);
                     let cost = reported
@@ -676,22 +694,27 @@ pub async fn request_image(
                     let bytes = match image {
                         ApiImage::Base64(data) => base64::engine::general_purpose::STANDARD
                             .decode(data.trim())
-                            .map_err(|_| format!("{name} response did not include an image"))?,
+                            .map_err(|_| no_image())?,
                         ApiImage::Url(url) => download(client, &url, name, api.timeout()).await?,
                     };
                     return Ok(ApiOutput { bytes, usage, cost });
                 }
+                let detail = chat_api::error_message(&text);
                 (
-                    format!(
-                        "HTTP {status} trace_id={server_trace}: {}",
-                        error_message(&text)
-                    ),
+                    format!("HTTP {status} trace_id={server_trace}: {detail}"),
+                    Some(status),
+                    detail,
                     api.retryable(status),
                 )
             }
         };
         if !retryable || attempt >= max_retries {
-            return Err(format!("{name} image generation failed: {failure}"));
+            return Err(Failure::api(
+                name,
+                status,
+                format!("{name} image generation failed: {failure}"),
+                &detail,
+            ));
         }
         let delay = retry_delays
             .get(attempt)
@@ -731,31 +754,6 @@ async fn download(
         .await
         .map(|bytes| bytes.to_vec())
         .map_err(|error| format!("Failed to download {name} image: {error}"))
-}
-
-/// The useful part of an error body.
-fn error_message(text: &str) -> String {
-    let message = match serde_json::from_str::<Value>(text) {
-        Ok(Value::Object(body)) => match body.get("error") {
-            Some(Value::Object(error)) => error
-                .get("message")
-                .or_else(|| error.get("code"))
-                .map_or_else(|| Value::Object(error.clone()).to_string(), plain),
-            _ => body
-                .get("message")
-                .map_or_else(|| Value::Object(body.clone()).to_string(), plain),
-        },
-        Ok(other) => other.to_string(),
-        Err(_) => text.to_owned(),
-    };
-    message.chars().take(ERROR_TEXT_CHARS).collect()
-}
-
-fn plain(value: &Value) -> String {
-    match value {
-        Value::String(text) => text.clone(),
-        other => other.to_string(),
-    }
 }
 
 /// ASCII letters, digits and `_.-` only, for folder names.
@@ -906,6 +904,7 @@ mod tests {
 
     #[test]
     fn error_bodies_are_read_like_the_old_backend() {
+        use crate::backend::chat_api::error_message;
         assert_eq!(
             error_message(r#"{"error": {"message": "bad prompt", "code": 400}}"#),
             "bad prompt"
@@ -913,7 +912,7 @@ mod tests {
         assert_eq!(error_message(r#"{"error": {"code": "x"}}"#), "x");
         assert_eq!(error_message(r#"{"message": "busy"}"#), "busy");
         assert_eq!(error_message("plain text"), "plain text");
-        assert_eq!(error_message(&"x".repeat(400)).len(), 300);
+        assert_eq!(error_message(&"x".repeat(600)).len(), 500);
     }
 
     #[test]

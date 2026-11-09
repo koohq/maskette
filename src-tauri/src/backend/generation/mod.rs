@@ -336,7 +336,7 @@ impl ImageBackend {
         match outcome {
             None => {
                 job.cancel();
-                Err("Cancelled by the user.".into())
+                Err(Failure::cancelled())
             }
             Some(Ok(output)) => {
                 job.succeed(&output);

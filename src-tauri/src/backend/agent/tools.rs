@@ -229,7 +229,10 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
         let conversation = context.entry.lock();
         let state = &conversation.state;
         if state.references.is_empty() {
-            return Err("No reference images uploaded yet. Ask the user to upload at least one character image.".into());
+            return Err(Failure::coded(
+                "no_references",
+                "No reference images uploaded yet. Ask the user to upload at least one character image.",
+            ));
         }
         let descriptions = state
             .references
@@ -263,7 +266,12 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
         Ok(result) => result,
         Err(AnalysisError::Rejected { reason, message }) => {
             context.entry.lock().state.analysis = None;
-            return Err(format!("Reference rejected ({reason}): {message}").into());
+            return Err(Failure::coded(
+                "reference_rejected",
+                format!("Reference rejected ({reason}): {message}"),
+            )
+            .with_detail(if message == reason { "" } else { &message })
+            .with("reason", reason));
         }
         Err(AnalysisError::Failed(message)) => return Err(message),
     };
@@ -288,13 +296,19 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
     }))
 }
 
-fn require_character_references(conversation: &Conversation) -> Result<(), String> {
+fn require_character_references(conversation: &Conversation) -> Result<(), Failure> {
     let references = &conversation.state.references;
     if references.is_empty() {
-        return Err("No reference images uploaded yet.".to_owned());
+        return Err(Failure::coded(
+            "no_references",
+            "No reference images uploaded yet.",
+        ));
     }
     if !references.iter().any(|reference| reference.kind == "front") {
-        return Err("No reference is marked as the main front reference.".to_owned());
+        return Err(Failure::coded(
+            "no_front_reference",
+            "No reference is marked as the main front reference.",
+        ));
     }
     Ok(())
 }
@@ -643,7 +657,7 @@ async fn run_generation(
         return Err("The configured image backend does not support local regeneration.".into());
     }
     if context.cancelled.load(Ordering::SeqCst) {
-        return Err("Cancelled by the user.".into());
+        return Err(Failure::cancelled());
     }
     context.progress(5, "generating");
     // The job's own steps (15, 45, 90) move the bar on from here.

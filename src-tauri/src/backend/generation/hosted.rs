@@ -25,6 +25,7 @@ use serde_json::{Value, json};
 use super::Mode;
 use super::image_api::{ApiImage, ApiRequest, ImageApi, to_data_uri};
 use crate::backend::chat_api::{self, JsonObject};
+use crate::backend::failure::Failure;
 use crate::backend::settings::store::Settings;
 
 /// Ratios the OpenRouter Image API documents; used when a model's own list
@@ -118,10 +119,11 @@ fn base(url: &str) -> String {
     url.trim().trim_end_matches('/').to_owned()
 }
 
-fn required(value: String, setting: &str, provider: &str) -> Result<String, String> {
+fn required(value: String, setting: &str, provider: &str) -> Result<String, Failure> {
     if value.is_empty() {
-        Err(format!(
-            "{setting} is required for image generation with {provider}"
+        Err(Failure::missing_settings(
+            &[setting],
+            format!("{setting} is required for image generation with {provider}"),
         ))
     } else {
         Ok(value)
@@ -142,7 +144,7 @@ pub struct OpenRouter {
 }
 
 impl OpenRouter {
-    pub fn from_settings(settings: &Settings) -> Result<Self, String> {
+    pub fn from_settings(settings: &Settings) -> Result<Self, Failure> {
         let model = required(
             settings.get("openrouter_image_model").trim().to_owned(),
             "openrouter_image_model",
@@ -438,7 +440,7 @@ pub struct Ark {
 }
 
 impl Ark {
-    pub fn from_settings(settings: &Settings) -> Result<Self, String> {
+    pub fn from_settings(settings: &Settings) -> Result<Self, Failure> {
         Ok(Self {
             api_key: required(
                 settings.get("ark_api_key").trim().to_owned(),
@@ -548,7 +550,7 @@ pub struct SiliconFlow {
 }
 
 impl SiliconFlow {
-    pub fn from_settings(settings: &Settings) -> Result<Self, String> {
+    pub fn from_settings(settings: &Settings) -> Result<Self, Failure> {
         Ok(Self {
             api_key: required(
                 settings.get("siliconflow_api_key").trim().to_owned(),

@@ -129,7 +129,7 @@ async fn analyze(
         .update(&[("llm_provider".to_owned(), Some(provider.to_owned()))])
         .unwrap();
     let analysis_backend = analysis::analysis_backend(&backend.state.settings.settings())
-        .map_err(|error| AnalysisError::Failed(error.into()))?;
+        .map_err(AnalysisError::Failed)?;
     analysis_backend.analyze(&backend.state, request).await
 }
 

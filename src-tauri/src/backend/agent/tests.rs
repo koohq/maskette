@@ -925,8 +925,12 @@ async fn model_errors_are_reported_in_the_chat() {
     assert_eq!(body["status"], "error");
     let errors = events(&body, "error");
     assert!(errors[0]["message"].as_str().unwrap().contains("401"));
-    // Not a known case: the screen shows the text as it is.
-    assert!(errors[0].get("code").is_none());
+    // The screen says it in the user's language, with the API's own words.
+    assert_eq!(errors[0]["code"], "api_unauthorized");
+    assert_eq!(
+        errors[0]["params"],
+        json!({"service": "127.0.0.1", "status": 401, "detail": "bad key"})
+    );
     assert_eq!(
         events(&body, "run_state").last().unwrap()["status"],
         "error"
@@ -1685,18 +1689,27 @@ async fn without_fixtures_the_tools_say_what_is_missing() {
     let id = setup.start().await;
     let body = setup.send(&id, "", 1, &[]).await;
     // A release build analyses and generates with OpenRouter by default.
+    let analysis = tool_event(&body, "analyze_references");
     assert!(
-        tool_event(&body, "analyze_references")["error"]
+        analysis["error"]
             .as_str()
             .unwrap()
             .starts_with("Analysis LLM")
     );
+    assert_eq!(analysis["error_code"], "api_unreachable");
+    assert_eq!(analysis["error_params"]["service"], "127.0.0.1");
     // The batch stopped, so the model asked again and got the image error.
+    let generation = tool_event(&body, "generate_front_view");
     assert!(
-        tool_event(&body, "generate_front_view")["error"]
+        generation["error"]
             .as_str()
             .unwrap()
             .contains("openrouter_api_key is required")
+    );
+    assert_eq!(generation["error_code"], "api_key_missing");
+    assert_eq!(
+        generation["error_params"],
+        json!({"settings": "openrouter_api_key"})
     );
 }
 

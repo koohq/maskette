@@ -24,6 +24,8 @@ use std::time::Duration;
 use reqwest::header::RETRY_AFTER;
 use serde_json::{Map, Value};
 
+use super::failure::Failure;
+
 /// Fields the extra body may never override.
 const PROTECTED_FIELDS: [&str; 4] = ["model", "messages", "tools", "tool_choice"];
 const RETRYABLE_STATUSES: [u16; 5] = [429, 500, 502, 503, 504];
@@ -44,6 +46,54 @@ pub struct ChatError {
     pub message: String,
     /// `None` when no HTTP answer arrived at all.
     pub status: Option<u16>,
+    /// Set when the wait for the answer ran out, in seconds.
+    pub timeout_secs: Option<u64>,
+    /// The API's (or the network's) own words, shortened.
+    pub detail: String,
+}
+
+impl ChatError {
+    fn http(status: u16, text: &str) -> Self {
+        Self {
+            message: format!("HTTP {status}: {}", truncate(text)),
+            status: Some(status),
+            timeout_secs: None,
+            detail: error_message(text),
+        }
+    }
+
+    fn unreachable(what: &str, error: &reqwest::Error, timeout: Duration) -> Self {
+        if error.is_timeout() {
+            return timed_out(what, timeout);
+        }
+        let detail = error_chain(error);
+        Self {
+            message: format!("{what}: {detail}"),
+            status: None,
+            timeout_secs: None,
+            detail,
+        }
+    }
+
+    /// The failure the screen shows; `prefix` starts the English text
+    /// (e.g. `Agent LLM `).
+    pub fn to_failure(&self, base_url: &str, prefix: &str) -> Failure {
+        let service = service_name(base_url);
+        let message = format!("{prefix}{}", self.message);
+        match self.timeout_secs {
+            Some(seconds) => Failure::api_timeout(&service, seconds, message),
+            None => Failure::api(&service, self.status, message, &self.detail),
+        }
+    }
+}
+
+/// The endpoint as the user knows it: its host (`openrouter.ai`), else the
+/// URL as set.
+pub fn service_name(base_url: &str) -> String {
+    reqwest::Url::parse(base_url.trim())
+        .ok()
+        .and_then(|url| url.host_str().map(str::to_owned))
+        .unwrap_or_else(|| base_url.trim().to_owned())
 }
 
 impl std::fmt::Display for ChatError {
@@ -172,10 +222,7 @@ impl ChatApi {
         }
 
         if reply.status >= 400 {
-            return Err(ChatError {
-                message: format!("HTTP {}: {}", reply.status, truncate(&reply.text)),
-                status: Some(reply.status),
-            });
+            return Err(ChatError::http(reply.status, &reply.text));
         }
         let message = serde_json::from_str::<Value>(&reply.text)
             .ok()
@@ -185,10 +232,15 @@ impl ChatApi {
                 message,
                 extra_body_dropped: dropped,
             }),
-            _ => Err(ChatError {
-                message: format!("unexpected response body: {}", truncate(&reply.text)),
-                status: Some(reply.status),
-            }),
+            _ => {
+                let detail = truncate(&reply.text);
+                Err(ChatError {
+                    message: format!("unexpected response body: {detail}"),
+                    status: Some(reply.status),
+                    timeout_secs: None,
+                    detail,
+                })
+            }
         }
     }
 
@@ -241,10 +293,7 @@ impl ChatApi {
             dropped = true;
         }
         match answer {
-            StreamAnswer::Failed(reply) => Err(ChatError {
-                message: format!("HTTP {}: {}", reply.status, truncate(&reply.text)),
-                status: Some(reply.status),
-            }),
+            StreamAnswer::Failed(reply) => Err(ChatError::http(reply.status, &reply.text)),
             StreamAnswer::Live(response) => Ok(ChatResult {
                 message: consume_stream(response, timeout).await?,
                 extra_body_dropped: dropped,
@@ -298,10 +347,8 @@ impl ChatApi {
         if !api_key.is_empty() {
             request = request.bearer_auth(api_key);
         }
-        let failed = |error: reqwest::Error| ChatError {
-            message: format!("request failed: {}", error_chain(&error)),
-            status: None,
-        };
+        let failed =
+            |error: reqwest::Error| ChatError::unreachable("request failed", &error, timeout);
         let response = tokio::time::timeout(timeout, request.send())
             .await
             .map_err(|_| timed_out("request failed", timeout))?
@@ -372,10 +419,8 @@ impl ChatApi {
         if !api_key.is_empty() {
             request = request.bearer_auth(api_key);
         }
-        let failed = |error: reqwest::Error| ChatError {
-            message: format!("request failed: {}", error_chain(&error)),
-            status: None,
-        };
+        let failed =
+            |error: reqwest::Error| ChatError::unreachable("request failed", &error, timeout);
         let response = request.send().await.map_err(failed)?;
         let status = response.status().as_u16();
         let retry_after = response
@@ -408,6 +453,8 @@ fn timed_out(what: &str, timeout: Duration) -> ChatError {
     ChatError {
         message: format!("{what}: no answer within {}s", timeout.as_secs()),
         status: None,
+        timeout_secs: Some(timeout.as_secs()),
+        detail: String::new(),
     }
 }
 
@@ -432,10 +479,7 @@ async fn consume_stream(
             Err(_) => return Err(timed_out("stream failed", timeout)),
             Ok(None) => break,
             Ok(Some(Err(error))) => {
-                return Err(ChatError {
-                    message: format!("stream failed: {}", error_chain(&error)),
-                    status: None,
-                });
+                return Err(ChatError::unreachable("stream failed", &error, timeout));
             }
             Ok(Some(Ok(chunk))) => chunk,
         };
@@ -616,6 +660,31 @@ fn mentions_any(text: &str, fields: &JsonObject) -> bool {
     fields
         .keys()
         .any(|field| lowered.contains(&field.to_lowercase()))
+}
+
+/// The useful part of an error body.
+pub fn error_message(text: &str) -> String {
+    let message = match serde_json::from_str::<Value>(text) {
+        Ok(Value::Object(body)) => match body.get("error") {
+            Some(Value::Object(error)) => error
+                .get("message")
+                .or_else(|| error.get("code"))
+                .map_or_else(|| Value::Object(error.clone()).to_string(), plain),
+            _ => body
+                .get("message")
+                .map_or_else(|| Value::Object(body.clone()).to_string(), plain),
+        },
+        Ok(other) => other.to_string(),
+        Err(_) => text.to_owned(),
+    };
+    message.chars().take(ERROR_TEXT_CHARS).collect()
+}
+
+fn plain(value: &Value) -> String {
+    match value {
+        Value::String(text) => text.clone(),
+        other => other.to_string(),
+    }
 }
 
 fn truncate(text: &str) -> String {

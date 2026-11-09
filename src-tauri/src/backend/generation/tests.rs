@@ -358,6 +358,12 @@ async fn openrouter_retries_failed_generations_and_reuses_the_model_list() {
             && error.message.contains("bad prompt"),
         "{error}"
     );
+    // The screen gets the status and the API's own words.
+    assert_eq!(error.code, Some("api_http_error"));
+    assert_eq!(
+        Value::Object(error.params),
+        json!({"service": "OpenRouter", "status": 400, "detail": "bad prompt"})
+    );
     let recorded = fake.recorded.lock().unwrap();
     assert_eq!(recorded.images.len(), 3);
     assert_eq!(recorded.model_listings, 1);
@@ -471,7 +477,9 @@ async fn a_cancelled_job_stops_waiting() {
         tokio::time::timeout(Duration::from_secs(10), async { tokio::join!(run, cancel) })
             .await
             .expect("the job stopped");
-    assert_eq!(result.unwrap_err().message, "Cancelled by the user.");
+    let error = result.unwrap_err();
+    assert_eq!(error.message, "Cancelled by the user.");
+    assert_eq!(error.code, Some("cancelled"));
     let jobs = backend.state.generation.jobs.list();
     assert_eq!(jobs[0].status, "cancelled");
 }
@@ -488,21 +496,18 @@ async fn openrouter_needs_a_model_and_a_key() {
         image_backend(&backend.state.settings.settings()).map(|_| ())
     };
     // Release builds generate with OpenRouter and Nano Banana 2.1 unless set.
-    assert!(
-        settings(&[])
-            .unwrap_err()
-            .message
-            .contains("openrouter_api_key is required")
-    );
-    assert!(
-        settings(&[
-            ("image_provider", "openrouter"),
-            ("openrouter_image_model", "")
-        ])
-        .unwrap_err()
-        .message
-        .contains("openrouter_image_model is required")
-    );
+    let error = settings(&[]).unwrap_err();
+    assert!(error.message.contains("openrouter_api_key is required"));
+    assert_eq!(error.code, Some("api_key_missing"));
+    assert_eq!(error.params["settings"], "openrouter_api_key");
+    let error = settings(&[
+        ("image_provider", "openrouter"),
+        ("openrouter_image_model", ""),
+    ])
+    .unwrap_err();
+    assert!(error.message.contains("openrouter_image_model is required"));
+    assert_eq!(error.code, Some("setting_missing"));
+    assert_eq!(error.params["settings"], "openrouter_image_model");
     assert!(
         settings(&[("openrouter_image_model", "m")])
             .unwrap_err()
@@ -571,7 +576,7 @@ async fn analyze(
     request: &AnalysisRequest,
 ) -> Result<analysis::AnalysisResult, AnalysisError> {
     let analysis_backend = analysis::analysis_backend(&backend.state.settings.settings())
-        .map_err(|error| AnalysisError::Failed(error.into()))?;
+        .map_err(AnalysisError::Failed)?;
     analysis_backend.analyze(&backend.state, request).await
 }
 
@@ -654,6 +659,7 @@ async fn analysis_reports_rejected_and_broken_answers() {
                 message.message,
                 "Analysis LLM returned an invalid safety result"
             );
+            assert_eq!(message.code, Some("analysis_invalid"));
         }
         other => panic!("{other:?}"),
     }
@@ -697,5 +703,124 @@ async fn analysis_needs_a_model() {
         ])
         .unwrap();
     let error = analysis::analysis_backend(&backend.state.settings.settings()).unwrap_err();
-    assert_eq!(error, "Analysis LLM base URL and model must be set");
+    assert_eq!(error.message, "Analysis LLM base URL and model must be set");
+    assert_eq!(error.code, Some("setting_missing"));
+    assert_eq!(error.params["settings"], "analysis_llm_model");
+}
+
+#[tokio::test]
+async fn analysis_api_errors_carry_a_code() {
+    let fake = fake(
+        Value::Null,
+        vec![Answer::Json(
+            401,
+            json!({"error": {"message": "No auth credentials found"}}),
+        )],
+    )
+    .await;
+    let (backend, key) = analysis_backend(&fake);
+    match analyze(&backend, &analysis_request(&key)).await {
+        Err(AnalysisError::Failed(failure)) => {
+            assert!(failure.message.starts_with("Analysis LLM HTTP 401"));
+            assert_eq!(failure.code, Some("api_unauthorized"));
+            assert_eq!(failure.params["service"], "127.0.0.1");
+            assert_eq!(failure.params["detail"], "No auth credentials found");
+        }
+        other => panic!("{other:?}"),
+    }
+}
+
+// --- Failures of the hosted APIs ----------------------------------------------
+
+#[tokio::test]
+async fn image_api_failures_are_sorted_by_status() {
+    for (status, code) in [
+        (401, "api_unauthorized"),
+        (403, "api_unauthorized"),
+        (429, "api_rate_limited"),
+        (500, "api_server_error"),
+        (404, "api_http_error"),
+    ] {
+        // Retryable statuses are sent again; every try gets the same answer.
+        let answers = vec![Answer::Json(status, json!({"error": {"message": "nope"}})); 4];
+        let fake = fake(models(), answers).await;
+        let (backend, key) = openrouter_backend(&fake);
+        let error = generate(&backend, &front_request(&key)).await.unwrap_err();
+        assert_eq!(error.code, Some(code), "{status}: {error}");
+        assert_eq!(error.params["status"], status);
+        assert_eq!(error.params["service"], "OpenRouter");
+        assert_eq!(error.params["detail"], "nope");
+    }
+}
+
+#[tokio::test]
+async fn an_image_answer_without_an_image_has_a_code() {
+    let fake = fake(models(), vec![Answer::Json(200, json!({"data": []}))]).await;
+    let (backend, key) = openrouter_backend(&fake);
+    let error = generate(&backend, &front_request(&key)).await.unwrap_err();
+    assert_eq!(error.code, Some("api_no_image"));
+    assert_eq!(error.params["service"], "OpenRouter");
+}
+
+/// One streamed chat request to `base_url`, waiting `seconds` for it.
+async fn chat_failure(base_url: &str, seconds: u64) -> crate::backend::failure::Failure {
+    let chat = crate::backend::chat_api::ChatApi::with_retry_delays(Vec::new());
+    let payload = json!({"model": "m", "messages": []});
+    let Value::Object(payload) = payload else {
+        unreachable!()
+    };
+    chat.stream_chat_completion(
+        base_url,
+        "key",
+        &payload,
+        &serde_json::Map::new(),
+        Duration::from_secs(seconds),
+    )
+    .await
+    .unwrap_err()
+    .to_failure(base_url, "Agent LLM ")
+}
+
+#[tokio::test]
+async fn chat_api_failures_are_sorted_by_status() {
+    for (status, code) in [
+        (401, "api_unauthorized"),
+        (429, "api_rate_limited"),
+        (503, "api_server_error"),
+        (400, "api_http_error"),
+    ] {
+        let fake = fake(
+            Value::Null,
+            vec![Answer::Json(status, json!({"error": {"message": "nope"}}))],
+        )
+        .await;
+        let failure = chat_failure(&fake.base_url, 10).await;
+        assert_eq!(failure.code, Some(code), "{status}: {failure}");
+        assert!(
+            failure
+                .message
+                .starts_with(&format!("Agent LLM HTTP {status}"))
+        );
+        assert_eq!(
+            Value::Object(failure.params),
+            json!({"service": "127.0.0.1", "status": status, "detail": "nope"})
+        );
+    }
+}
+
+#[tokio::test]
+async fn a_silent_chat_api_times_out_and_a_closed_port_is_unreachable() {
+    let fake = fake(Value::Null, vec![Answer::Hang]).await;
+    let failure = chat_failure(&fake.base_url, 1).await;
+    assert_eq!(failure.code, Some("api_timeout"), "{failure}");
+    assert_eq!(
+        Value::Object(failure.params),
+        json!({"service": "127.0.0.1", "seconds": 1})
+    );
+
+    // Windows takes about two seconds to give up on a closed port.
+    let failure = chat_failure("http://127.0.0.1:9/v1", 30).await;
+    assert_eq!(failure.code, Some("api_unreachable"), "{failure}");
+    assert_eq!(failure.params["service"], "127.0.0.1");
+    assert!(failure.params.contains_key("detail"));
 }

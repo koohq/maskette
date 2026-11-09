@@ -110,10 +110,15 @@ pub async fn complete(
         .trim_end_matches('/');
     let model = settings.get("agent_llm_model").trim();
     if base_url.is_empty() || model.is_empty() {
-        return Err(
-            "agent_llm_base_url and agent_llm_model must be set for the openai_compatible agent"
-                .into(),
-        );
+        let missing: Vec<&str> = [("agent_llm_base_url", base_url), ("agent_llm_model", model)]
+            .into_iter()
+            .filter(|(_, value)| value.is_empty())
+            .map(|(setting, _)| setting)
+            .collect();
+        return Err(Failure::missing_settings(
+            &missing,
+            "agent_llm_base_url and agent_llm_model must be set for the openai_compatible agent",
+        ));
     }
     let mut wire = vec![json!({"role": "system", "content": system_prompt})];
     wire.extend(messages.iter().map(wire_message));
@@ -133,7 +138,7 @@ pub async fn complete(
             Settings::AGENT_LLM_TIMEOUT,
         )
         .await
-        .map_err(|error| format!("Agent LLM {error}"))?;
+        .map_err(|error| error.to_failure(base_url, "Agent LLM "))?;
     Ok(parse_openai_message(&result.message))
 }
 

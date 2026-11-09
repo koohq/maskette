@@ -346,14 +346,26 @@ pub enum AnalysisBackend {
 }
 
 /// The analysis backend the settings choose, or why there is none.
-pub fn analysis_backend(settings: &Settings) -> Result<AnalysisBackend, String> {
+pub fn analysis_backend(settings: &Settings) -> Result<AnalysisBackend, Failure> {
     match settings.llm_provider() {
         "fixture" if settings.allow_fixture => Ok(AnalysisBackend::Fixture),
-        "fixture" => Err("No real analysis backend is configured (llm_provider).".to_owned()),
+        "fixture" => Err("No real analysis backend is configured (llm_provider).".into()),
         "openai_compatible" => {
             let (base_url, api_key, model) = settings.analysis_endpoint();
             if base_url.is_empty() || model.is_empty() {
-                return Err("Analysis LLM base URL and model must be set".to_owned());
+                // Each falls back to the chat assistant's setting.
+                let missing: Vec<&str> = [
+                    ("analysis_llm_base_url", &base_url),
+                    ("analysis_llm_model", &model),
+                ]
+                .into_iter()
+                .filter(|(_, value)| value.is_empty())
+                .map(|(setting, _)| setting)
+                .collect();
+                return Err(Failure::missing_settings(
+                    &missing,
+                    "Analysis LLM base URL and model must be set",
+                ));
             }
             Ok(AnalysisBackend::OpenAiCompatible(Endpoint {
                 base_url,
@@ -364,7 +376,7 @@ pub fn analysis_backend(settings: &Settings) -> Result<AnalysisBackend, String> 
         }
         "codex" => Ok(AnalysisBackend::Codex),
         "claude_code" => Ok(AnalysisBackend::ClaudeCode),
-        other => Err(format!("Unsupported llm_provider={other:?}")),
+        other => Err(format!("Unsupported llm_provider={other:?}").into()),
     }
 }
 
@@ -469,7 +481,13 @@ async fn analyze_with(
     )
     .await?;
     let safety = parse_reference_safety(&extract_json(&safety_text)).map_err(|_| {
-        AnalysisError::Failed(format!("{name} returned an invalid safety result").into())
+        AnalysisError::Failed(
+            Failure::coded(
+                "analysis_invalid",
+                format!("{name} returned an invalid safety result"),
+            )
+            .with("name", name),
+        )
     })?;
     if !safety.allowed {
         let reason = if safety.reason == "adult_explicit" {
@@ -496,7 +514,13 @@ async fn analyze_with(
     )
     .await?;
     parse_detail_analysis(&extract_json(&analysis_text)).map_err(|_| {
-        AnalysisError::Failed(format!("{name} returned invalid detail analysis JSON").into())
+        AnalysisError::Failed(
+            Failure::coded(
+                "analysis_invalid",
+                format!("{name} returned invalid detail analysis JSON"),
+            )
+            .with("name", name),
+        )
     })
 }
 
@@ -639,7 +663,9 @@ async fn complete_with_chat(
             Settings::ANALYSIS_LLM_TIMEOUT,
         )
         .await
-        .map_err(|error| AnalysisError::Failed(format!("Analysis LLM {error}").into()))?;
+        .map_err(|error| {
+            AnalysisError::Failed(error.to_failure(&endpoint.base_url, "Analysis LLM "))
+        })?;
     Ok(chat_api::message_text(&result.message))
 }
 
