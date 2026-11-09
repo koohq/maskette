@@ -15,6 +15,7 @@ use super::image_api::{self, safe_segment};
 use super::{GeneratedImage, GenerationRequest, blocking, jobs};
 use crate::backend::AppState;
 use crate::backend::cli::{self, codex::Purpose};
+use crate::backend::failure::Failure;
 use crate::backend::prompts::Overrides;
 
 /// Codex takes any number of images; more than this go in as one sheet.
@@ -25,17 +26,20 @@ pub async fn generate(
     job: &jobs::Job<'_>,
     job_id: &str,
     request: &GenerationRequest,
-) -> Result<GeneratedImage, String> {
-    let codex_home = state.cli.codex_home().ok_or(
-        "Codex のホームフォルダが分からないので、生成した画像を受け取れません（CODEX_HOME を確かめてください）。",
-    )?;
+) -> Result<GeneratedImage, Failure> {
+    let codex_home = state.cli.codex_home().ok_or_else(|| {
+        Failure::coded(
+            "codex_home_unknown",
+            "Codex's home folder is unknown, so the image it makes cannot be collected (check CODEX_HOME).",
+        )
+    })?;
     let data_dir = state.data_dir.clone();
     let workspace = cli::codex_root(&data_dir)
         .join(safe_segment(&request.character_session_id))
         .join(safe_segment(job_id));
     let (prepared, prompt, images) = {
         let (data_dir, request, workspace) = (data_dir.clone(), request.clone(), workspace.clone());
-        blocking(move || {
+        blocking(move || -> Result<_, String> {
             let prepared = image_api::prepare(&data_dir, &request, MAX_IMAGES, None)?;
             let prompt = cli::codex::image_prompt(
                 &Overrides::load(&data_dir),
@@ -84,18 +88,22 @@ pub async fn generate(
             .map(|thread| cli::codex::tool_images(&codex_home, thread))
             .unwrap_or_default();
         let Some(newest) = generated.last() else {
-            let said = if run.text.is_empty() {
-                String::new()
-            } else {
-                format!("Codex の返事：{}", cli::shorten(&run.text))
-            };
-            return Err(format!(
-                "Codex が画像生成ツールで画像を作りませんでした。もう一度試してください。{said}"
-            ));
+            let said = cli::shorten(&run.text);
+            let mut english =
+                "Codex did not make an image with its image generation tool. Try again.".to_owned();
+            let mut failure = Failure::coded("codex_no_image", String::new());
+            if !said.is_empty() {
+                english.push_str(&format!(" Codex said: {said}"));
+                failure = failure.with("detail", said);
+            }
+            failure.message = english;
+            return Err(failure);
         };
         let raw = image_api::load_rgb(newest)?;
         let image = prepared.finish(&raw)?;
-        image_api::store_output(&data_dir, &request, &job_id, &image)
+        Ok(image_api::store_output(
+            &data_dir, &request, &job_id, &image,
+        )?)
     })
     .await
 }

@@ -15,6 +15,7 @@ use super::llm::ToolSpec;
 use super::store::{Conversation, DESIGN_ROLES, DesignImage, Entry};
 use crate::backend::SharedState;
 use crate::backend::chat_api::JsonObject;
+use crate::backend::failure::Failure;
 use crate::backend::generation::analysis::{self, AnalysisError, AnalysisRequest};
 use crate::backend::generation::{self, GenerationRequest, LocalEdit, Mode, ReferenceDescription};
 use crate::backend::ids;
@@ -153,7 +154,7 @@ pub fn tool_specs() -> Vec<ToolSpec> {
 }
 
 /// A failure the model hears about and can recover from.
-pub type ToolResult = Result<Value, String>;
+pub type ToolResult = Result<Value, Failure>;
 
 /// What a running tool may touch.
 pub struct ToolContext {
@@ -219,7 +220,7 @@ pub async fn run_tool(name: &str, arguments: &JsonObject, context: &ToolContext)
         "revise_front_view" => revise_front_view(arguments, context).await,
         "approve_front_view" => approve_front_view(arguments, context),
         "generate_turnaround" => generate_turnaround(arguments, context).await,
-        other => Err(format!("Unknown tool '{other}'")),
+        other => Err(format!("Unknown tool '{other}'").into()),
     }
 }
 
@@ -228,7 +229,7 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
         let conversation = context.entry.lock();
         let state = &conversation.state;
         if state.references.is_empty() {
-            return Err("No reference images uploaded yet. Ask the user to upload at least one character image.".to_owned());
+            return Err("No reference images uploaded yet. Ask the user to upload at least one character image.".into());
         }
         let descriptions = state
             .references
@@ -262,7 +263,7 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
         Ok(result) => result,
         Err(AnalysisError::Rejected { reason, message }) => {
             context.entry.lock().state.analysis = None;
-            return Err(format!("Reference rejected ({reason}): {message}"));
+            return Err(format!("Reference rejected ({reason}): {message}").into());
         }
         Err(AnalysisError::Failed(message)) => return Err(message),
     };
@@ -358,7 +359,7 @@ async fn generate_design(arguments: &JsonObject, context: &ToolContext) -> ToolR
         view
     };
     if view != "front" && view != "turnaround" {
-        return Err("view must be 'front' or 'turnaround'.".to_owned());
+        return Err("view must be 'front' or 'turnaround'.".into());
     }
     let instructions = clean_text(&arg_text(arguments, "instructions"));
     let (request, base) = {
@@ -370,11 +371,11 @@ async fn generate_design(arguments: &JsonObject, context: &ToolContext) -> ToolR
         } else {
             match conversation.state.image(Some(&base_id)) {
                 Some(image) if image.role == "design" => Some(image.clone()),
-                _ => return Err("base_image_id must be a design front view.".to_owned()),
+                _ => return Err("base_image_id must be a design front view.".into()),
             }
         };
         if base.is_some() && view != "turnaround" {
-            return Err("base_image_id is only used for view=turnaround; use revise_design to change a design.".to_owned());
+            return Err("base_image_id is only used for view=turnaround; use revise_design to change a design.".into());
         }
         let mode = if view == "turnaround" {
             Mode::CharacterTurnaround
@@ -413,7 +414,7 @@ async fn generate_design(arguments: &JsonObject, context: &ToolContext) -> ToolR
 async fn revise_design(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
     let instructions = clean_text(&arg_text(arguments, "instructions"));
     if instructions.is_empty() {
-        return Err("instructions must describe the change.".to_owned());
+        return Err("instructions must describe the change.".into());
     }
     let (request, base) = {
         let conversation = context.entry.lock();
@@ -429,7 +430,7 @@ async fn revise_design(arguments: &JsonObject, context: &ToolContext) -> ToolRes
             .filter(|image| DESIGN_ROLES.contains(&image.role.as_str()))
             .cloned()
         else {
-            return Err("No character design to revise. Call generate_design first.".to_owned());
+            return Err("No character design to revise. Call generate_design first.".into());
         };
         let (kind, mode) = if base.role == "design_turnaround" {
             ("design", Mode::CharacterTurnaround)
@@ -461,12 +462,12 @@ fn approve_design_tool(arguments: &JsonObject, context: &ToolContext) -> ToolRes
         .filter(|image| DESIGN_ROLES.contains(&image.role.as_str()))
         .cloned()
     else {
-        return Err("Unknown design image id.".to_owned());
+        return Err("Unknown design image id.".into());
     };
     if conversation.state.last_user_seq <= image.created_seq {
         return Err(
             "The user has not responded since this design was shown. Ask them to confirm it first."
-                .to_owned(),
+                .into(),
         );
     }
     approve_design(&context.entry, &mut conversation, &image);
@@ -495,7 +496,7 @@ async fn generate_front_view(arguments: &JsonObject, context: &ToolContext) -> T
         match &design {
             None => {
                 if !arg_flag(arguments, "skip_design") {
-                    return Err("No approved character design yet. Generate a design with generate_design and wait for the user to approve it, or pass skip_design=true only if the user explicitly asked to skip the design stage.".to_owned());
+                    return Err("No approved character design yet. Generate a design with generate_design and wait for the user to approve it, or pass skip_design=true only if the user explicitly asked to skip the design stage.".into());
                 }
                 require_character_references(&conversation)?;
                 request.reference_keys = character_reference_keys(&conversation);
@@ -531,7 +532,7 @@ async fn generate_front_view(arguments: &JsonObject, context: &ToolContext) -> T
 async fn revise_front_view(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
     let instructions = clean_text(&arg_text(arguments, "instructions"));
     if instructions.is_empty() {
-        return Err("instructions must describe the change.".to_owned());
+        return Err("instructions must describe the change.".into());
     }
     let (request, base) = {
         let conversation = context.entry.lock();
@@ -547,7 +548,7 @@ async fn revise_front_view(arguments: &JsonObject, context: &ToolContext) -> Too
             .filter(|image| image.role == "front")
             .cloned()
         else {
-            return Err("No front-view image to revise. Generate one first.".to_owned());
+            return Err("No front-view image to revise. Generate one first.".into());
         };
         let mut request = request_for(&conversation, Mode::FrontRevision, &instructions);
         request.reference_keys = vec![reference_key("front", &base.reference_key)];
@@ -575,14 +576,14 @@ fn approve_front_view(arguments: &JsonObject, context: &ToolContext) -> ToolResu
         .filter(|image| image.role == "front")
         .cloned()
     else {
-        return Err("Unknown front image id.".to_owned());
+        return Err("Unknown front image id.".into());
     };
     if conversation.state.last_user_seq <= image.created_seq {
         // The model must not approve on its own: the user has to have
         // spoken after seeing the image.
         return Err(
             "The user has not responded since this image was shown. Ask them to confirm it first."
-                .to_owned(),
+                .into(),
         );
     }
     conversation.state.approved_front_id = Some(image.id.clone());
@@ -601,7 +602,7 @@ async fn generate_turnaround(arguments: &JsonObject, context: &ToolContext) -> T
         let conversation = context.entry.lock();
         let state = &conversation.state;
         let Some(approved) = state.image(state.approved_front_id.as_deref()).cloned() else {
-            return Err("No approved front view. Show the front view to the user and wait for their approval first.".to_owned());
+            return Err("No approved front view. Show the front view to the user and wait for their approval first.".into());
         };
         let mut request = request_for(&conversation, Mode::Turnaround, &instructions);
         request.reference_keys = vec![reference_key("front", &approved.reference_key)];
@@ -636,13 +637,13 @@ async fn run_generation(
     instructions: &str,
     parent: Option<&DesignImage>,
     source: &str,
-) -> Result<DesignImage, String> {
+) -> Result<DesignImage, Failure> {
     let backend = generation::image_backend(&context.state.settings.settings())?;
     if source == "local_revision" && !backend.supports_local_revision() {
-        return Err("The configured image backend does not support local regeneration.".to_owned());
+        return Err("The configured image backend does not support local regeneration.".into());
     }
     if context.cancelled.load(Ordering::SeqCst) {
-        return Err("Cancelled by the user.".to_owned());
+        return Err("Cancelled by the user.".into());
     }
     context.progress(5, "generating");
     // The job's own steps (15, 45, 90) move the bar on from here.
@@ -654,7 +655,12 @@ async fn run_generation(
             if context.cancelled.load(Ordering::SeqCst) {
                 error
             } else {
-                format!("Generation failed: {error}")
+                // A coded failure keeps its code: the screen says it in
+                // the user's language.
+                Failure {
+                    message: format!("Generation failed: {error}"),
+                    ..error
+                }
             }
         })?;
     #[cfg(test)]
@@ -665,7 +671,7 @@ async fn run_generation(
         .unwrap()
         .push((output.job_id.clone(), request));
     let mut conversation = context.entry.lock();
-    register_version(
+    Ok(register_version(
         context.data_dir(),
         &context.entry,
         &mut conversation,
@@ -681,7 +687,7 @@ async fn run_generation(
             job_id: &output.job_id,
             recipe: None,
         },
-    )
+    )?)
 }
 
 pub struct NewVersion<'a> {
@@ -852,7 +858,7 @@ pub struct LocalRevision {
 pub async fn run_local_revision(
     context: &ToolContext,
     revision: LocalRevision,
-) -> Result<DesignImage, String> {
+) -> Result<DesignImage, Failure> {
     let base_bytes = match revision.base_bytes {
         Some(bytes) => bytes,
         None => {
@@ -872,7 +878,7 @@ pub async fn run_local_revision(
     check_local_edit(base.as_ref(), mask.as_ref())
         .map_err(|code| format!("Invalid mask: {code}"))?;
     let (Some(base), Some(mask)) = (base, mask) else {
-        return Err("Invalid mask: local_revision_base_invalid".to_owned());
+        return Err("Invalid mask: local_revision_base_invalid".into());
     };
     let note = clean_text(&revision.edit_note);
     let mut request = {
@@ -933,9 +939,9 @@ pub async fn run_annotated_revision(
     base: &DesignImage,
     annotated: Vec<u8>,
     instructions: &str,
-) -> Result<DesignImage, String> {
+) -> Result<DesignImage, Failure> {
     if base.role != "front" && base.role != "design" {
-        return Err("Annotated regeneration only applies to front views.".to_owned());
+        return Err("Annotated regeneration only applies to front views.".into());
     }
     let conversation_id = context.entry.lock().id.clone();
     let name = format!("{}.png", ids::short_hex(32));

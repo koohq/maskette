@@ -11,6 +11,7 @@ pub mod cli;
 #[cfg(debug_assertions)]
 pub mod dev_handoff;
 mod error;
+pub mod failure;
 pub mod generation;
 mod health;
 mod ids;

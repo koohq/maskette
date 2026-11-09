@@ -17,6 +17,7 @@ use serde_json::{Value, json};
 
 use crate::backend::chat_api::{self, ChatApi, JsonObject};
 use crate::backend::cli::{self, Cli};
+use crate::backend::failure::Failure;
 use crate::backend::ids;
 use crate::backend::settings::store::Settings;
 
@@ -84,7 +85,7 @@ pub async fn complete(
     system_prompt: &str,
     messages: &[Value],
     tools: &[ToolSpec],
-) -> Result<AssistantTurn, String> {
+) -> Result<AssistantTurn, Failure> {
     match settings.get("agent_llm_provider").trim() {
         "" | "openai_compatible" => {}
         "claude_code" => {
@@ -100,7 +101,7 @@ pub async fn complete(
             .await?;
             return Ok(parse_claude_code_reply(&text));
         }
-        other => return Err(format!("Unsupported agent_llm_provider={other:?}")),
+        other => return Err(format!("Unsupported agent_llm_provider={other:?}").into()),
     }
     let chat = backends.chat;
     let base_url = settings
@@ -111,7 +112,7 @@ pub async fn complete(
     if base_url.is_empty() || model.is_empty() {
         return Err(
             "agent_llm_base_url and agent_llm_model must be set for the openai_compatible agent"
-                .to_owned(),
+                .into(),
         );
     }
     let mut wire = vec![json!({"role": "system", "content": system_prompt})];

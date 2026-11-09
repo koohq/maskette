@@ -251,10 +251,7 @@ async fn a_saved_codex_bridge_is_kept_but_can_no_longer_be_chosen() {
     assert_eq!(settings.get("codex_bridge_url"), "");
     assert_eq!(settings.get("codex_bridge_token"), "");
     let error = crate::backend::generation::image_backend(&settings).unwrap_err();
-    assert!(
-        error.starts_with("Codex Bridge は無くなりました"),
-        "{error}"
-    );
+    assert_eq!(error.code, Some("codex_bridge_removed"), "{error}");
 
     let app = router(state.clone());
     let body = read(&app).await;

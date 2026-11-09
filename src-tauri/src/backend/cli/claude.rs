@@ -14,7 +14,11 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use super::{Cli, Invocation, keep, outdated_hint, run_error_detail, shorten};
+use super::{
+    Cli, Invocation, cli_failed, empty_reply, keep, login_required, run_error_failure, shorten,
+    usage_limit,
+};
+use crate::backend::failure::Failure;
 
 const NAME: &str = "Claude Code";
 
@@ -94,7 +98,7 @@ pub async fn run(
     prompt: &str,
     tools: Tools,
     model: &str,
-) -> Result<String, String> {
+) -> Result<String, Failure> {
     std::fs::create_dir_all(workspace)
         .map_err(|error| format!("cannot create the Claude Code working folder: {error}"))?;
     keep(workspace, &format!("{label}-prompt.md"), prompt.as_bytes());
@@ -110,14 +114,20 @@ pub async fn run(
         .runner
         .run(invocation)
         .await
-        .map_err(|error| run_error_detail(NAME, &cli.claude, &error))?;
+        .map_err(|error| run_error_failure(NAME, &cli.claude, &error))?;
     keep(workspace, &format!("{label}-output.json"), &output.stdout);
     keep(workspace, &format!("{label}-stderr.log"), &output.stderr);
-    parse_output(&output.stdout, &output.stderr, output.code)
+    parse_output(&output.stdout, &output.stderr, output.code, &cli.claude)
 }
 
 /// The text of a `--output-format json` result, or what went wrong.
-pub fn parse_output(stdout: &[u8], stderr: &[u8], code: Option<i32>) -> Result<String, String> {
+/// `program` is the command that starts Claude Code (to log in with).
+pub fn parse_output(
+    stdout: &[u8],
+    stderr: &[u8],
+    code: Option<i32>,
+    program: &str,
+) -> Result<String, Failure> {
     let text = String::from_utf8_lossy(stdout);
     let stderr = String::from_utf8_lossy(stderr);
     let Ok(Value::Object(payload)) = serde_json::from_str::<Value>(text.trim()) else {
@@ -126,16 +136,7 @@ pub fn parse_output(stdout: &[u8], stderr: &[u8], code: Option<i32>) -> Result<S
         } else {
             stderr.trim().to_owned()
         };
-        let code = code.map_or_else(|| "なし".to_owned(), |code| code.to_string());
-        return Err(format!(
-            "Claude Code の CLI が失敗しました（終了コード {code}）。{}{}",
-            outdated_hint(&stderr),
-            if detail.is_empty() {
-                "出力はありませんでした。".to_owned()
-            } else {
-                shorten(&detail)
-            }
-        ));
+        return Err(cli_failed(NAME, code, &stderr, &detail));
     };
     let result = payload
         .get("result")
@@ -154,26 +155,27 @@ pub fn parse_output(stdout: &[u8], stderr: &[u8], code: Option<i32>) -> Result<S
         );
     }
     if payload.get("is_error").and_then(Value::as_bool) == Some(true) || code != Some(0) {
-        return Err(failure_detail(&payload, &result));
+        return Err(failure_detail(&payload, &result, program));
     }
     let result = strip_code_fence(&result);
     if result.is_empty() {
-        return Err("Claude Code の返事が空でした。もう一度試してください。".to_owned());
+        return Err(empty_reply(NAME));
     }
     Ok(result)
 }
 
-fn failure_detail(payload: &serde_json::Map<String, Value>, result: &str) -> String {
+fn failure_detail(
+    payload: &serde_json::Map<String, Value>,
+    result: &str,
+    program: &str,
+) -> Failure {
     let status = payload.get("api_error_status").and_then(Value::as_u64);
     let lowered = result.to_lowercase();
     if status == Some(401) || lowered.contains("not logged in") || lowered.contains("/login") {
-        return "Claude Code にログインしていません。ターミナルで claude を起動してログインしてから、\
-                もう一度試してください。"
-            .to_owned();
+        return login_required(NAME, program);
     }
     if status == Some(429) || lowered.contains("usage limit") || lowered.contains("rate limit") {
-        return "Claude Code の利用上限に達しました。時間をおいて試すか、設定で API キーの経路を選んでください。"
-            .to_owned();
+        return usage_limit(NAME);
     }
     let reason = if result.is_empty() {
         payload
@@ -185,7 +187,7 @@ fn failure_detail(payload: &serde_json::Map<String, Value>, result: &str) -> Str
     } else {
         shorten(result)
     };
-    format!("Claude Code の CLI が失敗しました：{reason}")
+    cli_failed(NAME, None, "", &reason)
 }
 
 fn strip_code_fence(text: &str) -> String {

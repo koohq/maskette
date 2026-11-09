@@ -27,6 +27,8 @@ use std::time::Duration;
 
 use tokio::io::AsyncWriteExt as _;
 
+use super::failure::Failure;
+
 /// How much of a CLI's own error text goes into a message.
 const DETAIL_CHARS: usize = 300;
 
@@ -214,30 +216,100 @@ pub fn shorten(text: &str) -> String {
     short
 }
 
-/// The message for a run that could not happen or did not finish.
-fn run_error_detail(name: &str, program: &str, error: &RunError) -> String {
+/// Why a run could not happen or did not finish.
+fn run_error_failure(name: &str, program: &str, error: &RunError) -> Failure {
     match error {
-        RunError::NotFound => format!(
-            "{name} の CLI（{program}）が見つかりません。インストールしてログインするか、\
-             設定で API キーの経路を選んでください。"
-        ),
-        RunError::Start(error) => format!("{name} の CLI を起動できませんでした：{error}"),
-        RunError::TimedOut(limit) => format!(
-            "{name} の CLI が {} 秒以内に答えなかったので止めました。もう一度試してください。",
-            limit.as_secs()
-        ),
+        RunError::NotFound => Failure::coded(
+            "cli_not_found",
+            format!(
+                "The {name} CLI ({program}) was not found. Install it and log in, or choose an API key route in the settings."
+            ),
+        )
+        .with("name", name)
+        .with("program", program),
+        RunError::Start(error) => Failure::coded(
+            "cli_start_failed",
+            format!("Could not start the {name} CLI: {error}"),
+        )
+        .with("name", name)
+        .with("detail", shorten(error)),
+        RunError::TimedOut(limit) => Failure::coded(
+            "cli_timeout",
+            format!(
+                "The {name} CLI did not answer within {} seconds and was stopped. Try again.",
+                limit.as_secs()
+            ),
+        )
+        .with("name", name)
+        .with("seconds", limit.as_secs()),
     }
 }
 
 /// Unknown options mean an older CLI than Maskette expects.
-fn outdated_hint(stderr: &str) -> &'static str {
+fn looks_outdated(stderr: &str) -> bool {
     let lowered = stderr.to_lowercase();
-    if lowered.contains("unknown option")
+    lowered.contains("unknown option")
         || lowered.contains("unexpected argument")
         || lowered.contains("unknown feature")
-    {
-        "CLI が古い可能性があります。更新してから試してください。"
-    } else {
-        ""
+}
+
+/// A CLI that ran and failed, with its own words (`detail`) when it said
+/// anything. `exit_code` is told when it helps.
+fn cli_failed(name: &str, exit_code: Option<i32>, stderr: &str, detail: &str) -> Failure {
+    let detail = shorten(detail);
+    let outdated = looks_outdated(stderr);
+    let mut english = format!("The {name} CLI failed");
+    if let Some(code) = exit_code {
+        english.push_str(&format!(" (exit code {code})"));
     }
+    english.push('.');
+    if outdated {
+        english.push_str(" The CLI may be out of date; update it and try again.");
+    }
+    let mut failure = if detail.is_empty() {
+        english.push_str(" It printed nothing.");
+        Failure::coded("cli_failed_silently", english)
+    } else {
+        english.push(' ');
+        english.push_str(&detail);
+        Failure::coded("cli_failed", english).with("detail", detail)
+    }
+    .with("name", name);
+    if let Some(code) = exit_code {
+        failure = failure.with("exit_code", code);
+    }
+    if outdated {
+        failure = failure.with("outdated", true);
+    }
+    failure
+}
+
+/// The user has to act in the CLI itself (log in) or wait (usage limit).
+fn login_required(name: &str, command: &str) -> Failure {
+    Failure::coded(
+        "cli_login_required",
+        format!(
+            "{name} is not logged in, or its login has expired. Run `{command}` in a terminal to log in, then try again."
+        ),
+    )
+    .with("name", name)
+    .with("command", command)
+}
+
+fn usage_limit(name: &str) -> Failure {
+    Failure::coded(
+        "cli_usage_limit",
+        format!(
+            "{name} has reached its usage limit. Try again later, or choose an API key route in the settings."
+        ),
+    )
+    .with("name", name)
+}
+
+pub(crate) fn empty_reply(name: &str) -> Failure {
+    Failure::coded(
+        "cli_empty_reply",
+        format!("{name} gave an empty answer. Try again."),
+    )
+    .with("name", name)
 }

@@ -925,6 +925,8 @@ async fn model_errors_are_reported_in_the_chat() {
     assert_eq!(body["status"], "error");
     let errors = events(&body, "error");
     assert!(errors[0]["message"].as_str().unwrap().contains("401"));
+    // Not a known case: the screen shows the text as it is.
+    assert!(errors[0].get("code").is_none());
     assert_eq!(
         events(&body, "run_state").last().unwrap()["status"],
         "error"
@@ -945,14 +947,58 @@ async fn the_claude_code_assistant_reports_a_missing_cli() {
         .unwrap();
     let id = setup.start().await;
     let body = setup.send(&id, "hello", 0, &[]).await;
-    let message = events(&body, "error")[0]["message"]
-        .as_str()
-        .unwrap()
-        .to_owned();
-    assert!(
-        message.contains("Claude Code の CLI（claude）が見つかりません"),
-        "{message}"
+    // The screen says it in the user's language from the code.
+    let error = &events(&body, "error")[0];
+    assert_eq!(error["code"], "cli_not_found");
+    assert_eq!(
+        error["params"],
+        json!({"name": "Claude Code", "program": "claude"})
     );
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("The Claude Code CLI (claude) was not found"),
+        "{error}"
+    );
+}
+
+#[tokio::test]
+async fn cli_tool_failures_carry_a_code_for_the_screen() {
+    let llm = fake_llm(|messages| {
+        if last_is_user(messages) {
+            Reply::Turn("", vec![("analyze_references", json!({}))])
+        } else if !has(messages, "generate_front_view") {
+            call("", "generate_front_view", json!({"skip_design": true}))
+        } else {
+            say("done")
+        }
+    })
+    .await;
+    let backend = TestBackend::new(false);
+    backend
+        .state
+        .settings
+        .update(&[
+            ("agent_llm_base_url".to_owned(), Some(llm.base_url.clone())),
+            ("agent_llm_model".to_owned(), Some("test-model".to_owned())),
+            ("llm_provider".to_owned(), Some("codex".to_owned())),
+            ("image_provider".to_owned(), Some("codex".to_owned())),
+        ])
+        .unwrap();
+    let setup = Setup { backend, llm };
+    let id = setup.start().await;
+    let body = setup.send(&id, "", 1, &[]).await;
+    for tool in ["analyze_references", "generate_front_view"] {
+        let event = tool_event(&body, tool);
+        assert_eq!(event["status"], "failed", "{event}");
+        assert_eq!(event["error_code"], "cli_not_found", "{event}");
+        assert_eq!(
+            event["error_params"],
+            json!({"name": "Codex", "program": "codex"})
+        );
+        assert!(event["error"].as_str().unwrap().contains("was not found"));
+    }
 }
 
 #[tokio::test]

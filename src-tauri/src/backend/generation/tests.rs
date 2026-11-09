@@ -210,7 +210,7 @@ fn front_request(key: &str) -> GenerationRequest {
 async fn generate(
     backend: &TestBackend,
     request: &GenerationRequest,
-) -> Result<super::GeneratedImage, String> {
+) -> Result<super::GeneratedImage, crate::backend::failure::Failure> {
     let image_backend = image_backend(&backend.state.settings.settings())?;
     image_backend
         .generate(&backend.state, request, &AtomicBool::new(false), &|_, _| {})
@@ -352,8 +352,10 @@ async fn openrouter_retries_failed_generations_and_reuses_the_model_list() {
     generate(&backend, &front_request(&key)).await.unwrap();
     let error = generate(&backend, &front_request(&key)).await.unwrap_err();
     assert!(
-        error.contains("OpenRouter image generation failed: HTTP 400")
-            && error.contains("bad prompt"),
+        error
+            .message
+            .contains("OpenRouter image generation failed: HTTP 400")
+            && error.message.contains("bad prompt"),
         "{error}"
     );
     let recorded = fake.recorded.lock().unwrap();
@@ -469,7 +471,7 @@ async fn a_cancelled_job_stops_waiting() {
         tokio::time::timeout(Duration::from_secs(10), async { tokio::join!(run, cancel) })
             .await
             .expect("the job stopped");
-    assert_eq!(result.unwrap_err(), "Cancelled by the user.");
+    assert_eq!(result.unwrap_err().message, "Cancelled by the user.");
     let jobs = backend.state.generation.jobs.list();
     assert_eq!(jobs[0].status, "cancelled");
 }
@@ -489,6 +491,7 @@ async fn openrouter_needs_a_model_and_a_key() {
     assert!(
         settings(&[])
             .unwrap_err()
+            .message
             .contains("openrouter_api_key is required")
     );
     assert!(
@@ -497,11 +500,13 @@ async fn openrouter_needs_a_model_and_a_key() {
             ("openrouter_image_model", "")
         ])
         .unwrap_err()
+        .message
         .contains("openrouter_image_model is required")
     );
     assert!(
         settings(&[("openrouter_image_model", "m")])
             .unwrap_err()
+            .message
             .contains("openrouter_api_key is required")
     );
     // The analysis key is reused when analysis also goes to OpenRouter.
@@ -514,6 +519,7 @@ async fn openrouter_needs_a_model_and_a_key() {
     assert!(
         settings(&[("image_provider", "ark")])
             .unwrap_err()
+            .message
             .contains("ark_api_key is required")
     );
 }
@@ -565,7 +571,7 @@ async fn analyze(
     request: &AnalysisRequest,
 ) -> Result<analysis::AnalysisResult, AnalysisError> {
     let analysis_backend = analysis::analysis_backend(&backend.state.settings.settings())
-        .map_err(AnalysisError::Failed)?;
+        .map_err(|error| AnalysisError::Failed(error.into()))?;
     analysis_backend.analyze(&backend.state, request).await
 }
 
@@ -644,14 +650,17 @@ async fn analysis_reports_rejected_and_broken_answers() {
     }
     match analyze(&backend, &request).await {
         Err(AnalysisError::Failed(message)) => {
-            assert_eq!(message, "Analysis LLM returned an invalid safety result");
+            assert_eq!(
+                message.message,
+                "Analysis LLM returned an invalid safety result"
+            );
         }
         other => panic!("{other:?}"),
     }
     match analyze(&backend, &request).await {
         Err(AnalysisError::Failed(message)) => {
             assert_eq!(
-                message,
+                message.message,
                 "Analysis LLM returned invalid detail analysis JSON"
             );
         }
@@ -663,7 +672,11 @@ async fn analysis_reports_rejected_and_broken_answers() {
     };
     match analyze(&backend, &missing).await {
         Err(AnalysisError::Failed(message)) => {
-            assert!(message.starts_with("Detail analysis reference image not found"));
+            assert!(
+                message
+                    .message
+                    .starts_with("Detail analysis reference image not found")
+            );
         }
         other => panic!("{other:?}"),
     }

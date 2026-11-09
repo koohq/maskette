@@ -14,6 +14,7 @@ use super::llm::{self, ToolCall};
 use super::store::{Conversation, DESIGN_ROLES, DesignImage, Entry};
 use super::tools::{self, GENERATION_TOOLS, LocalRevision, ToolContext};
 use crate::backend::SharedState;
+use crate::backend::failure::Failure;
 use crate::backend::prompts::Overrides;
 
 /// The old `.env`-only limits.
@@ -280,15 +281,19 @@ async fn run_safely(state: SharedState, entry: Arc<Entry>, body: Body, cancelled
         }
         Err(error) => {
             log::error!("agent run crashed: {error}");
-            Err(format!("internal error: {error}"))
+            Err(format!("internal error: {error}").into())
         }
     };
     let mut conversation = entry.lock();
     match outcome {
         Ok(()) => conversation.status = "idle".to_owned(),
-        Err(message) => {
+        Err(failure) => {
             conversation.status = "error".to_owned();
-            entry.emit(&mut conversation, "error", json!({"message": message}));
+            // `code` and `params` let the screen say a known failure in the
+            // user's language; `message` is the English text.
+            let mut event = failure.event_fields("");
+            event.insert("message".to_owned(), json!(failure.message));
+            entry.emit(&mut conversation, "error", Value::Object(event));
         }
     }
     let status = conversation.status.clone();
@@ -299,7 +304,7 @@ async fn run_chat(
     state: &SharedState,
     entry: &Arc<Entry>,
     cancelled: &Arc<AtomicBool>,
-) -> Result<(), String> {
+) -> Result<(), Failure> {
     let specs = tools::tool_specs();
     let mut generations = 0;
     for _ in 0..MAX_STEPS_PER_TURN {
@@ -459,14 +464,14 @@ async fn execute(
             );
             result
         }
-        Err(error) => {
-            let shown: String = error.chars().take(500).collect();
-            entry.replace_event(
-                &mut conversation,
-                seq,
-                json!({"status": "failed", "error": shown}),
-            );
-            json!({"ok": false, "error": error.chars().take(1000).collect::<String>()})
+        Err(failure) => {
+            let shown: String = failure.message.chars().take(500).collect();
+            let mut event = failure.event_fields("error_");
+            event.insert("status".to_owned(), json!("failed"));
+            event.insert("error".to_owned(), json!(shown));
+            entry.replace_event(&mut conversation, seq, Value::Object(event));
+            // The model reads the English text.
+            json!({"ok": false, "error": failure.message.chars().take(1000).collect::<String>()})
         }
     }
 }

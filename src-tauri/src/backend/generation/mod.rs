@@ -44,6 +44,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use super::error::ApiError;
+use super::failure::Failure;
 use super::settings::store::Settings;
 use super::{AppState, SharedState};
 
@@ -251,10 +252,10 @@ pub enum ImageBackend {
 }
 
 /// The image backend the settings choose, or why there is none.
-pub fn image_backend(settings: &Settings) -> Result<ImageBackend, String> {
+pub fn image_backend(settings: &Settings) -> Result<ImageBackend, Failure> {
     match settings.image_provider() {
         "fixture" if settings.allow_fixture => Ok(ImageBackend::Fixture),
-        "fixture" => Err("No real generation backend is configured (image_provider).".to_owned()),
+        "fixture" => Err("No real generation backend is configured (image_provider).".into()),
         "openrouter" => Ok(ImageBackend::Hosted(hosted::HostedApi::OpenRouter(
             hosted::OpenRouter::from_settings(settings)?,
         ))),
@@ -265,11 +266,11 @@ pub fn image_backend(settings: &Settings) -> Result<ImageBackend, String> {
             hosted::SiliconFlow::from_settings(settings)?,
         ))),
         "codex" => Ok(ImageBackend::Codex),
-        crate::backend::settings::store::RETIRED_IMAGE_PROVIDER => Err(
-            "Codex Bridge は無くなりました。設定の「画像生成」で Codex（または API キーの経路）を選んでください。"
-                .to_owned(),
-        ),
-        other => Err(format!("Unsupported image_provider={other:?}")),
+        crate::backend::settings::store::RETIRED_IMAGE_PROVIDER => Err(Failure::coded(
+            "codex_bridge_removed",
+            "Codex Bridge is gone. Choose Codex (or an API key route) for image generation in the settings.",
+        )),
+        other => Err(format!("Unsupported image_provider={other:?}").into()),
     }
 }
 
@@ -302,7 +303,7 @@ impl ImageBackend {
         request: &GenerationRequest,
         cancelled: &AtomicBool,
         progress: jobs::Observer<'_>,
-    ) -> Result<GeneratedImage, String> {
+    ) -> Result<GeneratedImage, Failure> {
         let job = state
             .generation
             .jobs
@@ -335,7 +336,7 @@ impl ImageBackend {
         match outcome {
             None => {
                 job.cancel();
-                Err("Cancelled by the user.".to_owned())
+                Err("Cancelled by the user.".into())
             }
             Some(Ok(output)) => {
                 job.succeed(&output);
@@ -343,7 +344,7 @@ impl ImageBackend {
             }
             Some(Err(error)) => {
                 log::warn!("generation job failed job_id={job_id}: {error}");
-                job.fail(&error);
+                job.fail(&error.message);
                 Err(error)
             }
         }
@@ -355,14 +356,14 @@ impl ImageBackend {
         job: &jobs::Job<'_>,
         job_id: &str,
         request: &GenerationRequest,
-    ) -> Result<GeneratedImage, String> {
+    ) -> Result<GeneratedImage, Failure> {
         job.step("preparing_references", 15, "Preparing references");
         let data_dir = state.data_dir.clone();
         let mut api = match self {
             Self::Fixture => {
                 job.step("generating", 45, "Generating");
                 let (job_id, request) = (job_id.to_owned(), request.clone());
-                return blocking(move || fixture_image(&data_dir, &job_id, &request)).await;
+                return Ok(blocking(move || fixture_image(&data_dir, &job_id, &request)).await?);
             }
             Self::Hosted(api) => api,
             Self::Codex => return codex::generate(state, job, job_id, request).await,
@@ -380,7 +381,7 @@ impl ImageBackend {
                 api.clone(),
                 trace_id.clone(),
             );
-            blocking(move || {
+            blocking(move || -> Result<_, String> {
                 let prepared = image_api::prepare(
                     &data_dir,
                     &request,
@@ -413,22 +414,22 @@ impl ImageBackend {
         job.step("saving_outputs", 90, "Saving outputs");
         let bytes = answer.bytes;
         let (job_id, request) = (job_id.to_owned(), request.clone());
-        blocking(move || {
+        Ok(blocking(move || {
             let raw = image_api::decode_rgb(&bytes)
                 .map_err(|error| format!("the generated image is {error}"))?;
             let image = prepared.finish(&raw)?;
             image_api::store_output(&data_dir, &request, &job_id, &image)
         })
-        .await
+        .await?)
     }
 }
 
-async fn blocking<T: Send + 'static>(
-    work: impl FnOnce() -> Result<T, String> + Send + 'static,
-) -> Result<T, String> {
+async fn blocking<T: Send + 'static, E: From<String> + Send + 'static>(
+    work: impl FnOnce() -> Result<T, E> + Send + 'static,
+) -> Result<T, E> {
     tokio::task::spawn_blocking(work)
         .await
-        .map_err(|error| format!("generation stopped: {error}"))?
+        .map_err(|error| E::from(format!("generation stopped: {error}")))?
 }
 
 /// A flat placeholder of the mode's size; a local revision tints the masked

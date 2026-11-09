@@ -26,6 +26,7 @@ use super::image_api::{self, downscale, load_rgb, reference_file, safe_segment, 
 use crate::backend::AppState;
 use crate::backend::chat_api::{self, JsonObject};
 use crate::backend::cli;
+use crate::backend::failure::Failure;
 use crate::backend::ids;
 use crate::backend::prompts::Overrides;
 use crate::backend::settings::store::Settings;
@@ -324,7 +325,7 @@ pub enum AnalysisError {
         reason: String,
         message: String,
     },
-    Failed(String),
+    Failed(Failure),
 }
 
 /// Where the OpenAI-compatible analysis goes.
@@ -454,8 +455,8 @@ async fn analyze_with(
                 .map(|paths| Images::Files { workspace, paths }),
         })
         .await
-        .map_err(|error| AnalysisError::Failed(error.to_string()))?
-        .map_err(AnalysisError::Failed)?
+        .map_err(|error| AnalysisError::Failed(error.to_string().into()))?
+        .map_err(|error| AnalysisError::Failed(error.into()))?
     };
     let overrides = Overrides::load(&state.data_dir);
     let name = backend.name();
@@ -467,8 +468,9 @@ async fn analyze_with(
         &images,
     )
     .await?;
-    let safety = parse_reference_safety(&extract_json(&safety_text))
-        .map_err(|_| AnalysisError::Failed(format!("{name} returned an invalid safety result")))?;
+    let safety = parse_reference_safety(&extract_json(&safety_text)).map_err(|_| {
+        AnalysisError::Failed(format!("{name} returned an invalid safety result").into())
+    })?;
     if !safety.allowed {
         let reason = if safety.reason == "adult_explicit" {
             "reference_adult_explicit"
@@ -493,8 +495,9 @@ async fn analyze_with(
         &images,
     )
     .await?;
-    parse_detail_analysis(&extract_json(&analysis_text))
-        .map_err(|_| AnalysisError::Failed(format!("{name} returned invalid detail analysis JSON")))
+    parse_detail_analysis(&extract_json(&analysis_text)).map_err(|_| {
+        AnalysisError::Failed(format!("{name} returned invalid detail analysis JSON").into())
+    })
 }
 
 /// The references as RGB images, in order.
@@ -588,9 +591,7 @@ async fn complete(
             .await
             .map_err(AnalysisError::Failed)?;
             if run.text.is_empty() {
-                return Err(AnalysisError::Failed(
-                    "Codex の返事が空でした。もう一度試してください。".to_owned(),
-                ));
+                return Err(AnalysisError::Failed(cli::empty_reply("Codex")));
             }
             Ok(run.text)
         }
@@ -605,7 +606,7 @@ async fn complete(
         .await
         .map_err(AnalysisError::Failed),
         _ => Err(AnalysisError::Failed(
-            "the analysis images do not fit the backend".to_owned(),
+            "the analysis images do not fit the backend".into(),
         )),
     }
 }
@@ -638,7 +639,7 @@ async fn complete_with_chat(
             Settings::ANALYSIS_LLM_TIMEOUT,
         )
         .await
-        .map_err(|error| AnalysisError::Failed(format!("Analysis LLM {error}")))?;
+        .map_err(|error| AnalysisError::Failed(format!("Analysis LLM {error}").into()))?;
     Ok(chat_api::message_text(&result.message))
 }
 

@@ -9,10 +9,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use image::{Rgb, RgbImage};
-use serde_json::json;
+use serde_json::{Value, json};
 
 use super::{Cli, Invocation, Output, ProcessRunner, RunError, RunFuture, Runner, claude, codex};
 use crate::backend::agent::llm::{self, ToolSpec};
+use crate::backend::failure::Failure;
 use crate::backend::generation::analysis::{self, AnalysisError, AnalysisRequest};
 use crate::backend::generation::{
     GenerationRequest, LocalEdit, Mode, generated_file_from_url, image_backend,
@@ -128,7 +129,7 @@ async fn analyze(
         .update(&[("llm_provider".to_owned(), Some(provider.to_owned()))])
         .unwrap();
     let analysis_backend = analysis::analysis_backend(&backend.state.settings.settings())
-        .map_err(AnalysisError::Failed)?;
+        .map_err(|error| AnalysisError::Failed(error.into()))?;
     analysis_backend.analyze(&backend.state, request).await
 }
 
@@ -186,7 +187,7 @@ fn only_a_nested_claude_code_session_loses_its_variables() {
 #[test]
 fn claude_code_output_is_read_and_failures_are_explained() {
     let read = |stdout: &str, stderr: &str, code| {
-        claude::parse_output(stdout.as_bytes(), stderr.as_bytes(), code)
+        claude::parse_output(stdout.as_bytes(), stderr.as_bytes(), code, "claude")
     };
     assert_eq!(
         read(
@@ -203,26 +204,47 @@ fn claude_code_output_is_read_and_failures_are_explained() {
         Some(1),
     )
     .unwrap_err();
-    assert!(
-        not_logged_in.contains("ログインしていません"),
-        "{not_logged_in}"
+    assert_eq!(not_logged_in.code, Some("cli_login_required"));
+    assert_eq!(
+        Value::Object(not_logged_in.params.clone()),
+        json!({"name": "Claude Code", "command": "claude"})
     );
+    assert!(not_logged_in.message.contains("not logged in"));
     let limited = read(
         r#"{"result": "", "is_error": true, "api_error_status": 429}"#,
         "",
         Some(1),
     )
     .unwrap_err();
-    assert!(limited.contains("利用上限"), "{limited}");
+    assert_eq!(limited.code, Some("cli_usage_limit"));
     let empty = read(r#"{"result": "  ", "is_error": false}"#, "", Some(0)).unwrap_err();
-    assert!(empty.contains("返事が空"), "{empty}");
+    assert_eq!(empty.code, Some("cli_empty_reply"));
     let old = read("", "error: unknown option '--restricted'", Some(1)).unwrap_err();
+    assert_eq!(old.code, Some("cli_failed"));
+    assert_eq!(
+        Value::Object(old.params.clone()),
+        json!({
+            "name": "Claude Code",
+            "exit_code": 1,
+            "outdated": true,
+            "detail": "error: unknown option '--restricted'",
+        })
+    );
     assert!(
-        old.contains("終了コード 1") && old.contains("CLI が古い可能性"),
+        old.message.contains("exit code 1") && old.message.contains("out of date"),
         "{old}"
     );
     let silent = read("", "", None).unwrap_err();
-    assert!(silent.contains("出力はありませんでした"), "{silent}");
+    assert_eq!(silent.code, Some("cli_failed_silently"));
+    assert!(!silent.params.contains_key("exit_code"));
+    let refused = read(
+        r#"{"result": "", "is_error": true, "subtype": "error_max_turns"}"#,
+        "",
+        Some(1),
+    )
+    .unwrap_err();
+    assert_eq!(refused.code, Some("cli_failed"));
+    assert_eq!(refused.params["detail"], json!("error_max_turns"));
 }
 
 #[tokio::test]
@@ -310,20 +332,30 @@ async fn a_missing_cli_says_so() {
     let error = llm::complete(&backend.state.settings.settings(), &backends, "S", &[], &[])
         .await
         .unwrap_err();
-    assert!(
-        error.contains("Claude Code の CLI（claude）が見つかりません"),
-        "{error}"
+    assert_eq!(error.code, Some("cli_not_found"));
+    assert_eq!(
+        Value::Object(error.params.clone()),
+        json!({"name": "Claude Code", "program": "claude"})
     );
+    assert!(error.message.contains("was not found"), "{error}");
 
-    let timed_out = super::run_error_detail(
+    let timed_out = super::run_error_failure(
         "Codex",
         "codex",
         &RunError::TimedOut(Duration::from_secs(240)),
     );
-    assert!(
-        timed_out.contains("240 秒以内に答えなかった"),
-        "{timed_out}"
+    assert_eq!(timed_out.code, Some("cli_timeout"));
+    assert_eq!(
+        Value::Object(timed_out.params.clone()),
+        json!({"name": "Codex", "seconds": 240})
     );
+    let not_started = super::run_error_failure(
+        "Codex",
+        "codex",
+        &RunError::Start("access denied".to_owned()),
+    );
+    assert_eq!(not_started.code, Some("cli_start_failed"));
+    assert_eq!(not_started.params["detail"], json!("access denied"));
 }
 
 #[tokio::test]
@@ -427,32 +459,38 @@ fn codex_events_give_the_thread_the_answer_and_any_commands() {
 
 #[test]
 fn codex_failures_are_explained() {
-    let detail =
-        |stdout: &str, stderr: &str| codex::failure_detail(stdout.as_bytes(), stderr.as_bytes());
-    assert!(
-        detail(
-            r#"{"type":"error","message":"You've hit your usage limit. Try again at 5pm."}"#,
-            ""
-        )
-        .contains("利用上限")
+    let detail = |stdout: &str, stderr: &str| {
+        codex::failure_detail(stdout.as_bytes(), stderr.as_bytes(), "codex")
+    };
+    let limited = detail(
+        r#"{"type":"error","message":"You've hit your usage limit. Try again at 5pm."}"#,
+        "",
     );
-    assert!(detail("", "Error: 401 Unauthorized").contains("codex login"));
-    assert!(
-        detail(
-            r#"{"type":"turn.failed","error":{"message":"failed to connect to api"}}"#,
-            ""
-        )
-        .contains("つながりませんでした")
+    assert_eq!(limited.code, Some("cli_usage_limit"));
+    assert_eq!(limited.params["name"], json!("Codex"));
+    let logged_out = detail("", "Error: 401 Unauthorized");
+    assert_eq!(logged_out.code, Some("cli_login_required"));
+    assert_eq!(logged_out.params["command"], json!("codex login"));
+    let offline = detail(
+        r#"{"type":"turn.failed","error":{"message":"failed to connect to api"}}"#,
+        "",
     );
+    assert_eq!(offline.code, Some("cli_offline"));
     let other = detail(
         "",
         "Reading additional input from stdin...\nError: unexpected argument '--ignore-rules' found",
     );
+    assert_eq!(other.code, Some("cli_failed"));
+    assert_eq!(other.params["outdated"], json!(true));
+    assert_eq!(
+        other.params["detail"],
+        json!("Error: unexpected argument '--ignore-rules' found")
+    );
     assert!(
-        other.contains("CLI が古い可能性") && other.contains("--ignore-rules"),
+        other.message.contains("out of date") && other.message.contains("--ignore-rules"),
         "{other}"
     );
-    assert!(detail("", "").contains("何も言わずに失敗"));
+    assert_eq!(detail("", "").code, Some("cli_failed_silently"));
 }
 
 #[test]
@@ -511,7 +549,9 @@ async fn codex_analysis_fails_clearly() {
     let empty = backend_for("{\"type\":\"thread.started\",\"thread_id\":\"t\"}\n");
     let key = write_reference(&empty, "front.png");
     match analyze(&empty, "codex", &analysis_request(&key)).await {
-        Err(AnalysisError::Failed(message)) => assert!(message.contains("返事が空"), "{message}"),
+        Err(AnalysisError::Failed(failure)) => {
+            assert_eq!(failure.code, Some("cli_empty_reply"), "{failure}");
+        }
         other => panic!("{other:?}"),
     }
     let commands = backend_for(
@@ -519,8 +559,9 @@ async fn codex_analysis_fails_clearly() {
     );
     let key = write_reference(&commands, "front.png");
     match analyze(&commands, "codex", &analysis_request(&key)).await {
-        Err(AnalysisError::Failed(message)) => {
-            assert!(message.contains("コマンドを実行しようとした"), "{message}");
+        Err(AnalysisError::Failed(failure)) => {
+            assert_eq!(failure.code, Some("cli_ran_command"), "{failure}");
+            assert_eq!(failure.params["detail"], json!("cat ~/.codex/auth.json"));
         }
         other => panic!("{other:?}"),
     }
@@ -561,7 +602,7 @@ async fn generate_with_codex(
     build: impl FnOnce(&TestBackend) -> GenerationRequest,
 ) -> (
     TestBackend,
-    Result<crate::backend::generation::GeneratedImage, String>,
+    Result<crate::backend::generation::GeneratedImage, Failure>,
 ) {
     let mut cli = Cli::with_runner(runner.clone());
     cli.codex_home = Some(home.to_owned());
@@ -697,10 +738,12 @@ async fn codex_without_a_tool_image_fails() {
     })
     .await;
     let error = result.unwrap_err();
-    assert!(
-        error.contains("画像を作りませんでした") && error.contains("I cannot use the image tool."),
-        "{error}"
+    assert_eq!(error.code, Some("codex_no_image"), "{error}");
+    assert_eq!(
+        error.params["detail"],
+        json!("I cannot use the image tool.")
     );
+    assert!(error.message.contains("I cannot use the image tool."));
     assert_eq!(backend.state.generation.jobs.list()[0].status, "failed");
 }
 

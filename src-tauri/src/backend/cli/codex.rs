@@ -20,7 +20,10 @@ use std::path::{Path, PathBuf};
 
 use serde_json::Value;
 
-use super::{Cli, Invocation, keep, outdated_hint, run_error_detail, shorten};
+use super::{
+    Cli, Invocation, cli_failed, keep, login_required, run_error_failure, shorten, usage_limit,
+};
+use crate::backend::failure::Failure;
 use crate::backend::generation::usage::TokenUsage;
 use crate::backend::prompts::Overrides;
 
@@ -138,7 +141,7 @@ pub async fn run(
     prompt: &str,
     images: &[PathBuf],
     purpose: Purpose,
-) -> Result<Run, String> {
+) -> Result<Run, Failure> {
     std::fs::create_dir_all(workspace)
         .map_err(|error| format!("cannot create the Codex working folder: {error}"))?;
     keep(workspace, &format!("{label}-prompt.md"), prompt.as_bytes());
@@ -159,11 +162,11 @@ pub async fn run(
         .runner
         .run(invocation)
         .await
-        .map_err(|error| run_error_detail(NAME, &cli.codex, &error))?;
+        .map_err(|error| run_error_failure(NAME, &cli.codex, &error))?;
     keep(workspace, &format!("{label}-events.jsonl"), &output.stdout);
     keep(workspace, &format!("{label}-stderr.log"), &output.stderr);
     if !output.success() {
-        return Err(failure_detail(&output.stdout, &output.stderr));
+        return Err(failure_detail(&output.stdout, &output.stderr, &cli.codex));
     }
     let mut run = read_events(&output.stdout);
     run.usage = TokenUsage::from_codex_events(&output.stdout);
@@ -173,10 +176,13 @@ pub async fn run(
         text.trim().clone_into(&mut run.text);
     }
     if let Some(command) = run.commands.first() {
-        return Err(format!(
-            "Codex がコマンドを実行しようとしたので結果を使いませんでした：{}",
-            shorten(command)
-        ));
+        let command = shorten(command);
+        return Err(Failure::coded(
+            "cli_ran_command",
+            format!("Codex tried to run a command, so its result was not used: {command}"),
+        )
+        .with("name", NAME)
+        .with("detail", command));
     }
     Ok(run)
 }
@@ -265,7 +271,8 @@ pub fn tool_images(codex_home: &Path, thread_id: &str) -> Vec<PathBuf> {
 }
 
 /// What a failed run says, in the user's terms where it is a known case.
-pub fn failure_detail(stdout: &[u8], stderr: &[u8]) -> String {
+/// `program` is the command that starts Codex (to log in with).
+pub fn failure_detail(stdout: &[u8], stderr: &[u8], program: &str) -> Failure {
     let mut messages = Vec::new();
     for event in events(stdout) {
         if let Some(message) = event.get("message").and_then(Value::as_str) {
@@ -291,8 +298,7 @@ pub fn failure_detail(stdout: &[u8], stderr: &[u8]) -> String {
     for message in &messages {
         let lowered = message.to_lowercase();
         if lowered.contains("usage limit") {
-            return "Codex の利用上限に達しました。時間をおいて試すか、設定で API キーの経路を選んでください。"
-                .to_owned();
+            return usage_limit(NAME);
         }
         if lowered.contains("401 unauthorized")
             || lowered.contains("not logged in")
@@ -300,21 +306,20 @@ pub fn failure_detail(stdout: &[u8], stderr: &[u8]) -> String {
             || lowered.contains("token_expired")
             || lowered.contains("refresh_token")
         {
-            return "Codex にログインしていないか、ログインの期限が切れています。ターミナルで codex login を実行してから、\
-                    もう一度試してください。"
-                .to_owned();
+            return login_required(NAME, &format!("{program} login"));
         }
         if lowered.contains("tls handshake") || lowered.contains("failed to connect") {
-            return "Codex がサーバーにつながりませんでした。ネットワークを確かめて、もう一度試してください。"
-                .to_owned();
+            return Failure::coded(
+                "cli_offline",
+                "Codex could not reach its server. Check the network and try again.",
+            )
+            .with("name", NAME);
         }
     }
-    match messages.last() {
-        Some(last) => format!(
-            "Codex の CLI が失敗しました。{}{}",
-            outdated_hint(&stderr),
-            shorten(last)
-        ),
-        None => "Codex の CLI が何も言わずに失敗しました。".to_owned(),
-    }
+    cli_failed(
+        NAME,
+        None,
+        &stderr,
+        messages.last().map_or("", String::as_str),
+    )
 }
