@@ -105,7 +105,7 @@ function devApiProxyPlugin(): Plugin {
 
 export default defineConfig({
   define: {
-    __KIGCRAFT_BUILD_DATE__: JSON.stringify(buildDate),
+    __MASKETTE_BUILD_DATE__: JSON.stringify(buildDate),
   },
   plugins: [react(), staticCacheHeadersPlugin(), devApiProxyPlugin()],
   test: {

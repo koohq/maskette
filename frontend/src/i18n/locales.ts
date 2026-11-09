@@ -1,5 +1,8 @@
+import { readStored, writeStored } from "../app/storage";
+
 export const DEFAULT_LOCALE = "zh-CN" as const;
-export const LOCALE_STORAGE_KEY = "kig-preview.locale.v1";
+export const LOCALE_STORAGE_KEY = "maskette.locale.v1";
+export const LEGACY_LOCALE_STORAGE_KEY = "kig-preview.locale.v1";
 
 export const SUPPORTED_LOCALES = [
   { value: "zh-CN", label: "中文" },
@@ -29,21 +32,11 @@ export function detectBrowserLocale(): AppLocale {
 }
 
 export function readStoredLocale(): AppLocale {
-  if (typeof window === "undefined") return detectBrowserLocale();
-  try {
-    return resolveSupportedLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY)) ?? detectBrowserLocale();
-  } catch {
-    return detectBrowserLocale();
-  }
+  return resolveSupportedLocale(readStored(LOCALE_STORAGE_KEY, LEGACY_LOCALE_STORAGE_KEY)) ?? detectBrowserLocale();
 }
 
 export function writeStoredLocale(locale: AppLocale) {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(LOCALE_STORAGE_KEY, locale);
-  } catch {
-    // Storage can be unavailable in privacy-restricted browser contexts.
-  }
+  writeStored(LOCALE_STORAGE_KEY, locale);
 }
 
 function resolveSupportedLocale(value: unknown): AppLocale | null {

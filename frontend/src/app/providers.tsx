@@ -3,6 +3,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import "../i18n";
+import { writeStored } from "./storage";
 import { createKigTheme, readStoredThemeMode, THEME_STORAGE_KEY, type ThemeMode } from "./theme";
 
 const queryClient = new QueryClient();
@@ -21,7 +22,7 @@ export function Providers({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.dataset["theme"] = mode;
-    window.localStorage.setItem(THEME_STORAGE_KEY, mode);
+    writeStored(THEME_STORAGE_KEY, mode);
   }, [mode]);
 
   const value = useMemo(

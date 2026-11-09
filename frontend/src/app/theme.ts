@@ -1,8 +1,10 @@
 import { createTheme, type Theme } from "@mui/material/styles";
+import { readStored } from "./storage";
 
 export type ThemeMode = "dark" | "light";
 
-export const THEME_STORAGE_KEY = "kigcraft.theme.v1";
+export const THEME_STORAGE_KEY = "maskette.theme.v1";
+export const LEGACY_THEME_STORAGE_KEY = "kigcraft.theme.v1";
 
 /** Palette shared with the CSS variables in styles/index.css (keep both in sync). */
 export const idePalettes = {
@@ -46,9 +48,7 @@ export const idePalettes = {
 export const uiFontFamily = "var(--ui-font-family)";
 
 export function readStoredThemeMode(): ThemeMode {
-  if (typeof window === "undefined") return "dark";
-  const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-  return stored === "light" ? "light" : "dark";
+  return readStored(THEME_STORAGE_KEY, LEGACY_THEME_STORAGE_KEY) === "light" ? "light" : "dark";
 }
 
 export function createKigTheme(mode: ThemeMode): Theme {

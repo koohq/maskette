@@ -12,6 +12,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router-dom";
+import { writeStored } from "../../app/storage";
 import { ConfirmDialog } from "../../ui/IdeDialog";
 import {
   AgentApiError,
@@ -46,7 +47,14 @@ import {
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
 import { AgentPanel } from "./AgentPanel";
-import { AGENT_WIDTH_STORAGE_KEY, clampAgentWidth, DEFAULT_AGENT_WIDTH, readStoredAgentWidth } from "./agentWidth";
+import {
+  AGENT_OPEN_STORAGE_KEY,
+  AGENT_WIDTH_STORAGE_KEY,
+  clampAgentWidth,
+  DEFAULT_AGENT_WIDTH,
+  readStoredAgentOpen,
+  readStoredAgentWidth,
+} from "./agentWidth";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { ThemeToggle } from "./ThemeToggle";
 import { useEditorDrafts } from "./useEditorDrafts";
@@ -54,7 +62,6 @@ import { useEditorDrafts } from "./useEditorDrafts";
 type Activity = "explorer" | EditorTool;
 
 const TURNAROUND_TOOLS: [EditorTool, ...EditorTool[]] = ["annotation", "liquify", "local-generate"];
-const AGENT_OPEN_KEY = "kigcraft.agentPanel.v1";
 
 /** Draggable splitter west of the agent panel; double-click resets the width. */
 function AgentResizeHandle({ onWidthChange }: { onWidthChange: (width: number) => void }) {
@@ -95,7 +102,7 @@ export function WorkspacePage() {
 
   const [activity, setActivity] = useState<Activity>("explorer");
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [agentOpen, setAgentOpen] = useState(() => window.localStorage.getItem(AGENT_OPEN_KEY) !== "0");
+  const [agentOpen, setAgentOpen] = useState(readStoredAgentOpen);
   const [agentWidth, setAgentWidth] = useState(() => readStoredAgentWidth(window.innerWidth));
   const [editorTool, setEditorTool] = useState<EditorTool>("annotation");
   const [openTabs, setOpenTabs] = useState<string[]>([]);
@@ -119,8 +126,8 @@ export function WorkspacePage() {
   const availableTools = isTurnaroundRole(activeVersion?.role) ? TURNAROUND_TOOLS : undefined;
   const drafts = useEditorDrafts(projectId, activeTabId);
 
-  useEffect(() => window.localStorage.setItem(AGENT_OPEN_KEY, agentOpen ? "1" : "0"), [agentOpen]);
-  useEffect(() => window.localStorage.setItem(AGENT_WIDTH_STORAGE_KEY, String(agentWidth)), [agentWidth]);
+  useEffect(() => writeStored(AGENT_OPEN_STORAGE_KEY, agentOpen ? "1" : "0"), [agentOpen]);
+  useEffect(() => writeStored(AGENT_WIDTH_STORAGE_KEY, String(agentWidth)), [agentWidth]);
 
   useEffect(() => {
     if (!toast) return;
