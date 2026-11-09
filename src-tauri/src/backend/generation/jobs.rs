@@ -374,7 +374,7 @@ mod tests {
             record.prompt_payload["user_notes"]
                 .as_str()
                 .unwrap()
-                .contains("[已移除不安全指令]")
+                .contains("[unsafe instruction removed]")
         );
         assert_eq!(
             record.prompt_payload["system_constraints"][1],
