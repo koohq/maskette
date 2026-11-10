@@ -1,9 +1,16 @@
 import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { type AuditGenerationJob, getAuditGenerationJobs, getAuditSession, getAuditSummary } from "../api/client";
+import {
+  ApiError,
+  type AuditGenerationJob,
+  getAuditGenerationJobs,
+  getAuditSession,
+  getAuditSummary,
+  loginAudit,
+} from "../api/client";
 import { kigTheme } from "../app/theme";
 import i18n from "../i18n";
 import { literalTranslations } from "../i18n/literalTranslations";
@@ -17,6 +24,7 @@ vi.mock("../api/client", async (importOriginal) => {
     getAuditGenerationJobs: vi.fn(),
     getAuditSession: vi.fn(),
     getAuditSummary: vi.fn(),
+    loginAudit: vi.fn(),
   };
 });
 
@@ -198,5 +206,27 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
 
     expect(untranslated(visibleStrings(container), locale)).toEqual([]);
     if (locale === "ja") expect(container.textContent).not.toMatch(/配額|配额/);
+  });
+  // The message is a Chinese literal that the Alert translates through literalTranslations.
+  it.each([
+    // In the desktop app any password is accepted; a 401 comes from the per-launch token.
+    [
+      "the server refuses the app",
+      new ApiError("API request failed: 401", 401, "Missing or invalid Maskette token"),
+      "密码错误。",
+    ],
+    ["too many tries", new ApiError("API request failed: 429", 429, null), "重试次数过多，请稍后再试。"],
+    ["the server fails", new ApiError("API request failed: 500", 500, "boom"), "登录失败，请重试。"],
+    ["the request never arrives", new TypeError("Failed to fetch"), "登录失败，请重试。"],
+  ])("translates the sign-in failure when %s", async (_case, error, chinese) => {
+    vi.mocked(loginAudit).mockRejectedValue(error);
+    const { container } = renderPage({ authenticated: false });
+    const input = await screen.findByLabelText(locale === "ja" ? "アクセスパスワード" : "Access password");
+    fireEvent.change(input, { target: { value: "anything" } });
+    fireEvent.click(screen.getByRole("button", { name: locale === "ja" ? "ログイン" : "Log in" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe(literalTranslations[locale][chinese]);
+    expect(untranslated(visibleStrings(container), locale)).toEqual([]);
   });
 });
