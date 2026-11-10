@@ -158,10 +158,7 @@ async fn requests_without_the_token_are_refused() {
     ] {
         let response = app().oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
-        assert_eq!(
-            json_body(response).await["detail"],
-            "Missing or invalid Maskette token"
-        );
+        assert_eq!(json_body(response).await["detail"], "token_rejected");
     }
 }
 

@@ -3,6 +3,12 @@
 //! `fetch` sends it as `Authorization: Bearer <token>`. URLs the browser
 //! loads by itself (`<img>`, `EventSource`, download links) cannot set
 //! headers, so they carry it as the `maskette_token` query parameter.
+//!
+//! A request without the right token gets 401 with the `detail` code
+//! `token_rejected`, which the screen translates as a lost connection that a
+//! restart of the app fixes. The window always carries this launch's token,
+//! so this should only reach a screen that got its token from elsewhere, such
+//! as a browser on the dev server whose proxy read a stale handoff file.
 
 use axum::extract::{Request, State};
 use axum::http::StatusCode;
@@ -81,7 +87,7 @@ pub async fn require_token(
     } else {
         (
             StatusCode::UNAUTHORIZED,
-            axum::Json(serde_json::json!({ "detail": "Missing or invalid Maskette token" })),
+            axum::Json(serde_json::json!({ "detail": "token_rejected" })),
         )
             .into_response()
     }
