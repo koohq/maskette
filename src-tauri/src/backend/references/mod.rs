@@ -37,7 +37,8 @@ const IMAGE_MEDIA_TYPES: [(&str, &str); 4] = [
 const ALLOWED_UPLOAD_MIME_TYPES: [&str; 3] = ["image/png", "image/jpeg", "image/webp"];
 
 const INVALID_PATH: &str = "Invalid reference asset path";
-const UNSUPPORTED_TYPE: &str = "Unsupported reference image type";
+/// A code the screen translates (`agent.errors.unsupported_image_type`): a user can drop any image file.
+const UNSUPPORTED_TYPE: &str = "unsupported_image_type";
 
 pub fn routes() -> Router<SharedState> {
     Router::new()

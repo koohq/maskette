@@ -898,6 +898,10 @@ async fn messages_must_say_something_and_wait_for_the_run() {
         )
         .await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json_body(response).await["detail"],
+        "unsupported_image_type"
+    );
 
     // A slow model keeps the run going while a second message arrives.
     setup.llm.set(|_| {

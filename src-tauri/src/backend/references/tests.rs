@@ -162,12 +162,7 @@ async fn reference_upload_rejects_non_image_files() {
         ],
     )
     .await;
-    assert_detail(
-        response,
-        StatusCode::BAD_REQUEST,
-        "Unsupported reference image type",
-    )
-    .await;
+    assert_detail(response, StatusCode::BAD_REQUEST, "unsupported_image_type").await;
 
     // An image name with a type that is not an image is refused too.
     let response = upload(
@@ -178,12 +173,7 @@ async fn reference_upload_rejects_non_image_files() {
         ],
     )
     .await;
-    assert_detail(
-        response,
-        StatusCode::BAD_REQUEST,
-        "Unsupported reference image type",
-    )
-    .await;
+    assert_detail(response, StatusCode::BAD_REQUEST, "unsupported_image_type").await;
 }
 
 #[tokio::test]
@@ -322,7 +312,7 @@ async fn reference_assets_refuse_paths_outside_the_folder() {
     assert_detail(
         get(&app, "/api/references/references/upload-a/front.txt").await,
         StatusCode::BAD_REQUEST,
-        "Unsupported reference image type",
+        "unsupported_image_type",
     )
     .await;
     for uri in [
