@@ -4,6 +4,7 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { ConfirmDialog } from "../../ui/IdeDialog";
+import { errorDetail } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import {
@@ -64,7 +65,7 @@ export function SettingsPage() {
     } catch (error) {
       setNotice({
         tone: "error",
-        text: t("settings.saveFailed", { error: error instanceof Error ? error.message : String(error) }),
+        text: t("settings.saveFailed", { error: errorDetail(t, error) }),
       });
     } finally {
       setBusy(false);
@@ -461,7 +462,7 @@ function ProbePanel({ probeRole, unsaved, disabled }: { probeRole: ProbeRole; un
     try {
       setResult(await probeBackend(probeRole));
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : String(caught));
+      setError(errorDetail(t, caught));
     } finally {
       setRunning(false);
     }

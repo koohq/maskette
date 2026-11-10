@@ -32,6 +32,7 @@ import {
   versionDownloadUrl,
   versionSourceUrl,
 } from "../agent/agentApi";
+import { apiErrorText, errorDetail } from "../agent/apiErrorText";
 import { useConversation } from "../agent/useConversation";
 import { type EditorTool, editorTools } from "../editor/components/EditorToolRail";
 import {
@@ -164,8 +165,7 @@ export function WorkspacePage() {
       setToast({ text: t("workspace.busy"), tone: "error" });
       return;
     }
-    const message = error instanceof Error ? error.message : String(error);
-    setToast({ text: t("agent.errors.generic", { message }), tone: "error" });
+    setToast({ text: apiErrorText(t, error), tone: "error" });
   }
 
   async function sendChat(text: string, files: File[], extra: { action?: ApproveAction; imageId?: string } = {}) {
@@ -179,15 +179,13 @@ export function WorkspacePage() {
       return true;
     } catch (error) {
       setRunning(false);
-      const code = error instanceof AgentApiError ? error.message : String(error);
-      setSendError(t(`agent.errors.${code}`, { defaultValue: t("agent.errors.generic", { message: code }) }));
+      setSendError(apiErrorText(t, error));
       return false;
     }
   }
 
   function agentErrorText(error: unknown) {
-    const code = error instanceof AgentApiError ? error.message : String(error);
-    return t(`agent.errors.${code}`, { defaultValue: t("agent.errors.generic", { message: code }) });
+    return apiErrorText(t, error);
   }
 
   async function regenerate() {
@@ -493,7 +491,9 @@ export function WorkspacePage() {
           ) : (
             <div className="ide-welcome">
               {loadError ? (
-                <p className="agent-notice agent-notice-error">{t("agent.errors.load", { message: loadError })}</p>
+                <p className="agent-notice agent-notice-error">
+                  {t("agent.errors.load", { message: errorDetail(t, loadError) })}
+                </p>
               ) : (
                 <>
                   <img alt="" className="h-12 w-12 opacity-60" src="/logo.png" />

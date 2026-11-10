@@ -23,6 +23,7 @@ import {
   listConversations,
   renameConversation,
 } from "../agent/agentApi";
+import { apiErrorText } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
 import { ThemeToggle } from "./ThemeToggle";
@@ -73,8 +74,7 @@ export function ProjectsPage() {
   }
 
   function actionError(error: unknown) {
-    const code = error instanceof Error ? error.message : String(error);
-    return t(`agent.errors.${code}`, { defaultValue: t("agent.errors.generic", { message: code }) });
+    return apiErrorText(t, error);
   }
 
   return (
