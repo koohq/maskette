@@ -245,6 +245,7 @@ const en: TranslationResource = {
       probe_unsupported: "The connection test only works when the OpenAI-compatible API route is chosen and saved.",
       settings_not_saved: "The settings could not be saved.",
       version_not_saved: "The edited image could not be saved. Check the free disk space and write permissions.",
+      token_rejected: "The connection to Maskette was lost. Restart Maskette.",
       reference_not_saved: "The reference image could not be saved. Check the free disk space and write permissions.",
       load: "Failed to load the chat: {{message}}",
     },

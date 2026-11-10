@@ -147,12 +147,13 @@ function getImageUsage(summary?: AuditSummary | null): ImageUsageSummary {
     {}) as ImageUsageSummary;
 }
 
+/**
+ * The desktop backend accepts any password and has no retry limit, so the only 401 is the per-launch token being
+ * refused (`token_rejected`, the same text as `agent.errors.token_rejected`). Anything else is a plain failure.
+ */
 function loginErrorMessage(error: unknown) {
-  if (error instanceof ApiError && error.status === 429) {
-    return "重试次数过多，请稍后再试。";
-  }
   if (error instanceof ApiError && error.status === 401) {
-    return "密码错误。";
+    return "与 Maskette 的连接已断开，请重新启动 Maskette。";
   }
   return "登录失败，请重试。";
 }

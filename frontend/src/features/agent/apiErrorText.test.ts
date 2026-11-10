@@ -38,7 +38,8 @@ function rustFiles(dir: string): string[] {
 function backendDetailCodes(): Set<string> {
   const codes = new Set<string>();
   for (const path of rustFiles(BACKEND)) {
-    const source = readFileSync(path, "utf8").split("#[cfg(test)]")[0] ?? "";
+    // Cut at the test module, not at the first `#[cfg(test)]`: some files mark a single helper that way.
+    const source = readFileSync(path, "utf8").split(/#\[cfg\(test\)\]\s*mod\b/)[0] ?? "";
     const plainErr = PLAIN_ERR_FILES.has(path.split(/[\\/]/).pop() ?? "");
     // String constants (`const UNSUPPORTED_TYPE: &str = "..."`), counted when an error line uses them.
     const constants = new Map(
@@ -48,7 +49,8 @@ function backendDetailCodes(): Set<string> {
     );
     for (const line of source.split("\n")) {
       const errorLine =
-        /ApiError|bad_request\(|conflict\(|not_found\(|unprocessable\(/.test(line) ||
+        // `"detail":` is a response built by hand, like the token check's 401.
+        /ApiError|bad_request\(|conflict\(|not_found\(|unprocessable\(|"detail":/.test(line) ||
         // In those files a code also stands alone as the last value of a `map_err` closure.
         (plainErr && /Err\(|map_err\(|ok_or\(|let nothing|^\s*"[a-z0-9_]+"\s*$/.test(line));
       if (!errorLine) continue;
@@ -76,6 +78,7 @@ describe("HTTP error codes", () => {
     expect(sent).toContain("invalid_setting");
     expect(sent).toContain("not_a_zip");
     expect(sent).toContain("nothing_to_regenerate");
+    expect(sent).toContain("token_rejected");
     const missing = [...sent].filter((code) => !DETAIL_CODES.has(code) && !NOT_SHOWN.has(code));
     expect(missing).toEqual([]);
     const stale = [...DETAIL_CODES, ...NOT_SHOWN].filter((code) => !sent.has(code));
@@ -104,6 +107,17 @@ describe("HTTP error codes", () => {
     await i18n.changeLanguage("zh-CN");
     expect(apiErrorText(i18n.t, new AgentApiError("unsupported_image_type", 400))).toBe(
       "不支持这种图片格式。请选择 PNG、JPEG 或 WebP 图片。",
+    );
+  });
+
+  it("tells the user to restart the app when the backend refuses its token", async () => {
+    await i18n.changeLanguage("ja");
+    expect(apiErrorText(i18n.t, new AgentApiError("token_rejected", 401))).toBe(
+      "Maskette との接続が切れました。Maskette を再起動してください。",
+    );
+    await i18n.changeLanguage("en");
+    expect(errorDetail(i18n.t, new Error("token_rejected"))).toBe(
+      "The connection to Maskette was lost. Restart Maskette.",
     );
   });
 

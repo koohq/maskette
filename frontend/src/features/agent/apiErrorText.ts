@@ -37,6 +37,7 @@ export const DETAIL_CODES = new Set([
   "settings_not_saved",
   "version_not_saved",
   "reference_not_saved",
+  "token_rejected",
 ]);
 
 /**

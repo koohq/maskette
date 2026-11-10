@@ -235,6 +235,7 @@ const zhCN = {
       probe_unsupported: "只有选择并保存了“OpenAI 兼容 API”接入方式时，才能进行连接测试。",
       settings_not_saved: "无法保存设置。",
       version_not_saved: "无法保存编辑后的图片。请检查磁盘空间和写入权限。",
+      token_rejected: "与 Maskette 的连接已断开，请重新启动 Maskette。",
       reference_not_saved: "无法保存参考图。请检查磁盘空间和写入权限。",
       load: "加载对话失败：{{message}}",
     },

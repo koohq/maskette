@@ -212,10 +212,11 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
     // In the desktop app any password is accepted; a 401 comes from the per-launch token.
     [
       "the server refuses the app",
-      new ApiError("API request failed: 401", 401, "Missing or invalid Maskette token"),
-      "密码错误。",
+      new ApiError("API request failed: 401", 401, "token_rejected"),
+      "与 Maskette 的连接已断开，请重新启动 Maskette。",
     ],
-    ["too many tries", new ApiError("API request failed: 429", 429, null), "重试次数过多，请稍后再试。"],
+    // The desktop backend has no retry limit; a 429 would be an ordinary failure.
+    ["too many tries", new ApiError("API request failed: 429", 429, null), "登录失败，请重试。"],
     ["the server fails", new ApiError("API request failed: 500", 500, "boom"), "登录失败，请重试。"],
     ["the request never arrives", new TypeError("Failed to fetch"), "登录失败，请重试。"],
   ])("translates the sign-in failure when %s", async (_case, error, chinese) => {
@@ -228,5 +229,11 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe(literalTranslations[locale][chinese]);
     expect(untranslated(visibleStrings(container), locale)).toEqual([]);
+  });
+
+  it("says the same as the other screens when the backend refuses the app's token", () => {
+    const chinese = "与 Maskette 的连接已断开，请重新启动 Maskette。";
+    expect(i18n.t("agent.errors.token_rejected", { lng: "zh-CN" })).toBe(chinese);
+    expect(literalTranslations[locale][chinese]).toBe(i18n.t("agent.errors.token_rejected", { lng: locale }));
   });
 });
