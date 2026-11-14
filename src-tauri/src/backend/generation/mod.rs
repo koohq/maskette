@@ -27,6 +27,8 @@ pub mod usage;
 pub mod watermark;
 
 #[cfg(test)]
+mod compare;
+#[cfg(test)]
 mod tests;
 
 use std::path::{Component, Path, PathBuf};
