@@ -610,7 +610,11 @@ describe("EditorWorkspace", () => {
     );
     expect(screen.getByTestId("annotation-pin-1")).toHaveAttribute("data-selected", "true");
 
-    fireEvent.pointerDown(screen.getByTestId("annotation-delete-annotation-1"), { pointerId: 3 });
+    const deleteButton = screen.getByTestId("annotation-delete-annotation-1");
+    fireEvent.pointerDown(deleteButton, { pointerId: 3 });
+    // The press alone must not delete: the mark goes on a click, so Enter and Space delete it too.
+    expect(screen.getByTestId("annotation-pin-1")).toBeInTheDocument();
+    fireEvent.click(deleteButton);
 
     await waitFor(() =>
       expect(onRecipeChange).toHaveBeenLastCalledWith(
@@ -620,6 +624,35 @@ describe("EditorWorkspace", () => {
       ),
     );
     expect(screen.queryByTestId("annotation-pin-1")).toBeNull();
+  });
+
+  it("selects, moves and deletes an annotation pin from the keyboard", async () => {
+    const onRecipeChange = vi.fn();
+    renderEditor({ onRecipeChange });
+    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
+    const stage = screen.getByTestId("editor-stage");
+    mockStageRect(stage);
+
+    fireEvent.pointerDown(stage, { clientX: 640, clientY: 360, pointerId: 1 });
+    fireEvent.pointerUp(stage, { pointerId: 1 });
+    const pin = await screen.findByTestId("annotation-pin-1");
+    act(() => pin.focus());
+    expect(screen.getByTestId("annotation-pin-1")).toHaveAttribute("data-selected", "true");
+
+    fireEvent.keyDown(pin, { key: "ArrowRight" });
+    fireEvent.keyDown(pin, { key: "ArrowDown", shiftKey: true });
+    await waitFor(() =>
+      expect(onRecipeChange).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          annotations: [
+            expect.objectContaining({ id: "annotation-1", x: expect.closeTo(0.505), y: expect.closeTo(0.52) }),
+          ],
+        }),
+      ),
+    );
+
+    fireEvent.keyDown(screen.getByTestId("annotation-pin-1"), { key: "Delete" });
+    await waitFor(() => expect(onRecipeChange).toHaveBeenLastCalledWith(expect.objectContaining({ annotations: [] })));
   });
 
   it("mounts Pixi with the selected image and sizes the annotation overlay from candidate dimensions", async () => {
@@ -1009,6 +1042,28 @@ describe("EditorWorkspace", () => {
       ),
     );
     expect(screen.getByTestId("landmark-leftEye")).toHaveAttribute("data-selected", "true");
+  });
+
+  it("lets users move landmark markers with the arrow keys", async () => {
+    const onRecipeChange = vi.fn();
+    renderEditor({ onRecipeChange });
+    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
+
+    fireEvent.click(screen.getByTestId("editor-tool-face"));
+    const leftEye = screen.getByTestId("landmark-leftEye");
+    act(() => leftEye.focus());
+    expect(screen.getByTestId("landmark-leftEye")).toHaveAttribute("data-selected", "true");
+
+    // The marker sits at its point as percentages of the stage.
+    const before = { x: Number.parseFloat(leftEye.style.left) / 100, y: Number.parseFloat(leftEye.style.top) / 100 };
+    fireEvent.keyDown(leftEye, { key: "ArrowLeft", shiftKey: true });
+    fireEvent.keyDown(screen.getByTestId("landmark-leftEye"), { key: "ArrowUp" });
+
+    await waitFor(() => {
+      const moved = onRecipeChange.mock.lastCall?.[0]?.landmarks?.leftEye;
+      expect(moved?.x).toBeCloseTo(before.x - 0.02);
+      expect(moved?.y).toBeCloseTo(before.y - 0.005);
+    });
   });
 
   it("applies deformation brush drags with direction and distance from pointer movement", async () => {

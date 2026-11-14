@@ -2076,28 +2076,37 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     openSaveMenuAt(event.clientX, event.clientY);
   }
 
-  function handleAnnotationPointerDown(annotationId: string, event: PointerEvent<HTMLDivElement>) {
-    event.stopPropagation();
+  function handleAnnotationSelect(annotationId: string) {
     setShowLandmarkHint(false);
-    const point = getStagePoint(event);
     const annotation = latestRecipeRef.current.annotations.find((mark) => mark.id === annotationId);
     if (annotation?.color) setAnnotationColor(annotation.color);
     if (annotation?.fontSize) setAnnotationFontSize(annotation.fontSize);
+    setSelectedAnnotationId(annotationId);
+  }
+
+  function handleAnnotationPointerDown(annotationId: string, event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
+    const point = getStagePoint(event);
+    const annotation = latestRecipeRef.current.annotations.find((mark) => mark.id === annotationId);
     annotationDragRef.current = {
       annotationId,
       offsetX: annotation ? point.x - annotation.x : 0,
       offsetY: annotation ? point.y - annotation.y : 0,
       pointerId: event.pointerId,
     };
-    setSelectedAnnotationId(annotationId);
+    handleAnnotationSelect(annotationId);
     lastStagePointRef.current = point;
   }
 
-  function handleAnnotationHandlePointerDown(
-    annotationId: string,
-    handle: string,
-    event: PointerEvent<HTMLDivElement>,
-  ) {
+  /** Arrow keys on a focused mark; the presses in a row are one step to undo, like a drag. */
+  function handleAnnotationMove(annotationId: string, point: { x: number; y: number }) {
+    updateRecipe((currentRecipe) => moveAnnotationMark(currentRecipe, annotationId, point), {
+      history: "annotation",
+      historyKey: `annotation-move:${annotationId}`,
+    });
+  }
+
+  function handleAnnotationHandlePointerDown(annotationId: string, handle: string, event: PointerEvent<HTMLElement>) {
     event.stopPropagation();
     setShowLandmarkHint(false);
     const annotation = latestRecipeRef.current.annotations.find((mark) => mark.id === annotationId);
@@ -2113,8 +2122,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     };
   }
 
-  function handleAnnotationDelete(annotationId: string, event: PointerEvent<HTMLButtonElement>) {
-    event.stopPropagation();
+  function handleAnnotationDelete(annotationId: string) {
     updateRecipe((currentRecipe) => removeAnnotationMark(currentRecipe, annotationId), {
       history: "annotation",
       historyKey: `annotation-delete:${annotationId}`,
@@ -2122,12 +2130,22 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     setSelectedAnnotationId(null);
   }
 
-  function handleLandmarkPointerDown(key: ManualLandmarkKey, event: PointerEvent<HTMLDivElement>) {
-    event.stopPropagation();
+  function handleLandmarkSelect(key: ManualLandmarkKey) {
     setShowLandmarkHint(false);
+    setSelectedLandmarkKey(key);
+  }
+
+  function handleLandmarkPointerDown(key: ManualLandmarkKey, event: PointerEvent<HTMLElement>) {
+    event.stopPropagation();
     landmarkFallbackRef.current = false;
     landmarkDragRef.current = { key, offsetX: 0, offsetY: 0, pointerId: event.pointerId };
-    setSelectedLandmarkKey(key);
+    handleLandmarkSelect(key);
+  }
+
+  /** Arrow keys on a focused landmark: the same change as dragging it there. */
+  function handleLandmarkMove(key: ManualLandmarkKey, point: { x: number; y: number }) {
+    landmarkFallbackRef.current = false;
+    updateRecipe((currentRecipe) => updateManualLandmark(currentRecipe, key, point));
   }
 
   async function recognizeFaceLandmarks() {
@@ -3023,8 +3041,12 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 liquifyStrokes={displayLiquifyStrokes}
                 onAnnotationDelete={handleAnnotationDelete}
                 onAnnotationHandlePointerDown={handleAnnotationHandlePointerDown}
+                onAnnotationMove={handleAnnotationMove}
                 onAnnotationPointerDown={handleAnnotationPointerDown}
+                onAnnotationSelect={handleAnnotationSelect}
+                onLandmarkMove={handleLandmarkMove}
                 onLandmarkPointerDown={handleLandmarkPointerDown}
+                onLandmarkSelect={handleLandmarkSelect}
                 selectedAnnotationId={selectedAnnotationId}
                 selectedLandmarkKey={selectedLandmarkKey}
                 secondaryLandmarks={secondaryLandmarks}

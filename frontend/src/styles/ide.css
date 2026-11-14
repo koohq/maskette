@@ -965,6 +965,25 @@ li:hover > div > .agent-message-actions,
   outline-offset: 1px;
 }
 
+/* Marks on the editor canvas (AnnotationLayer): a ring when the keyboard reaches them, none for a pointer press. */
+.editor-mark:focus {
+  outline: none;
+}
+
+.editor-mark:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: 2px;
+}
+
+/* The focus grip at an arrow's start shows only while it has the keyboard focus. */
+.editor-mark-grip {
+  opacity: 0;
+}
+
+.editor-mark-grip:focus-visible {
+  opacity: 1;
+}
+
 .agent-bubble-user {
   background: var(--ide-panel-raised);
   border: 1px solid var(--ide-border);

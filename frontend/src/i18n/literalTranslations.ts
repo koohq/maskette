@@ -246,6 +246,8 @@ const en: Record<string, string> = {
   侧面轮廓: "Side profile",
   删除: "Delete",
   删除标注: "Delete annotation",
+  "方向键移动，按住 Shift 移动更多，Delete 删除。": "Arrow keys move it, farther with Shift. Delete removes it.",
+  "方向键移动，按住 Shift 移动更多。": "Arrow keys move it, farther with Shift.",
   "参考图请尽量只包含头部或面部，避免背景、身体、文字和杂乱元素干扰生成质量。":
     "Reference images should mainly contain the head or face. Avoid background, body, text, and clutter that may hurt generation quality.",
   可选: "Optional",
@@ -725,6 +727,8 @@ const ja: Record<string, string> = {
   侧面轮廓: "側面輪郭",
   删除: "削除",
   删除标注: "注釈を削除",
+  "方向键移动，按住 Shift 移动更多，Delete 删除。": "矢印キーで動かせます（Shift で大きく）。Delete で消せます。",
+  "方向键移动，按住 Shift 移动更多。": "矢印キーで動かせます（Shift で大きく）。",
   "参考图请尽量只包含头部或面部，避免背景、身体、文字和杂乱元素干扰生成质量。":
     "参考画像はできるだけ頭部または顔のみを含め、背景、身体、文字、雑多な要素を避けてください。",
   可选: "任意",

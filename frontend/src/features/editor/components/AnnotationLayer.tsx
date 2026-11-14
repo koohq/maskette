@@ -1,5 +1,5 @@
 import { IconTrash } from "@tabler/icons-react";
-import type { PointerEvent } from "react";
+import { type KeyboardEvent, type PointerEvent, useId } from "react";
 import { useTranslation } from "react-i18next";
 import { translateLiteralString } from "../../../i18n/literalTranslations";
 import {
@@ -39,10 +39,37 @@ export type AnnotationLayerProps = {
   onAnnotationHandlePointerDown?:
     | ((annotationId: string, handle: string, event: PointerEvent<HTMLDivElement>) => void)
     | undefined;
-  onAnnotationPointerDown?: ((annotationId: string, event: PointerEvent<HTMLDivElement>) => void) | undefined;
-  onAnnotationDelete?: ((annotationId: string, event: PointerEvent<HTMLButtonElement>) => void) | undefined;
-  onLandmarkPointerDown?: ((key: ManualLandmarkKey, event: PointerEvent<HTMLDivElement>) => void) | undefined;
+  onAnnotationPointerDown?: ((annotationId: string, event: PointerEvent<HTMLElement>) => void) | undefined;
+  onAnnotationDelete?: ((annotationId: string) => void) | undefined;
+  /** A mark got the keyboard focus: select it as a click would. */
+  onAnnotationSelect?: ((annotationId: string) => void) | undefined;
+  /** An arrow key moved a focused mark; `point` is its new `x`, `y`. */
+  onAnnotationMove?: ((annotationId: string, point: { x: number; y: number }) => void) | undefined;
+  onLandmarkPointerDown?: ((key: ManualLandmarkKey, event: PointerEvent<HTMLElement>) => void) | undefined;
+  onLandmarkSelect?: ((key: ManualLandmarkKey) => void) | undefined;
+  onLandmarkMove?: ((key: ManualLandmarkKey, point: { x: number; y: number }) => void) | undefined;
 };
+
+/** How far an arrow key moves a focused mark, as a share of the image: half a percent, four times that with Shift. */
+const ARROW_STEP = 0.005;
+const ARROW_STEP_LARGE = 0.02;
+
+function arrowKeyOffset(event: KeyboardEvent<HTMLElement>): { x: number; y: number } | null {
+  if (event.altKey || event.ctrlKey || event.metaKey) return null;
+  const step = event.shiftKey ? ARROW_STEP_LARGE : ARROW_STEP;
+  if (event.key === "ArrowLeft") return { x: -step, y: 0 };
+  if (event.key === "ArrowRight") return { x: step, y: 0 };
+  if (event.key === "ArrowUp") return { x: 0, y: -step };
+  if (event.key === "ArrowDown") return { x: 0, y: step };
+  return null;
+}
+
+/** Resets the button look so a mark keeps its own drawing; `.editor-mark` adds the focus ring. */
+const markButtonReset = {
+  font: "inherit",
+  margin: 0,
+  padding: 0,
+} as const;
 
 const landmarkLabels: Array<{ key: ManualLandmarkKey; label: string }> = [
   { key: "leftEye", label: "左眼" },
@@ -138,10 +165,17 @@ export function AnnotationLayer({
   onAnnotationHandlePointerDown,
   onAnnotationPointerDown,
   onAnnotationDelete,
+  onAnnotationMove,
+  onAnnotationSelect,
   onLandmarkPointerDown,
+  onLandmarkMove,
+  onLandmarkSelect,
 }: AnnotationLayerProps) {
   const { i18n } = useTranslation();
+  const annotationHintId = useId();
+  const landmarkHintId = useId();
   if (!visible) return null;
+  const showLandmarkMarks = Boolean(showLandmarks && landmarks);
 
   const stageTestId = showLandmarks ? "landmark-stage" : showLiquifyStrokes ? "liquify-stage" : "annotation-stage";
   const visibleLiquifyStrokes = showLiquifyStrokes
@@ -162,15 +196,43 @@ export function AnnotationLayer({
         zIndex: 3,
       }}
     >
+      {annotations.length > 0 ? (
+        <span hidden id={annotationHintId}>
+          {translateLiteralString("方向键移动，按住 Shift 移动更多，Delete 删除。", i18n.language)}
+        </span>
+      ) : null}
+      {showLandmarkMarks ? (
+        <span hidden id={landmarkHintId}>
+          {translateLiteralString("方向键移动，按住 Shift 移动更多。", i18n.language)}
+        </span>
+      ) : null}
       {annotations.map((annotation, index) => {
         const kind = annotationKind(annotation);
         const selected = selectedAnnotationId === annotation.id;
         const color = annotationColor(annotation);
         const label = String(index + 1);
-        // Marks are pointer-only drag targets, so they are named graphics (role="img") for screen readers and keep
-        // their selection in data-selected: aria-selected belongs to roles such as option or tab, which would
-        // promise keyboard selection the canvas does not have. Selecting and editing a mark needs the pointer.
         const markName = (kindLabel: string) => translateLiteralString(`${kindLabel} ${label}`, i18n.language);
+        // Each mark is a button: Tab reaches it, focus selects it like a click, the arrow keys move it and Delete
+        // removes it. aria-current tells which mark is selected; the drawing keeps data-selected for the styles.
+        const markKeyboard = {
+          "aria-current": selected || undefined,
+          "aria-describedby": annotationHintId,
+          className: "editor-mark",
+          onFocus: () => onAnnotationSelect?.(annotation.id),
+          onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
+            const offset = arrowKeyOffset(event);
+            if (offset) {
+              event.preventDefault();
+              onAnnotationMove?.(annotation.id, { x: annotation.x + offset.x, y: annotation.y + offset.y });
+              return;
+            }
+            if (event.key === "Delete" || event.key === "Backspace") {
+              event.preventDefault();
+              onAnnotationDelete?.(annotation.id);
+            }
+          },
+          type: "button",
+        } as const;
         const rectLeft = Math.min(annotation.x, annotation.endX);
         const rectTop = Math.min(annotation.y, annotation.endY);
         const rectWidth = Math.max(0.01, Math.abs(annotation.endX - annotation.x) || annotation.width);
@@ -191,10 +253,9 @@ export function AnnotationLayer({
           <button
             aria-label={translateLiteralString("删除标注", i18n.language)}
             data-testid={`annotation-delete-${annotation.id}`}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              onAnnotationDelete?.(annotation.id, event);
-            }}
+            // Delete on click, so Enter and Space work too; the pointer press must not reach the stage below.
+            onClick={() => onAnnotationDelete?.(annotation.id)}
+            onPointerDown={(event) => event.stopPropagation()}
             style={{
               alignItems: "center",
               background: "var(--kb-panel)",
@@ -223,11 +284,11 @@ export function AnnotationLayer({
         if (kind === "arrow") {
           return (
             <div key={annotation.id}>
+              {/* The arrow is drawn in an SVG over the whole stage; a small button at its start takes the focus. */}
               <svg
-                aria-label={markName("箭头标注")}
+                aria-hidden="true"
                 data-selected={selected || undefined}
                 data-testid={`annotation-arrow-${index + 1}`}
-                role="img"
                 style={{
                   height: "100%",
                   inset: 0,
@@ -266,7 +327,7 @@ export function AnnotationLayer({
                   data-testid={`annotation-arrow-hit-${index + 1}`}
                   onPointerDown={(event) => {
                     event.stopPropagation();
-                    onAnnotationPointerDown?.(annotation.id, event as unknown as PointerEvent<HTMLDivElement>);
+                    onAnnotationPointerDown?.(annotation.id, event as unknown as PointerEvent<HTMLElement>);
                   }}
                   pointerEvents="stroke"
                   stroke="transparent"
@@ -278,6 +339,25 @@ export function AnnotationLayer({
                   y2={annotation.endY * 100}
                 />
               </svg>
+              <button
+                {...markKeyboard}
+                aria-label={markName("箭头标注")}
+                className="editor-mark editor-mark-grip"
+                data-testid={`annotation-arrow-focus-${index + 1}`}
+                style={{
+                  ...markButtonReset,
+                  background: "#e0f2fe",
+                  border: `2px solid ${color}`,
+                  height: 14,
+                  left: toPercent(annotation.x),
+                  // Keyboard only: the pointer keeps dragging the arrow's line.
+                  pointerEvents: "none",
+                  position: "absolute",
+                  top: toPercent(annotation.y),
+                  transform: "translate(-50%, -50%)",
+                  width: 14,
+                }}
+              />
               {selected ? (
                 <div
                   data-testid={`annotation-handle-${annotation.id}-end`}
@@ -301,7 +381,8 @@ export function AnnotationLayer({
         if (kind === "rect") {
           return (
             <div key={annotation.id}>
-              <div
+              <button
+                {...markKeyboard}
                 aria-label={markName("矩形标注")}
                 data-selected={selected || undefined}
                 data-testid={`annotation-rect-${index + 1}`}
@@ -309,8 +390,8 @@ export function AnnotationLayer({
                   event.stopPropagation();
                   onAnnotationPointerDown?.(annotation.id, event);
                 }}
-                role="img"
                 style={{
+                  ...markButtonReset,
                   background: selected ? `${color}22` : `${color}12`,
                   border: `${selected ? 3 : 2}px solid ${color}`,
                   boxShadow: selected ? "0 0 0 3px rgba(224, 242, 254, 0.22)" : "none",
@@ -356,7 +437,8 @@ export function AnnotationLayer({
         if (kind === "text") {
           return (
             <div key={annotation.id}>
-              <div
+              <button
+                {...markKeyboard}
                 aria-label={
                   annotation.text?.trim() ? `${markName("文字标注")}: ${annotation.text.trim()}` : markName("文字标注")
                 }
@@ -366,8 +448,9 @@ export function AnnotationLayer({
                   event.stopPropagation();
                   onAnnotationPointerDown?.(annotation.id, event);
                 }}
-                role="img"
                 style={{
+                  ...markButtonReset,
+                  background: "transparent",
                   border: selected ? `2px solid ${color}` : "2px solid transparent",
                   color,
                   cursor: "grab",
@@ -379,6 +462,7 @@ export function AnnotationLayer({
                   minWidth: 34,
                   pointerEvents: "auto",
                   position: "absolute",
+                  textAlign: "left",
                   top: toPercent(annotation.y),
                   transform: "translate(-50%, -50%)",
                   whiteSpace: "pre-wrap",
@@ -387,7 +471,7 @@ export function AnnotationLayer({
                 }}
               >
                 {annotation.text?.trim() || "文字"}
-              </div>
+              </button>
               {selected ? (
                 <div
                   data-testid={`annotation-handle-${annotation.id}-se`}
@@ -410,7 +494,8 @@ export function AnnotationLayer({
 
         return (
           <div key={annotation.id}>
-            <div
+            <button
+              {...markKeyboard}
               aria-label={markName("标注")}
               data-selected={selected || undefined}
               data-testid={`annotation-pin-${index + 1}`}
@@ -418,8 +503,8 @@ export function AnnotationLayer({
                 event.stopPropagation();
                 onAnnotationPointerDown?.(annotation.id, event);
               }}
-              role="img"
               style={{
+                ...markButtonReset,
                 alignItems: "center",
                 background: selected ? "var(--kb-dirty-yellow)" : color,
                 border: "3px solid rgba(255, 255, 255, 0.92)",
@@ -444,7 +529,7 @@ export function AnnotationLayer({
               }}
             >
               {index + 1}
-            </div>
+            </button>
             {deleteButton}
           </div>
         );
@@ -472,7 +557,7 @@ export function AnnotationLayer({
         );
       })}
 
-      {showLandmarks && landmarks
+      {showLandmarkMarks && landmarks
         ? landmarkLabels.map(({ key, label }) => {
             const landmark = getManualLandmarkPoint(landmarks, key);
             if (!landmark) return null;
@@ -482,20 +567,33 @@ export function AnnotationLayer({
             const estimated = brow && !landmarks.brows;
 
             return (
-              // Named graphic with data-selected, for the same reason as the annotation marks above.
-              <div
+              // A button like the annotation marks above: focus selects it and the arrow keys move it.
+              <button
+                aria-current={selected || undefined}
+                aria-describedby={landmarkHintId}
                 aria-label={translateLiteralString(`关键点 ${label}`, i18n.language)}
+                className="editor-mark"
                 data-estimated={estimated || undefined}
                 data-selected={selected || undefined}
                 data-testid={`landmark-${key}`}
                 key={key}
+                onFocus={() => onLandmarkSelect?.(key)}
+                onKeyDown={(event) => {
+                  const offset = arrowKeyOffset(event);
+                  if (!offset) return;
+                  event.preventDefault();
+                  onLandmarkMove?.(key, { x: landmark.x + offset.x, y: landmark.y + offset.y });
+                }}
                 onPointerDown={(event) => {
                   event.stopPropagation();
                   onLandmarkPointerDown?.(key, event);
                 }}
-                role="img"
+                type="button"
                 style={{
+                  ...markButtonReset,
                   alignItems: "center",
+                  background: "transparent",
+                  border: 0,
                   cursor: "grab",
                   display: "flex",
                   height: 30,
@@ -522,7 +620,7 @@ export function AnnotationLayer({
                     width: brow ? 12 : 18,
                   }}
                 />
-              </div>
+              </button>
             );
           })
         : null}
