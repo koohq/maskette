@@ -236,6 +236,8 @@ const zhCN = {
       settings_not_saved: "无法保存设置。",
       version_not_saved: "无法保存编辑后的图片。请检查磁盘空间和写入权限。",
       token_rejected: "与 Maskette 的连接已断开，请重新启动 Maskette。",
+      dev_backend_not_running: "Maskette 应用未运行。请用 `pnpm dev` 启动。",
+      dev_backend_no_answer: "Maskette 应用没有响应。请确认它仍在运行。",
       reference_not_saved: "无法保存参考图。请检查磁盘空间和写入权限。",
       load: "加载对话失败：{{message}}",
     },

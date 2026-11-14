@@ -65,13 +65,23 @@ function backendDetailCodes(): Set<string> {
   return codes;
 }
 
+const VITE_CONFIG = join(import.meta.dirname, "../../../vite.config.ts");
+
+/** Codes the dev server's `/api` proxy answers with when a browser tab cannot reach the app. */
+function devProxyDetailCodes(): Set<string> {
+  const source = readFileSync(VITE_CONFIG, "utf8");
+  return new Set(
+    [...source.matchAll(/sendJson\(response, \d+, "([a-z][a-z0-9_]*)"\)/g)].flatMap((match) => match[1] ?? []),
+  );
+}
+
 afterAll(async () => {
   await i18n.changeLanguage("zh-CN");
 });
 
 describe("HTTP error codes", () => {
   it("translates or knowingly skips every code the backend sends", () => {
-    const sent = backendDetailCodes();
+    const sent = new Set([...backendDetailCodes(), ...devProxyDetailCodes()]);
     // The scan must find the codes it is meant to find, or it proves nothing.
     expect(sent).toContain("image_too_large");
     expect(sent).toContain("settings_not_saved");
@@ -79,6 +89,8 @@ describe("HTTP error codes", () => {
     expect(sent).toContain("not_a_zip");
     expect(sent).toContain("nothing_to_regenerate");
     expect(sent).toContain("token_rejected");
+    expect(sent).toContain("dev_backend_not_running");
+    expect(sent).toContain("dev_backend_no_answer");
     const missing = [...sent].filter((code) => !DETAIL_CODES.has(code) && !NOT_SHOWN.has(code));
     expect(missing).toEqual([]);
     const stale = [...DETAIL_CODES, ...NOT_SHOWN].filter((code) => !sent.has(code));
@@ -118,6 +130,17 @@ describe("HTTP error codes", () => {
     await i18n.changeLanguage("en");
     expect(errorDetail(i18n.t, new Error("token_rejected"))).toBe(
       "The connection to Maskette was lost. Restart Maskette.",
+    );
+  });
+
+  it("says in the UI language when the dev server cannot reach the app", async () => {
+    await i18n.changeLanguage("ja");
+    expect(apiErrorText(i18n.t, new AgentApiError("dev_backend_not_running", 503))).toBe(
+      "Maskette のアプリが起動していません。`pnpm dev` で起動してください。",
+    );
+    await i18n.changeLanguage("en");
+    expect(errorDetail(i18n.t, new Error("dev_backend_no_answer"))).toBe(
+      "The Maskette app did not answer. Check that it is still running.",
     );
   });
 

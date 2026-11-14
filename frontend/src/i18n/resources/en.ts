@@ -246,6 +246,8 @@ const en: TranslationResource = {
       settings_not_saved: "The settings could not be saved.",
       version_not_saved: "The edited image could not be saved. Check the free disk space and write permissions.",
       token_rejected: "The connection to Maskette was lost. Restart Maskette.",
+      dev_backend_not_running: "The Maskette app is not running. Start it with `pnpm dev`.",
+      dev_backend_no_answer: "The Maskette app did not answer. Check that it is still running.",
       reference_not_saved: "The reference image could not be saved. Check the free disk space and write permissions.",
       load: "Failed to load the chat: {{message}}",
     },

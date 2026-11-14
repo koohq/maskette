@@ -241,6 +241,8 @@ const ja: TranslationResource = {
       settings_not_saved: "設定を保存できませんでした。",
       version_not_saved: "編集した画像を保存できませんでした。ディスクの空きと書き込みの権限を確かめてください。",
       token_rejected: "Maskette との接続が切れました。Maskette を再起動してください。",
+      dev_backend_not_running: "Maskette のアプリが起動していません。`pnpm dev` で起動してください。",
+      dev_backend_no_answer: "Maskette のアプリが応答しません。アプリが動いているか確かめてください。",
       reference_not_saved: "参考画像を保存できませんでした。ディスクの空きと書き込みの権限を確かめてください。",
       load: "チャットの読み込みに失敗しました：{{message}}",
     },

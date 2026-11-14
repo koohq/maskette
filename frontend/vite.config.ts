@@ -54,6 +54,10 @@ function readDevBackend(): { port: number; token: string } | null {
   }
 }
 
+/**
+ * Answers in the backend's error shape. `detail` is a code the screen translates (`agent.errors.<code>` in
+ * `src/features/agent/apiErrorText.ts`), so a browser tab shows these in the UI language like the backend's own.
+ */
 function sendJson(response: import("node:http").ServerResponse, status: number, detail: string) {
   if (!response.headersSent) response.writeHead(status, { "Content-Type": "application/json" });
   response.end(JSON.stringify({ detail }));
@@ -76,7 +80,7 @@ function devApiProxyPlugin(): Plugin {
         }
         const backend = readDevBackend();
         if (!backend) {
-          sendJson(response, 503, "The Maskette backend is not running. Start the app with `pnpm dev`.");
+          sendJson(response, 503, "dev_backend_not_running");
           return;
         }
         const upstream = httpRequest(
@@ -96,7 +100,7 @@ function devApiProxyPlugin(): Plugin {
             answer.pipe(response);
           },
         );
-        upstream.on("error", () => sendJson(response, 502, "The Maskette backend did not answer."));
+        upstream.on("error", () => sendJson(response, 502, "dev_backend_no_answer"));
         request.pipe(upstream);
       });
     },

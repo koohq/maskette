@@ -2,7 +2,8 @@ import type { TFunction } from "i18next";
 
 /**
  * Codes the backend sends as the `detail` of an HTTP error (`src-tauri/src/backend/error.rs` and the routers) that a
- * user can run into, translated as `agent.errors.<code>`. Failures inside a run (the CLIs, the hosted APIs) come as
+ * user can run into, translated as `agent.errors.<code>`. The `dev_backend_...` ones come from the dev server's `/api`
+ * proxy (`vite.config.ts`) when a browser tab cannot reach the app. Failures inside a run (the CLIs, the hosted APIs) come as
  * events instead and are translated by `failureText.ts`; the two sets of codes do not overlap.
  *
  * `apiErrorCodes.test.ts` reads the backend's source and fails when it sends a code that is neither here nor in its
@@ -38,6 +39,8 @@ export const DETAIL_CODES = new Set([
   "version_not_saved",
   "reference_not_saved",
   "token_rejected",
+  "dev_backend_not_running",
+  "dev_backend_no_answer",
 ]);
 
 /**
