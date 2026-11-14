@@ -63,7 +63,8 @@ const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 /// The defaults put all three roles on OpenRouter, so one key is enough to
 /// start: the chat and the analysis on `google/gemini-3.8-flash` (reasoning
 /// low and medium), images on Nano Banana 2.1, the model the realism prompts
-/// were checked with (`docs/topics/ai-backends.md`). The old backend's
+/// were checked with (kept after a side-by-side run against newer models;
+/// `generation/compare.rs` repeats it). The old backend's
 /// defaults pointed the chat at Ark's Doubao and left the rest unset.
 pub const FIELDS: &[Field] = &[
     Field {

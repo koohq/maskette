@@ -26,3 +26,6 @@ Thumbs.db
 
 # Dev-only backend handoff for the Vite proxy (holds the session token)
 .maskette-dev/
+
+# Hand-over notes: a separate, private repository kept in place
+docs/

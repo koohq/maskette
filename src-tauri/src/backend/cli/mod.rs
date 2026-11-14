@@ -1,7 +1,8 @@
 //! The subscription CLIs: Codex (`codex exec`) and Claude Code (`claude -p`).
 //!
 //! They run on the user's own PC, logged in with the user's own
-//! subscription (`docs/topics/ai-backends.md`, "CLI と利用規約"). Maskette
+//! subscription; the settings recommend API keys and present these routes
+//! as for the user's own use on their own PC. Maskette
 //! only starts the official CLI: it never reads, copies or passes on their
 //! login tokens and never calls the services behind them directly. What it
 //! puts in the prompt comes partly from outside (reference descriptions,

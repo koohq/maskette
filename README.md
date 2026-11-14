@@ -53,4 +53,3 @@ Layout:
 - `frontend/` — the UI and the image editor (Vite, React, pixi.js, konva,
   onnxruntime-web, MediaPipe)
 - `src-tauri/` — the desktop shell and the local API, in Rust (Tauri, axum)
-- `docs/` — design notes and hand-over documents

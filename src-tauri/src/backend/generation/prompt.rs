@@ -2,8 +2,8 @@
 //! SiliconFlow).
 //!
 //! The wording is the old backend's, unchanged: the stage prompts of
-//! `app/generation/backends/prompting.py` (with the realism proposals 1-3 of
-//! `docs/topics/mask-criteria.md`), the per-mode constraint lists of
+//! `app/generation/backends/prompting.py` (with the realism proposals 1-3,
+//! drawn from photos of finished masks), the per-mode constraint lists of
 //! `app/generation/job_store.py`, and the assembly and shortening of
 //! `app/generation/backends/image_api_prompt.py`.
 //!
