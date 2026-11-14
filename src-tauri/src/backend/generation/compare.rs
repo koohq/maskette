@@ -18,6 +18,12 @@
 //! on the 800x1100 front view) to make the turnaround from each front view
 //! and a local revision inside that ellipse. `MASKETTE_COMPARE_EDIT_NOTE`
 //! replaces the default edit (the star hairpin becomes a heart).
+//!
+//! Each step rebuilds `index.html` in the output folder, which shows the
+//! runs side by side. `MASKETTE_COMPARE_STEP=report` only rebuilds it (no
+//! model is called and no key is read).
+
+mod report;
 
 use std::collections::BTreeMap;
 use std::io::Write as _;
@@ -162,14 +168,25 @@ impl Run<'_> {
 #[ignore = "calls OpenRouter with the stored key; every run is billed"]
 async fn compare_image_models() {
     let step = env("MASKETTE_COMPARE_STEP");
+    let out = PathBuf::from(env("MASKETTE_COMPARE_OUT"));
+    std::fs::create_dir_all(&out).expect("output folder");
+    if step == "report" {
+        println!("report: {}", report::write(&out).display());
+        return;
+    }
     let reference = PathBuf::from(env("MASKETTE_COMPARE_REFERENCE"));
     let models: Vec<String> = env("MASKETTE_COMPARE_MODELS")
         .split(',')
         .map(|model| model.trim().to_owned())
         .filter(|model| !model.is_empty())
         .collect();
-    let out = PathBuf::from(env("MASKETTE_COMPARE_OUT"));
-    std::fs::create_dir_all(&out).expect("output folder");
+    // The report shows the character next to the results.
+    let extension = reference
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("png");
+    std::fs::copy(&reference, out.join(format!("reference.{extension}")))
+        .expect("reference copied");
 
     // The app falls back to the chat and analysis keys when they point at
     // OpenRouter; the keys are assumed to be OpenRouter's here.
@@ -195,13 +212,7 @@ async fn compare_image_models() {
         backend: &backend,
         out: out.clone(),
     };
-    let reference_name = format!(
-        "character.{}",
-        reference
-            .extension()
-            .and_then(|ext| ext.to_str())
-            .unwrap_or("png")
-    );
+    let reference_name = format!("character.{extension}");
 
     match step.as_str() {
         "front" => {
@@ -251,6 +262,7 @@ async fn compare_image_models() {
                 run.job(model, "local", &request).await;
             }
         }
-        other => panic!("MASKETTE_COMPARE_STEP is front or follow, not {other:?}"),
+        other => panic!("MASKETTE_COMPARE_STEP is front, follow or report, not {other:?}"),
     }
+    println!("report: {}", report::write(&out).display());
 }
