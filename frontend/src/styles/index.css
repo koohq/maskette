@@ -30,28 +30,32 @@ body,
   height: 100%;
 }
 
-/* ---- Theme tokens (keep in sync with app/theme.ts) ---------------------- */
+/* ---- Theme tokens -------------------------------------------------------
+  The colours come from app/theme.ts (`idePalettes`): the provider writes the
+  palette picked in Settings onto <html> as these variables. The blocks below
+  repeat only the default palette (mikan), so the first paint has colours;
+  theme.test.ts fails if they drift from theme.ts. */
 
 :root,
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ide-accent: #2e95f8;
-  --ide-accent-hover: #52a8fa;
-  --ide-accent-contrast: #04122a;
-  --ide-accent-soft: rgba(46, 149, 248, 0.16);
-  --ide-bg: #0a1426;
-  --ide-panel: #0e1a30;
-  --ide-panel-raised: #14223b;
-  --ide-activity: #071022;
-  --ide-border: #1e2d48;
-  --ide-border-strong: #2b3d5e;
-  --ide-text: #e3eaf5;
-  --ide-text-muted: #8796b0;
-  --ide-text-faint: #566684;
-  --ide-hover: #172741;
-  --ide-input: #071022;
-  --ide-canvas: #060d1b;
-  --ide-canvas-check: #0a1426;
+  --ide-accent: #f59a4a;
+  --ide-accent-hover: #f8ad6b;
+  --ide-accent-contrast: #2a1404;
+  --ide-accent-soft: rgba(245, 154, 74, 0.16);
+  --ide-bg: #1a1817;
+  --ide-panel: #211f1d;
+  --ide-panel-raised: #2a2725;
+  --ide-activity: #141211;
+  --ide-border: #33302d;
+  --ide-border-strong: #46413d;
+  --ide-text: #eee9e4;
+  --ide-text-muted: #a39c96;
+  --ide-text-faint: #716a64;
+  --ide-hover: #2c2926;
+  --ide-input: #141211;
+  --ide-canvas: #100f0e;
+  --ide-canvas-check: #1a1817;
   --ide-danger: #f26d6d;
   --ide-success: #43c38c;
   --ide-warning: #e5b454;
@@ -60,27 +64,27 @@ body,
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --ide-accent: #116ced;
-  --ide-accent-hover: #0b59c8;
+  --ide-accent: #b54d0f;
+  --ide-accent-hover: #9a410c;
   --ide-accent-contrast: #ffffff;
-  --ide-accent-soft: rgba(17, 108, 237, 0.1);
-  --ide-bg: #f4f7fc;
+  --ide-accent-soft: rgba(181, 77, 15, 0.1);
+  --ide-bg: #f7f5f2;
   --ide-panel: #ffffff;
-  --ide-panel-raised: #edf2f9;
-  --ide-activity: #e6edf7;
-  --ide-border: #d9e2ef;
-  --ide-border-strong: #c1cee1;
-  --ide-text: #0f1f3d;
-  --ide-text-muted: #5a6a86;
-  --ide-text-faint: #93a1b8;
-  --ide-hover: #e8eff9;
+  --ide-panel-raised: #f0ede8;
+  --ide-activity: #ece8e2;
+  --ide-border: #e3ded6;
+  --ide-border-strong: #cfc8be;
+  --ide-text: #2a211b;
+  --ide-text-muted: #6b6158;
+  --ide-text-faint: #8c8278;
+  --ide-hover: #f2ede6;
   --ide-input: #ffffff;
-  --ide-canvas: #e3eaf4;
-  --ide-canvas-check: #dae2ee;
-  --ide-danger: #d64545;
-  --ide-success: #25966a;
-  --ide-warning: #b7791f;
-  --ide-shadow: 0 10px 30px rgba(7, 22, 48, 0.12);
+  --ide-canvas: #ece8e2;
+  --ide-canvas-check: #e3ded6;
+  --ide-danger: #c93c3c;
+  --ide-success: #1b7a52;
+  --ide-warning: #a86b12;
+  --ide-shadow: 0 10px 30px rgba(42, 33, 27, 0.12);
 }
 
 /* Legacy tokens used by the editor and audit components, mapped onto the IDE theme. */
@@ -138,6 +142,8 @@ body {
   margin: 0;
   background: var(--ide-bg);
   color: var(--ide-text);
+  /* Native radios, checkboxes and range inputs follow the palette instead of the browser's blue. */
+  accent-color: var(--ide-accent);
   font-family: var(--ui-font-family);
   font-size: 13px;
   -webkit-font-smoothing: antialiased;

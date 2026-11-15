@@ -1,15 +1,14 @@
 ---
 version: "beta"
 name: "Maskette IDE"
-description: "An IDE-style workspace for designing kigurumi head shells, themed after the logo it inherited from Visual Studio Kigurumi (V.S.K)."
+description: "An IDE-style workspace for designing kigurumi head shells. Its default colours come from the Maskette mascot: mandarin hair on warm greys."
 colors:
-  logo-blue: "#1890F8"
-  logo-navy: "#003880"
-  logo-deep-navy: "#071630"
-  dark-accent: "#2E95F8"
-  dark-background: "#0A1426"
-  light-accent: "#116CED"
-  light-background: "#F4F7FC"
+  mascot-mandarin: "#F59A4A"
+  mascot-green: "#3FBF80"
+  dark-accent: "#F59A4A"
+  dark-background: "#1A1817"
+  light-accent: "#B54D0F"
+  light-background: "#F7F5F2"
 typography:
   ui:
     fontFamily: Inter, PingFang SC, Microsoft YaHei, system-ui
@@ -22,19 +21,29 @@ The app looks like a code editor: a title bar, an activity bar with tools, an ex
 
 ## Colors
 
-The palette comes from the logo: bright blue on navy. Both themes are defined as CSS variables in `src/styles/index.css` (`--ide-*`) and mirrored in `src/app/theme.ts` for MUI. Keep the two in sync and use the variables instead of hard-coded colours.
+The default palette comes from the logo: the mascot's mandarin hair as the accent, on warm greys. Users can pick another palette in Settings (Colors); light or dark is a separate switch in the header.
+
+| Palette | Accent | Background | Notes |
+| --- | --- | --- | --- |
+| `mikan` (default) | mandarin `#F59A4A` / `#B54D0F` | warm grey | from the mascot's hair |
+| `wakaba` | green `#3FBF80` / `#1C7F4F` | warm grey | from the mascot's eyes; success turns blue so it does not read as the accent |
+| `ai` | blue `#2E95F8` / `#116CED` | navy | the colours the app had before its own logo (light-mode faint and status colours darkened to meet the contrast rule below) |
+
+`app/theme.ts` (`idePalettes`) is the single source of every colour, per palette and mode. The provider writes the chosen set onto `<html>` as the `--ide-*` CSS variables and hands the same values to MUI. `src/styles/index.css` repeats only the default palette so the first paint has colours; `theme.test.ts` fails if the two drift. Use the variables instead of hard-coded colours.
+
+Default palette (`mikan`):
 
 | Token | Dark | Light | Use |
 | --- | --- | --- | --- |
-| `accent` | `#2E95F8` | `#116CED` | primary buttons, active tabs, focus, sliders |
-| `accent-contrast` | `#04122A` | `#FFFFFF` | text on accent (navy on blue in dark mode for contrast) |
-| `bg` | `#0A1426` | `#F4F7FC` | window background |
-| `panel` / `panel-raised` | `#0E1A30` / `#14223B` | `#FFFFFF` / `#EDF2F9` | side panels, cards, menus |
-| `border` / `border-strong` | `#1E2D48` / `#2B3D5E` | `#D9E2EF` / `#C1CEE1` | dividers and outlines |
-| `text` / `text-muted` / `text-faint` | `#E3EAF5` / `#8796B0` / `#566684` | `#0F1F3D` / `#5A6A86` / `#93A1B8` | text levels |
-| `danger` / `success` / `warning` | `#F26D6D` / `#43C38C` / `#E5B454` | `#D64545` / `#25966A` / `#B7791F` | status only |
+| `accent` | `#F59A4A` | `#B54D0F` | primary buttons, active tabs, focus, sliders |
+| `accent-contrast` | `#2A1404` | `#FFFFFF` | text on accent (dark brown on mandarin in dark mode for contrast) |
+| `bg` | `#1A1817` | `#F7F5F2` | window background |
+| `panel` / `panel-raised` | `#211F1D` / `#2A2725` | `#FFFFFF` / `#F0EDE8` | side panels, cards, menus |
+| `border` / `border-strong` | `#33302D` / `#46413D` | `#E3DED6` / `#CFC8BE` | dividers and outlines |
+| `text` / `text-muted` / `text-faint` | `#EEE9E4` / `#A39C96` / `#716A64` | `#2A211B` / `#6B6158` / `#8C8278` | text levels |
+| `danger` / `success` / `warning` | `#F26D6D` / `#43C38C` / `#E5B454` | `#C93C3C` / `#1B7A52` / `#A86B12` | status only |
 
-Body text and accent text meet WCAG AA on their backgrounds; `text-faint` is for non-essential hints only.
+In every palette, body text, muted text and text on the accent meet WCAG AA on their backgrounds, status colours read as text, and `text-faint` reaches 3:1 (non-essential hints only); `theme.test.ts` checks all of this. To add a palette, add its id to `PALETTE_IDS`, its colours to `idePalettes` (both modes, every token), and its name to `settings.palettes` in each locale, then check the contrast.
 
 ## Typography
 

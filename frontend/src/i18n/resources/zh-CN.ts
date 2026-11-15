@@ -306,6 +306,15 @@ const zhCN = {
     ready: "可用",
     missing: "未配置",
     recommended: "推荐",
+    appearanceSection: "界面颜色",
+    appearanceHint:
+      "主按钮、选中项和焦点的颜色，以及背景色的组合。明暗可在标题栏切换。选择后立即生效，并保存在这台电脑上。",
+    paletteDefault: "默认",
+    palettes: {
+      mikan: "橘子（橙色）",
+      wakaba: "嫩叶（绿色）",
+      ai: "靛蓝（以前的蓝色）",
+    },
     subscriptionCliNote:
       "会调用以个人 ChatGPT 或 Claude 订阅登录的 CLI。请只在自己的电脑上、供自己使用。如果给其他人使用或部署在服务器上，请选择使用 API 密钥的接入方式（标有推荐的那一项）。",
     agentSection: "对话助手 LLM",

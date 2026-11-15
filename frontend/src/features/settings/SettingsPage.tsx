@@ -7,6 +7,7 @@ import { ConfirmDialog } from "../../ui/IdeDialog";
 import { errorDetail } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { ThemeToggle } from "../workspace/ThemeToggle";
+import { PaletteSection } from "./PaletteSection";
 import {
   type BackendSettings,
   backendRequirement,
@@ -313,6 +314,9 @@ export function SettingsPage() {
             </div>
           </div>
         ) : null}
+        <div className="mt-6">
+          <PaletteSection />
+        </div>
       </main>
       {confirmingReset ? (
         <ConfirmDialog

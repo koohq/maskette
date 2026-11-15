@@ -303,8 +303,10 @@ describe("SettingsPage", () => {
 
     await screen.findByText("需要填写方舟 API Key");
     expect(screen.getByText("生产环境下设置为只读，请修改 .env。")).toBeTruthy();
-    await waitFor(() =>
-      expect(screen.getAllByRole("radio").every((radio) => (radio as HTMLInputElement).disabled)).toBe(true),
-    );
+    // The colour choice is kept in this browser, not in the backend settings, so it stays editable.
+    const backendRadios = () =>
+      screen.getAllByRole("radio").filter((radio) => (radio as HTMLInputElement).name !== "palette");
+    await waitFor(() => expect(backendRadios().every((radio) => (radio as HTMLInputElement).disabled)).toBe(true));
+    expect(screen.getAllByRole("radio").some((radio) => (radio as HTMLInputElement).name === "palette")).toBe(true);
   });
 });

@@ -324,6 +324,15 @@ const en: TranslationResource = {
     ready: "Ready",
     missing: "Not configured",
     recommended: "Recommended",
+    appearanceSection: "Colors",
+    appearanceHint:
+      "The color of primary buttons, selection and focus, together with the background colors. Switch between light and dark in the header. Applies at once and is kept on this computer.",
+    paletteDefault: "Default",
+    palettes: {
+      mikan: "Mandarin (orange)",
+      wakaba: "Young leaf (green)",
+      ai: "Indigo (the earlier blue)",
+    },
     subscriptionCliNote:
       "Drives a CLI signed in with a personal ChatGPT or Claude subscription. Use it only on your own machine, for yourself. If other people use this app or it runs on a server, pick a backend that uses an API key (the recommended one).",
     agentSection: "Chat assistant LLM",

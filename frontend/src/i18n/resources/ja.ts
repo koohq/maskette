@@ -319,6 +319,15 @@ const ja: TranslationResource = {
     ready: "利用可能",
     missing: "未設定",
     recommended: "おすすめ",
+    appearanceSection: "画面の色",
+    appearanceHint:
+      "主ボタン・選んだ項目・フォーカスの色と、背景の色の組み合わせです。明るい・暗いはヘッダーで切り替えます。選ぶとすぐ反映され、このコンピューターに保存されます。",
+    paletteDefault: "既定",
+    palettes: {
+      mikan: "蜜柑（オレンジ）",
+      wakaba: "若葉（緑）",
+      ai: "藍（以前の青）",
+    },
     subscriptionCliNote:
       "ChatGPT や Claude の個人のサブスクでログインした CLI を呼びます。自分の PC で自分だけが使う前提にしてください。ほかの人に使わせるときやサーバーで動かすときは、API キーで使うつなぎ先（おすすめの印が付いたもの）を選んでください。",
     agentSection: "チャットアシスタント LLM",
