@@ -39,7 +39,7 @@ describe("workspace chrome", () => {
 
   it("resizes the agent panel from the keyboard", () => {
     render(<ResizeHarness initial={400} />);
-    const splitter = screen.getByRole("separator", { name: "调整 Agent 面板宽度" });
+    const splitter = screen.getByRole("separator", { name: "调整助手面板宽度" });
     expect(splitter).toHaveAttribute("tabindex", "0");
     expect(splitter).toHaveAttribute("aria-valuenow", "400");
     expect(splitter).toHaveAttribute("aria-valuemin", String(MIN_AGENT_WIDTH));
@@ -57,12 +57,23 @@ describe("workspace chrome", () => {
   it("renders a tab as open and close buttons, with the open one marked current", () => {
     const onOpen = vi.fn();
     const onClose = vi.fn();
-    render(<EditorTab active id="v2" onClose={onClose} onOpen={onOpen} roleLabel="头壳正视图" unsaved />);
+    render(
+      <EditorTab
+        active
+        id="v2"
+        onClose={onClose}
+        onOpen={onOpen}
+        roleLabel="头壳正视图"
+        thumbnailUrl="/v2.png"
+        unsaved
+      />,
+    );
 
     expect(screen.queryByRole("tab")).toBeNull();
-    const open = screen.getByRole("button", { name: /^v2s*头壳正视图$/ });
+    // The unsaved mark is a word inside the open button, so it is part of the button's name.
+    const open = screen.getByRole("button", { name: /^v2\s*头壳正视图\s*未保存$/ });
     expect(open).toHaveAttribute("aria-current", "true");
-    expect(screen.getByRole("img", { name: "未保存" })).toBeTruthy();
+    expect(open.querySelector("img")).toHaveAttribute("src", "/v2.png");
     fireEvent.click(open);
     fireEvent.click(screen.getByRole("button", { name: "关闭 v2" }));
     expect(onOpen).toHaveBeenCalledTimes(1);
@@ -70,8 +81,8 @@ describe("workspace chrome", () => {
   });
 
   it.each([
-    ["ja", "v2 を閉じる", "Agent 欄の幅を変える", "画像プレビュー"],
-    ["en", "Close v2", "Resize agent panel", "Image preview"],
+    ["ja", "v2 を閉じる", "アシスタント欄の幅を変える", "画像プレビュー"],
+    ["en", "Close v2", "Resize assistant panel", "Image preview"],
   ])("names the controls in %s", async (language, close, resize, preview) => {
     await i18n.changeLanguage(language);
     render(

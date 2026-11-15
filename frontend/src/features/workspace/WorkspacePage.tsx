@@ -2,8 +2,8 @@ import {
   IconArrowLeft,
   IconDeviceFloppy,
   IconDownload,
-  IconFiles,
-  IconLayoutSidebarRight,
+  IconMessageCircle,
+  IconPhoto,
   IconSparkles,
 } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -315,7 +315,7 @@ export function WorkspacePage() {
     [conversation?.state.references],
   );
 
-  const runState = conversation?.status === "error" ? "error" : running ? "running" : "idle";
+  const runState: RunState = conversation?.status === "error" ? "error" : running ? "running" : "idle";
 
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: drop target for image files dragged from the OS onto the window; dropping has no keyboard form, and the composer's attach button adds the same files to the pending message
@@ -343,13 +343,14 @@ export function WorkspacePage() {
         }}
         onOpenVersion={(id) => openVersion(id)}
         onToggleAgent={() => setAgentOpen((open) => !open)}
+        runState={runState}
       />
 
       <div className="ide-body">
         <nav className="ide-activity">
           <ActivityItem
             active={activity === "explorer" && sidebarOpen}
-            icon={<IconFiles size={20} />}
+            icon={<IconPhoto size={20} />}
             label={t("workspace.explorerShort")}
             title={t("workspace.explorer")}
             onClick={() => selectActivity("explorer")}
@@ -411,6 +412,7 @@ export function WorkspacePage() {
                   onClose={() => closeTab(id)}
                   onOpen={() => openVersion(id)}
                   roleLabel={t(`workspace.roles.${image.role}`)}
+                  thumbnailUrl={image.url}
                   unsaved={(isActive && dirty) || drafts.draftIds.has(id)}
                 />
               );
@@ -486,6 +488,7 @@ export function WorkspacePage() {
                     toolbarTarget={toolbarEl}
                   />
                 ) : null}
+                <CanvasInfo activeVersion={activeVersion} editorStatus={editorStatus} />
               </div>
             </>
           ) : (
@@ -532,8 +535,6 @@ export function WorkspacePage() {
           </>
         ) : null}
       </div>
-
-      <StatusBar activeVersion={activeVersion} editorStatus={activeVersion ? editorStatus : null} runState={runState} />
 
       {lightboxUrl ? <ImageLightbox onClose={() => setLightboxUrl(null)} url={lightboxUrl} /> : null}
       {deletingReply !== null ? (
@@ -641,15 +642,26 @@ function StageTrack({
   );
 }
 
+/** Whether the assistant is working shows as a dot on its toggle (the chat says the rest), named in the label. */
+type RunState = "idle" | "running" | "error";
+
+const TOGGLE_AGENT_LABEL = {
+  idle: "workspace.toggleAgent",
+  running: "workspace.toggleAgentBusy",
+  error: "workspace.toggleAgentError",
+} as const satisfies Record<RunState, string>;
+
 function TitleBar({
   conversation,
   agentOpen,
+  runState,
   onToggleAgent,
   onRename,
   onOpenVersion,
 }: {
   conversation: Conversation | null;
   agentOpen: boolean;
+  runState: RunState;
   onToggleAgent: () => void;
   onRename: (title: string) => Promise<void>;
   onOpenVersion: (id: string) => void;
@@ -658,6 +670,7 @@ function TitleBar({
   const [draft, setDraft] = useState("");
 
   useEffect(() => setDraft(conversation?.title ?? ""), [conversation?.title]);
+  const toggleLabel = t(TOGGLE_AGENT_LABEL[runState]);
 
   function commit() {
     const title = draft.trim();
@@ -694,14 +707,15 @@ function TitleBar({
       </div>
       <StageTrack conversation={conversation} onOpenVersion={onOpenVersion} />
       <button
-        aria-label={t("workspace.toggleAgent")}
-        className="ide-icon-button"
+        aria-label={toggleLabel}
+        className="ide-icon-button ide-agent-toggle"
         data-active={agentOpen}
         onClick={onToggleAgent}
-        title={t("workspace.toggleAgent")}
+        title={toggleLabel}
         type="button"
       >
-        <IconLayoutSidebarRight size={16} />
+        <IconMessageCircle size={16} />
+        {runState === "idle" ? null : <span aria-hidden className="ide-run-dot" data-state={runState} />}
       </button>
       <SettingsLink />
       <ThemeToggle />
@@ -710,41 +724,28 @@ function TitleBar({
   );
 }
 
-function StatusBar({
-  runState,
+/** Which version is on the canvas and whether its face landmarks are ready, in a small label at the lower left. */
+function CanvasInfo({
   activeVersion,
   editorStatus,
 }: {
-  runState: "idle" | "running" | "error";
-  activeVersion: DesignImage | null;
+  activeVersion: DesignImage;
   editorStatus: EditorStatus | null;
 }) {
   const { t } = useTranslation();
-  return (
-    <footer className="ide-statusbar">
-      <span className="ide-statusbar-item">
-        <span className="ide-statusbar-dot" data-state={runState} />
-        {runState === "running" ? t("workspace.status.running") : t("workspace.status.idle")}
-      </span>
-      {activeVersion ? (
-        <span className="ide-statusbar-item">
-          {activeVersion.id} · {t(`workspace.roles.${activeVersion.role}`)} · {activeVersion.width}×
-          {activeVersion.height} · {t(`workspace.sources.${activeVersion.source}`)}
-        </span>
-      ) : null}
-      <span className="flex-1" />
-      {editorStatus ? (
-        <>
-          <span className="ide-statusbar-item">
-            {editorStatus.detectingLandmarks
-              ? t("workspace.status.detecting")
-              : editorStatus.landmarksReady
-                ? t("workspace.status.landmarksReady")
-                : t("workspace.status.noLandmarks")}
-          </span>
-          <span className="ide-statusbar-item">{t("workspace.status.zoom", { value: editorStatus.zoomPercent })}</span>
-        </>
-      ) : null}
-    </footer>
-  );
+  const landmarks = editorStatus
+    ? editorStatus.detectingLandmarks
+      ? t("workspace.status.detecting")
+      : editorStatus.landmarksReady
+        ? t("workspace.status.landmarksReady")
+        : t("workspace.status.noLandmarks")
+    : null;
+  const parts = [
+    activeVersion.id,
+    t(`workspace.roles.${activeVersion.role}`),
+    `${activeVersion.width}×${activeVersion.height}`,
+    t(`workspace.sources.${activeVersion.source}`),
+    landmarks,
+  ];
+  return <div className="ide-canvas-info">{parts.filter(Boolean).join(" · ")}</div>;
 }

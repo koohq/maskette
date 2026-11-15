@@ -1,7 +1,7 @@
 ---
 version: "beta"
-name: "Maskette IDE"
-description: "An IDE-style workspace for designing kigurumi head shells. Its default colours come from the Maskette mascot: mandarin hair on warm greys."
+name: "Maskette workspace"
+description: "A maker's workspace for designing kigurumi head shells: tools and images on the left, the canvas in the middle, the assistant on the right. Its default colours come from the Maskette mascot: mandarin hair on warm greys."
 colors:
   mascot-mandarin: "#F59A4A"
   mascot-green: "#3FBF80"
@@ -17,7 +17,7 @@ typography:
 
 ## Overview
 
-The app looks like a code editor: a title bar, an activity bar with tools, an explorer, a tabbed canvas, the assistant panel and a status bar. It should feel like a precise maker tool, not a dashboard. Images, masks and landmarks must stay visually exact; chrome stays quiet so the artwork stands out.
+The workspace keeps an editor's arrangement (tools and images on the left, the canvas in the middle, the assistant on the right) because it works, but it must not look or read like a code editor. The app grew out of a project named after Visual Studio and was renamed to avoid Microsoft's product names, so anything that recalls Visual Studio or VS Code is out: edge-line selection markers, capitalised panel headings, editor tabs with a top accent line and an unsaved dot, a status bar, and words such as "Explorer", "Agent", "Workbench" or "Ready". It should feel like a precise maker tool, not a dashboard. Images, masks and landmarks must stay visually exact; chrome stays quiet so the artwork stands out.
 
 ## Colors
 
@@ -54,20 +54,25 @@ Use the system UI stack (`uiFontFamily` in `theme.ts`) at 13px. Keep letter spac
 
 ## Layout
 
-- Desktop: activity bar, explorer and tool panels on the left, tabbed canvas in the middle, assistant on the right, status bar at the bottom.
+- Desktop: a title bar on top; on the left a tool column and, next to it, the images panel (references and versions) or the chosen tool's panel; the canvas in the middle with the open versions above it; the assistant on the right. There is no status bar.
+- The tool column and its panel read as one tool box: the column has the panel's colour, and the chosen item is filled with the accent (no edge line).
+- Open versions above the canvas are rounded cards with a small picture of each version; unsaved edits show as the word "Unsaved", not a dot.
+- What a status bar would say goes where it belongs: the version and landmark state in a small label at the canvas's lower left, the zoom in the canvas toolbar, and whether the assistant is working as a dot on its toggle in the title bar (the chat says the rest).
+- Panel headings are plain bold words in the sentence's own case; never capitalise them or widen their letter spacing.
 - Use CSS Grid and Flex with explicit min/max widths for panels; prevent horizontal overflow on narrow screens.
 - Avoid nested cards. Use full panels, repeated item cards or tool surfaces.
 
 ## Components
 
 - Buttons: `ide-button`, with `ide-button-primary` for the main action of a view. One primary action per area.
-- Icon buttons: `ide-icon-button` with Tabler icons and a tooltip/`aria-label`. Do not use emoji as icons.
+- Icon buttons: `ide-icon-button` with Tabler icons and a tooltip/`aria-label`. Do not use emoji as icons, and do not pick the icon a code editor uses for the same place (the two-sheet "files" icon for the images panel, the sidebar-layout icon for the assistant toggle); the images panel uses a photo, the assistant a speech bubble.
 - Badges: `ide-badge` with `data-tone="accent" | "success"` for short states.
 - Inputs: label above the field, `ide-input`, accent border on focus.
 
 ## Rules
 
-- Do not introduce a second visual system for new pages or tools; reuse the `ide-*` classes and variables.
+- Do not introduce a second visual system for new pages or tools; reuse the `ide-*` classes and variables. The `ide-` prefix in class, variable and component names is historical and never shown to users; keep it rather than renaming everything.
+- Words: call the left panel "Images" (画像, 图片) and the right panel "Assistant" (アシスタント, 助手). Do not bring back code-editor words such as Explorer, Agent, Workbench, or Ready for an idle state.
 - Do not use pure black, neon colours, decorative blobs or heavy gradients.
 - Keep image canvases, crop previews, masks and landmarks visually precise.
 - Preserve existing workflow state, upload behaviour, editor tools, landmark detection and model assets.

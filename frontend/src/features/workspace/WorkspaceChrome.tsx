@@ -60,13 +60,15 @@ export function AgentResizeHandle({ width, onWidthChange }: { width: number; onW
 }
 
 /**
- * One open version in the editor's tab strip. It is a pair of buttons (open, close), not an ARIA tab: a `tab`
- * cannot hold other controls (its children are presentational, so the close button would vanish for screen
- * readers), and the strip has no arrow-key navigation or tab panels. The open version is marked `aria-current`.
+ * One open version above the canvas: a rounded card with a small picture of the version. It is a pair of buttons
+ * (open, close), not an ARIA tab: a `tab` cannot hold other controls (its children are presentational, so the
+ * close button would vanish for screen readers), and the strip has no arrow-key navigation or tab panels. The open
+ * version is marked `aria-current`; unsaved edits show as a word, not a dot.
  */
 export function EditorTab({
   id,
   roleLabel,
+  thumbnailUrl,
   active,
   unsaved,
   onOpen,
@@ -74,6 +76,7 @@ export function EditorTab({
 }: {
   id: string;
   roleLabel: string;
+  thumbnailUrl?: string | undefined;
   active: boolean;
   unsaved: boolean;
   onOpen: () => void;
@@ -88,13 +91,15 @@ export function EditorTab({
         onClick={onOpen}
         type="button"
       >
-        <IconPhoto size={13} />
+        {thumbnailUrl ? <img alt="" className="ide-tab-thumb" src={thumbnailUrl} /> : <IconPhoto size={13} />}
         {id}
         <span className="text-(--ide-text-faint)">{roleLabel}</span>
+        {unsaved ? (
+          <span className="ide-badge" data-tone="accent">
+            {t("workspace.unsaved")}
+          </span>
+        ) : null}
       </button>
-      {unsaved ? (
-        <span aria-label={t("workspace.unsaved")} className="ide-tab-dirty" role="img" title={t("workspace.unsaved")} />
-      ) : null}
       <button
         aria-label={t("workspace.closeTabNamed", { name: id })}
         className="ide-tab-close"
