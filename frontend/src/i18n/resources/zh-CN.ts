@@ -312,8 +312,11 @@ const zhCN = {
     paletteDefault: "默认",
     palettes: {
       mikan: "橘子（橙色）",
+      sakura: "樱花（粉色）",
       wakaba: "嫩叶（绿色）",
       ai: "靛蓝（以前的蓝色）",
+      sumi: "水墨（黑白）",
+      contrast: "高对比度",
     },
     subscriptionCliNote:
       "会调用以个人 ChatGPT 或 Claude 订阅登录的 CLI。请只在自己的电脑上、供自己使用。如果给其他人使用或部署在服务器上，请选择使用 API 密钥的接入方式（标有推荐的那一项）。",

@@ -325,8 +325,11 @@ const ja: TranslationResource = {
     paletteDefault: "既定",
     palettes: {
       mikan: "蜜柑（オレンジ）",
+      sakura: "桜（ピンク）",
       wakaba: "若葉（緑）",
       ai: "藍（以前の青）",
+      sumi: "墨（モノクロ）",
+      contrast: "ハイコントラスト",
     },
     subscriptionCliNote:
       "ChatGPT や Claude の個人のサブスクでログインした CLI を呼びます。自分の PC で自分だけが使う前提にしてください。ほかの人に使わせるときやサーバーで動かすときは、API キーで使うつなぎ先（おすすめの印が付いたもの）を選んでください。",

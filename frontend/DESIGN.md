@@ -21,13 +21,16 @@ The app looks like a code editor: a title bar, an activity bar with tools, an ex
 
 ## Colors
 
-The default palette comes from the logo: the mascot's mandarin hair as the accent, on warm greys. Users can pick another palette in Settings (Colors); light or dark is a separate switch in the header.
+The default palette comes from the logo: the mascot's mandarin hair as the accent, on warm greys. Users can pick another palette in Settings (Colors); light or dark is a separate switch in the header. Keep the palettes few and each with its own reason; a new one should differ from the others in hue or contrast at a glance (a yellow "star" palette was dropped because it looked like `mikan` and `contrast`).
 
 | Palette | Accent | Background | Notes |
 | --- | --- | --- | --- |
 | `mikan` (default) | mandarin `#F59A4A` / `#B54D0F` | warm grey | from the mascot's hair |
+| `sakura` | pink `#F48FB1` / `#B8336A` | warm grey | from the mascot's blush; danger leans vermilion so it does not read as the accent |
 | `wakaba` | green `#3FBF80` / `#1C7F4F` | warm grey | from the mascot's eyes; success turns blue so it does not read as the accent |
 | `ai` | blue `#2E95F8` / `#116CED` | navy | the colours the app had before its own logo (light-mode faint and status colours darkened to meet the contrast rule below) |
+| `sumi` | grey `#D4D4D4` / `#3A3A3A` | neutral grey | monochrome; only the status colours carry hue, so the artwork's colours stand out |
+| `contrast` | mandarin `#FFA552` / `#8F3500` | near-black / white | high contrast for low vision: strongest text and borders; told apart from `mikan` by contrast, not hue |
 
 `app/theme.ts` (`idePalettes`) is the single source of every colour, per palette and mode. The provider writes the chosen set onto `<html>` as the `--ide-*` CSS variables and hands the same values to MUI. `src/styles/index.css` repeats only the default palette so the first paint has colours; `theme.test.ts` fails if the two drift. Use the variables instead of hard-coded colours.
 

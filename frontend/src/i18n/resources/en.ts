@@ -330,8 +330,11 @@ const en: TranslationResource = {
     paletteDefault: "Default",
     palettes: {
       mikan: "Mandarin (orange)",
+      sakura: "Cherry blossom (pink)",
       wakaba: "Young leaf (green)",
       ai: "Indigo (the earlier blue)",
+      sumi: "Ink (monochrome)",
+      contrast: "High contrast",
     },
     subscriptionCliNote:
       "Drives a CLI signed in with a personal ChatGPT or Claude subscription. Use it only on your own machine, for yourself. If other people use this app or it runs on a server, pick a backend that uses an API key (the recommended one).",
