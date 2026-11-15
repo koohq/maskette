@@ -79,6 +79,7 @@ const ja: TranslationResource = {
     create: "作成",
     cancel: "キャンセル",
     emptyProjects: "まだプロジェクトがありません。作成してキャラクター画像をアップロードしてください。",
+    loadProjectsFailed: "プロジェクトの一覧を読み込めませんでした。",
     versionCount: "{{count}} バージョン",
     rename: "名前を変更",
     deleteProject: "プロジェクトを削除",
@@ -128,9 +129,9 @@ const ja: TranslationResource = {
       "local-generate": "部分生成",
     },
     status: {
-      detecting: "ランドマーク検出中…",
-      landmarksReady: "ランドマーク検出済み",
-      noLandmarks: "ランドマーク未検出",
+      detecting: "キーポイントを認識中…",
+      landmarksReady: "キーポイント認識済み",
+      noLandmarks: "キーポイント未認識",
     },
   },
   agent: {

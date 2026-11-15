@@ -305,7 +305,7 @@ export function EditorToolbar({
                 active={landmarkDebugMode}
                 compact={isViewportOnlyToolbar && isCompactToolbar}
                 disabled={!onToggleLandmarkDebugMode}
-                label="Landmark debug"
+                label="关键点调试"
                 onClick={onToggleLandmarkDebugMode}
                 testId="landmark-debug-toggle"
               >

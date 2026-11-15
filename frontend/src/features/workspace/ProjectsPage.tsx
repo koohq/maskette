@@ -121,7 +121,20 @@ export function ProjectsPage() {
 
         {importError ? <p className="mb-4 text-xs text-(--ide-danger)">{importError}</p> : null}
 
-        {projects.data?.length === 0 ? (
+        {projects.isError ? (
+          <div className="ide-welcome" role="alert" style={{ padding: "12vh 0" }}>
+            <p className="max-w-md">{t("workspace.loadProjectsFailed")}</p>
+            <p className="max-w-md text-xs text-(--ide-danger)">{actionError(projects.error)}</p>
+            <button
+              className="ide-button"
+              disabled={projects.isFetching}
+              onClick={() => void projects.refetch()}
+              type="button"
+            >
+              {t("agent.retry")}
+            </button>
+          </div>
+        ) : projects.data?.length === 0 ? (
           <div className="ide-welcome" style={{ padding: "12vh 0" }}>
             <img alt="" className="h-14 w-14 opacity-80" src="/logo.png" />
             <p className="max-w-md">{t("workspace.emptyProjects")}</p>

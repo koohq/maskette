@@ -128,6 +128,31 @@ describe("AnnotationLayer marks", () => {
     expect(onAnnotationDelete).toHaveBeenLastCalledWith("a");
   });
 
+  it("moves focus to the next mark after a keyboard delete, or to the previous one at the end", async () => {
+    await i18n.changeLanguage("ja");
+    const onAnnotationSelect = vi.fn();
+    render(
+      <AnnotationLayer
+        annotations={annotations}
+        height={400}
+        onAnnotationDelete={vi.fn()}
+        onAnnotationSelect={onAnnotationSelect}
+        width={400}
+      />,
+    );
+
+    const arrow = screen.getByRole("button", { name: "矢印の注釈 2" });
+    arrow.focus();
+    fireEvent.keyDown(arrow, { key: "Delete" });
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "矩形の注釈 3" }));
+    expect(onAnnotationSelect).toHaveBeenLastCalledWith("c");
+
+    const last = screen.getByRole("button", { name: "文字の注釈 4: 眼睛大一点" });
+    last.focus();
+    fireEvent.keyDown(last, { key: "Backspace" });
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "矩形の注釈 3" }));
+  });
+
   it("deletes the selected mark from its delete button on a click, not on the press", async () => {
     await i18n.changeLanguage("zh-CN");
     const onAnnotationDelete = vi.fn();

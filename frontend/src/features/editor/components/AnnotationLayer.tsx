@@ -1,5 +1,5 @@
 import { IconTrash } from "@tabler/icons-react";
-import { type KeyboardEvent, type PointerEvent, useId } from "react";
+import { type KeyboardEvent, type PointerEvent, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { translateLiteralString } from "../../../i18n/literalTranslations";
 import {
@@ -70,6 +70,13 @@ const markButtonReset = {
   margin: 0,
   padding: 0,
 } as const;
+
+// Landmark dots sit on the artwork, so they keep fixed colours instead of following the UI palette: violet stands
+// apart from skin, warm hair, the teal brow line and the cyan eye outline in every palette and in light or dark mode.
+const LANDMARK_POINT = "rgb(124, 77, 255)";
+const LANDMARK_POINT_HALO = "rgba(124, 77, 255, 0.28)";
+const LANDMARK_BROW = "rgb(20, 160, 140)";
+const LANDMARK_BROW_HALO = "rgba(20, 160, 140, 0.28)";
 
 const landmarkLabels: Array<{ key: ManualLandmarkKey; label: string }> = [
   { key: "leftEye", label: "左眼" },
@@ -174,6 +181,7 @@ export function AnnotationLayer({
   const { i18n } = useTranslation();
   const annotationHintId = useId();
   const landmarkHintId = useId();
+  const stageRef = useRef<HTMLDivElement>(null);
   if (!visible) return null;
   const showLandmarkMarks = Boolean(showLandmarks && landmarks);
 
@@ -188,6 +196,7 @@ export function AnnotationLayer({
     <div
       data-height={Math.max(1, Math.round(height))}
       data-testid={stageTestId}
+      ref={stageRef}
       data-width={Math.max(1, Math.round(width))}
       style={{
         inset: 0,
@@ -229,8 +238,17 @@ export function AnnotationLayer({
             if (event.key === "Delete" || event.key === "Backspace") {
               event.preventDefault();
               onAnnotationDelete?.(annotation.id);
+              // Hand focus to the next mark (or the previous one at the end) so the keyboard is not left nowhere.
+              // Focusing it selects it, after the delete has cleared the selection.
+              const neighbour = annotations[index + 1] ?? annotations[index - 1];
+              if (neighbour) {
+                stageRef.current
+                  ?.querySelector<HTMLElement>(`[data-annotation-mark="${CSS.escape(neighbour.id)}"]`)
+                  ?.focus();
+              }
             }
           },
+          "data-annotation-mark": annotation.id,
           type: "button",
         } as const;
         const rectLeft = Math.min(annotation.x, annotation.endX);
@@ -608,15 +626,15 @@ export function AnnotationLayer({
               >
                 <span
                   style={{
-                    background: brow ? "rgb(20, 160, 140)" : "var(--kb-accent)",
-                    border: estimated ? "2px dashed var(--kb-panel)" : "2px solid var(--kb-panel)",
+                    background: brow ? LANDMARK_BROW : LANDMARK_POINT,
+                    border: estimated ? "2px dashed #fff" : "2px solid #fff",
                     borderRadius: 999,
                     boxShadow: selected
-                      ? `0 0 0 7px ${brow ? "rgba(20, 160, 140, 0.3)" : "rgba(209, 82, 47, 0.28)"}, var(--kb-hard-shadow-sm)`
-                      : `0 0 0 5px ${brow ? "rgba(20, 160, 140, 0.16)" : "rgba(209, 82, 47, 0.16)"}`,
+                      ? `0 0 0 7px ${brow ? LANDMARK_BROW_HALO : LANDMARK_POINT_HALO}, var(--kb-hard-shadow-sm)`
+                      : `0 0 0 5px ${brow ? LANDMARK_BROW_HALO : LANDMARK_POINT_HALO}, 0 1px 3px rgba(0, 0, 0, 0.45)`,
                     display: "block",
                     height: brow ? 12 : 18,
-                    opacity: estimated ? 0.45 : 0.72,
+                    opacity: estimated ? 0.5 : 0.9,
                     width: brow ? 12 : 18,
                   }}
                 />

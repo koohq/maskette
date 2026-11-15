@@ -79,6 +79,7 @@ const en: TranslationResource = {
     create: "Create",
     cancel: "Cancel",
     emptyProjects: "No projects yet. Create one and upload character references to start.",
+    loadProjectsFailed: "Could not load the project list.",
     versionCount: "{{count}} versions",
     rename: "Rename",
     deleteProject: "Delete project",

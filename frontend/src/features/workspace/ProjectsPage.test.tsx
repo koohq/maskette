@@ -214,4 +214,23 @@ describe("ProjectsPage", () => {
       expect(fetchMock.mock.calls.some(([url]) => url === "/api/agent/conversations/import")).toBe(true),
     );
   });
+
+  it("says the list failed to load instead of showing an empty page, and retries", async () => {
+    let up = false;
+    const fetchMock = vi.fn(async () => {
+      if (!up) throw new TypeError("Failed to fetch");
+      return json([project]);
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("无法加载项目列表。");
+    expect(screen.queryByText("还没有项目。新建一个，上传角色参考图开始设计。")).toBeNull();
+
+    up = true;
+    fireEvent.click(screen.getByRole("button", { name: "重试" }));
+    expect(await screen.findByText(project.title)).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 });

@@ -77,6 +77,7 @@ const zhCN = {
     create: "创建",
     cancel: "取消",
     emptyProjects: "还没有项目。新建一个，上传角色参考图开始设计。",
+    loadProjectsFailed: "无法加载项目列表。",
     versionCount: "{{count}} 个版本",
     rename: "重命名",
     deleteProject: "删除项目",
