@@ -8,10 +8,12 @@
   "scripts": {
     "dev": "tauri dev",
     "tauri": "tauri",
-    "bundle": "tauri build",
+    "bundle": "tauri build && node scripts/copy-installer.ts",
+    "release:copy": "node scripts/copy-installer.ts",
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",
     "typecheck": "pnpm -r --if-present typecheck",
+    "typecheck:scripts": "tsc -p tsconfig.json",
     "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "lint": "biome check",
     "format": "biome format --write",
@@ -24,6 +26,7 @@
     "@tauri-apps/cli": "^2.12.4",
     "@tsconfig/node26": "^26.0.1",
     "@tsconfig/strictest": "^2.0.8",
+    "@types/node": "^26.6.6",
     "typescript": "7.0.2"
   }
 }
