@@ -39,7 +39,11 @@
 //! `front-samples2`, ... with the first one, two, ... photos added (see
 //! `samples.rs`; `MASKETTE_COMPARE_SAMPLE_COUNTS=0,1,2` picks the counts).
 //! `MASKETTE_COMPARE_SAMPLE_STAGE=turnaround` makes the head shell
-//! turnaround from each of those front views instead. Give each character
+//! turnaround from each of those front views instead.
+//! `MASKETTE_COMPARE_SAMPLE_TAG=parts` sends close-up crops of a lens eye,
+//! the shell and the wig instead of whole photos (`front-parts3`), and
+//! `partsgray` the same crops in black and white (`front-partsgray3`), so
+//! that no face design or colour of the sample mask carries over. Give each character
 //! its own output folder under one parent folder. `judge` compares pairs of
 //! those runs with a vision model (see `judge.rs`), and `samples-report`
 //! with the parent folder as `MASKETTE_COMPARE_OUT` builds the page that
@@ -370,9 +374,16 @@ async fn compare_image_models() {
         "samples" => {
             let paths: Vec<PathBuf> =
                 std::env::split_paths(&env("MASKETTE_COMPARE_SAMPLES")).collect();
-            let samples = samples::load_samples(&paths, &out);
+            let tag = std::env::var("MASKETTE_COMPARE_SAMPLE_TAG")
+                .unwrap_or_else(|_| "samples".to_owned());
+            assert!(
+                samples::TAGS.contains(&tag.as_str()),
+                "MASKETTE_COMPARE_SAMPLE_TAG is one of {:?}, not {tag:?}",
+                samples::TAGS
+            );
+            let samples = samples::load_samples(&paths, &tag, &out);
             let counts: Vec<usize> = std::env::var("MASKETTE_COMPARE_SAMPLE_COUNTS").map_or_else(
-                |_| (0..=samples.len()).collect(),
+                |_| (0..=samples.images.len()).collect(),
                 |text| {
                     text.split(',')
                         .map(|count| count.trim().parse().expect("a count"))
@@ -380,7 +391,7 @@ async fn compare_image_models() {
                 },
             );
             assert!(
-                counts.iter().all(|count| *count <= samples.len()),
+                counts.iter().all(|count| *count <= samples.images.len()),
                 "more samples asked for than given"
             );
             let stage = std::env::var("MASKETTE_COMPARE_SAMPLE_STAGE")
