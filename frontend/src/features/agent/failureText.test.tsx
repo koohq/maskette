@@ -15,7 +15,14 @@ function conversation(): Conversation {
     running: false,
     last_seq: 0,
     events: [],
-    state: { references: [], images: [] },
+    state: {
+      references: [],
+      images: [],
+      current_design_id: null,
+      approved_design_id: null,
+      current_front_id: null,
+      approved_front_id: null,
+    },
   };
 }
 

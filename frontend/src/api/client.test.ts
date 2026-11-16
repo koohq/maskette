@@ -16,7 +16,7 @@ import {
 } from "./client";
 
 function stubFetchJson(body: unknown) {
-  const fetchMock = vi.fn(async () => new Response(JSON.stringify(body)));
+  const fetchMock = vi.fn<typeof fetch>(async () => new Response(JSON.stringify(body)));
   vi.stubGlobal("fetch", fetchMock);
   return fetchMock;
 }
@@ -221,7 +221,7 @@ describe("generation API compatibility", () => {
         method: "POST",
       }),
     );
-    const [, requestInit] = fetchMock.mock.calls[0];
+    const [, requestInit] = fetchMock.mock.calls[0]!;
     expect(JSON.parse(String(requestInit?.body))).toEqual({
       character_session_id: "session-a",
       free_text: "keep hair",
@@ -254,7 +254,7 @@ describe("generation API compatibility", () => {
       requirementIds: [],
     });
 
-    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toMatchObject({
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string)).toMatchObject({
       locale: "ja",
     });
   });
@@ -276,7 +276,7 @@ describe("generation API compatibility", () => {
       requirementIds: [],
     });
 
-    const [, requestInit] = fetchMock.mock.calls[0];
+    const [, requestInit] = fetchMock.mock.calls[0]!;
     expect(requestInit?.signal).toBeInstanceOf(AbortSignal);
   });
 
@@ -419,7 +419,7 @@ describe("generation API compatibility", () => {
       requirementIds: [],
     });
 
-    expect(JSON.parse(fetchMock.mock.calls[0][1]?.body as string)).toMatchObject({
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]?.body as string)).toMatchObject({
       locale: "en",
     });
   });

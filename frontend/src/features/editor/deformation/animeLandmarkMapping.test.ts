@@ -26,8 +26,8 @@ describe("anime landmark mapping", () => {
     const points = decodeHrnetHeatmaps(heatmaps, { height: 256, width: 256, x: 100, y: 50 });
 
     expect(points).toHaveLength(28);
-    expect(points[0].x).toBeCloseTo(222);
-    expect(points[0].y).toBeCloseTo(132);
+    expect(points[0]!.x).toBeCloseTo(222);
+    expect(points[0]!.y).toBeCloseTo(132);
   });
 
   it("maps anime detector points into editor landmarks", () => {
@@ -88,12 +88,13 @@ describe("anime landmark mapping", () => {
   it("orders each brow from the face center outward and pairs it with the nearer eye", () => {
     const points = faceWithBrows();
     // Swap the detector brow groups: assignment must follow the eyes, not the index order.
-    [
+    const swaps: Array<[number, number]> = [
       [5, 8],
       [6, 9],
       [7, 10],
-    ].forEach(([a, b]) => {
-      [points[a], points[b]] = [points[b], points[a]];
+    ];
+    swaps.forEach(([a, b]) => {
+      [points[a], points[b]] = [points[b]!, points[a]!];
     });
 
     const brows = mapAnimePointsToManualLandmarks(points, 1000, 1000)?.brows;
@@ -146,7 +147,7 @@ describe("anime landmark mapping", () => {
       x: 500,
       y: 500,
     }));
-    const leftEye = [
+    const leftEye: Array<[number, number]> = [
       [100, 100],
       [140, 100],
       [180, 115],
@@ -154,7 +155,7 @@ describe("anime landmark mapping", () => {
       [140, 420],
       [180, 160],
     ];
-    const rightEye = [
+    const rightEye: Array<[number, number]> = [
       [620, 180],
       [660, 180],
       [700, 195],
@@ -164,10 +165,10 @@ describe("anime landmark mapping", () => {
     ];
 
     [11, 12, 13, 14, 15, 16].forEach((index, offset) => {
-      points[index] = { score: 1, x: leftEye[offset][0], y: leftEye[offset][1] };
+      points[index] = { score: 1, x: leftEye[offset]![0], y: leftEye[offset]![1] };
     });
     [17, 18, 19, 20, 21, 22].forEach((index, offset) => {
-      points[index] = { score: 1, x: rightEye[offset][0], y: rightEye[offset][1] };
+      points[index] = { score: 1, x: rightEye[offset]![0], y: rightEye[offset]![1] };
     });
 
     const landmarks = mapAnimePointsToManualLandmarks(points, 1000, 1000);

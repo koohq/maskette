@@ -46,6 +46,8 @@ const conversation: Conversation = {
       image("front-3", "front", "front-2", "local_revision"),
       image("turnaround-1", "turnaround", "front-2", "agent"),
     ],
+    current_design_id: null,
+    approved_design_id: null,
     current_front_id: "front-3",
     approved_front_id: "front-2",
   },

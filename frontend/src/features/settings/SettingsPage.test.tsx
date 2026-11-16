@@ -163,7 +163,7 @@ describe("SettingsPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "清除本页保存的 Key" }));
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(2));
-    const clear = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")[1];
+    const clear = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")[1]!;
     expect(JSON.parse(String(clear[1]?.body))).toEqual({ values: { ark_api_key: null } });
   });
 

@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
     "deps:semver": "pnpm up -r",
     "deps:latest": "pnpm up -r --latest",
     "deps:interactive": "pnpm up -r -i --latest"
@@ -39,6 +39,7 @@
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "6.2.1",

@@ -36,9 +36,9 @@ describe("assistant reply actions", () => {
     expect(screen.getAllByRole("button", { name: "删除回复" })).toHaveLength(2);
     const regenerate = screen.getAllByRole("button", { name: "重新生成" });
     expect(regenerate).toHaveLength(1);
-    fireEvent.click(regenerate[0]);
+    fireEvent.click(regenerate[0]!);
     expect(onRegenerate).toHaveBeenCalledOnce();
-    fireEvent.click(screen.getAllByRole("button", { name: "删除回复" })[1]);
+    fireEvent.click(screen.getAllByRole("button", { name: "删除回复" })[1]!);
     expect(onDelete).toHaveBeenCalledWith(3);
   });
 
@@ -89,7 +89,7 @@ describe("subscribeToEvents", () => {
     const onReconnect = vi.fn();
     const unsubscribe = subscribeToEvents("p", () => after, vi.fn(), onReconnect);
 
-    const first = FakeEventSource.instances[0];
+    const first = FakeEventSource.instances[0]!;
     expect(first.url).toContain("after=5");
     first.emit("open");
     after = 9;
@@ -97,7 +97,7 @@ describe("subscribeToEvents", () => {
     first.emit("error");
     vi.advanceTimersByTime(3000);
 
-    const second = FakeEventSource.instances[1];
+    const second = FakeEventSource.instances[1]!;
     expect(second.url).toContain("after=9");
     second.emit("open");
     expect(onReconnect).toHaveBeenCalledOnce();

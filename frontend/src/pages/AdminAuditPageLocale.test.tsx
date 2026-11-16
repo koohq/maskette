@@ -95,6 +95,7 @@ function job(overrides: Partial<AuditGenerationJob>): AuditGenerationJob {
     references: [],
     requirement_ids: [],
     status: "running",
+    token_usage: null,
     updated_at: "2026-07-02T00:01:00+00:00",
     user_notes: "",
     user_requirements: "",
@@ -162,6 +163,24 @@ function renderPage({ authenticated }: { authenticated: boolean }) {
     success_rate: 0.7273,
     total_calls: 11,
     total_users: 5,
+    token_usage: {
+      cached_input_tokens: null,
+      input_tokens: null,
+      jobs_with_usage: 0,
+      output_tokens: null,
+      reasoning_output_tokens: null,
+      total_tokens: null,
+    },
+    image_usage: {
+      cached_input_tokens_per_image: 0,
+      generated_images: 0,
+      images_with_token_usage: 0,
+      input_tokens_per_image: 0,
+      jobs_with_outputs: 0,
+      output_tokens_per_image: 0,
+      reasoning_output_tokens_per_image: 0,
+      total_tokens_per_image: 0,
+    },
   });
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(

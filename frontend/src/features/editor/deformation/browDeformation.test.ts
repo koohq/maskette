@@ -9,7 +9,7 @@ function brows(key: BrowControlKey, value: number) {
     updateBrowControl(createEmptyRecipe(), key, value),
     animeFaceLandmarks,
   );
-  return { left, right };
+  return { left: left!, right: right! };
 }
 
 function offsetAt(transform: BrowMeshTransform, point: { x: number; y: number }) {

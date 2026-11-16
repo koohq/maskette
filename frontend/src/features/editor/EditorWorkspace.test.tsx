@@ -889,6 +889,9 @@ describe("EditorWorkspace", () => {
         jawRight: { x: 0.66, y: 0.58 },
         leftEye: { x: 0.42, y: 0.42 },
         rightEye: { x: 0.58, y: 0.42 },
+        mouthCenter: { x: 0.5, y: 0.57 },
+        mouthLeft: { x: 0.47, y: 0.57 },
+        mouthRight: { x: 0.53, y: 0.57 },
       },
     });
     await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));

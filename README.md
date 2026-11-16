@@ -41,13 +41,12 @@ Other scripts:
 
 | Script | What it does |
 | --- | --- |
-| `pnpm typecheck` | Type-check every workspace package |
+| `pnpm typecheck` | Type-check the Node scripts in `scripts/` and every workspace package, tests included |
 | `pnpm test` | Run the frontend tests (Vitest) |
 | `pnpm build` | Build the frontend into `frontend/dist` |
 | `pnpm cargo:check` | `cargo check` the Tauri crate |
 | `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`), and copy it to `release/` |
 | `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository) |
-| `pnpm typecheck:scripts` | Type-check the Node scripts in `scripts/` |
 | `pnpm lint` | Biome check |
 
 Layout:

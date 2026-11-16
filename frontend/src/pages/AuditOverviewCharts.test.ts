@@ -7,7 +7,6 @@ function job(partial: Partial<AuditGenerationJob> & Pick<AuditGenerationJob, "id
     character_session_id: "session-a",
     created_at: "2026-07-01T10:00:00+00:00",
     generation_mode: "front_design",
-    id: partial.id,
     outputs: [],
     phase_label: "",
     progress: 100,

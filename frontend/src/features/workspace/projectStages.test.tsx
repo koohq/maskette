@@ -106,7 +106,7 @@ describe("ChatTimeline approvals", () => {
     );
     const designButtons = screen.getAllByRole("button", { name: /确认设定图/ });
     expect(designButtons).toHaveLength(1);
-    fireEvent.click(designButtons[0]);
+    fireEvent.click(designButtons[0]!);
     expect(onApprove).toHaveBeenCalledWith("design-2");
     expect(screen.getAllByRole("button", { name: /就用这张/ })).toHaveLength(1);
   });

@@ -23,12 +23,13 @@ import {
 
 const eyeRadius = { bottom: 60, top: 80, x: 100 };
 
-function eyeOffset(transform: EyeMeshTransform, x: number, y: number) {
+function eyeOffset(transform: EyeMeshTransform | undefined, x: number, y: number) {
+  if (!transform) throw new Error("expected an eye mesh transform");
   return getEyeDisplacement(transform, x, y, eyeRadius.x, eyeRadius.top, eyeRadius.bottom);
 }
 
 /** Smallest Jacobian determinant of the deformed eye area; zero or below means the mesh folds over. */
-function minimumEyeJacobian(transform: EyeMeshTransform) {
+function minimumEyeJacobian(transform: EyeMeshTransform | undefined) {
   const step = 0.5;
   let minimum = Infinity;
   for (let y = -eyeRadius.top * 1.7; y <= eyeRadius.bottom * 1.7; y += 3) {
@@ -72,8 +73,8 @@ const pixiMocks = vi.hoisted(() => {
   const meshes: Array<{
     autoResize: boolean;
     geometry: { positions: Float32Array };
-    scale: { x: number; y: number; set: ReturnType<typeof vi.fn> };
-    texture: { height: number; url?: string; width: number };
+    scale: { x: number; y: number; set: ReturnType<typeof vi.fn<(x: number, y: number) => void>> };
+    texture: { height: number; url?: string | undefined; width: number };
     x: number;
     y: number;
   }> = [];
@@ -148,7 +149,7 @@ vi.mock("pixi.js", () => {
         this.scale.y = y;
       }),
     };
-    texture: { height: number; url?: string; width: number };
+    texture: { height: number; url?: string | undefined; width: number };
     x = 0;
     y = 0;
 
@@ -254,7 +255,7 @@ describe("calculateRecipePreview", () => {
     );
     const verticalJawStrokes = jawStrokes.filter((stroke) => stroke.mode === "push-down");
     expect(verticalJawStrokes).toHaveLength(2);
-    expect(chinStroke?.strength).toBeLessThanOrEqual(verticalJawStrokes[0].strength + 0.03);
+    expect(chinStroke?.strength).toBeLessThanOrEqual(verticalJawStrokes[0]!.strength + 0.03);
     expect(preview.featureLiquifyStrokes).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ x: landmarks.chin.x, mode: "push-up" }),
@@ -297,9 +298,9 @@ describe("calculateRecipePreview", () => {
     expect(preview.imageOffset).toEqual({ x: 0, y: 0 });
     expect(contour).toHaveLength(7);
     expect(contour.slice(2, 5)).toEqual([landmarks.jawLeft, landmarks.chin, landmarks.jawRight]);
-    expect(contour[1].x).toBeLessThan(landmarks.leftEye.x);
-    expect(contour[5].x).toBeGreaterThan(landmarks.rightEye.x);
-    expect(contour[0].y).toBeLessThan(landmarks.leftEye.y);
+    expect(contour[1]!.x).toBeLessThan(landmarks.leftEye.x);
+    expect(contour[5]!.x).toBeGreaterThan(landmarks.rightEye.x);
+    expect(contour[0]!.y).toBeLessThan(landmarks.leftEye.y);
   });
 
   it("derives local eye deformation values from eye controls", () => {
@@ -340,12 +341,12 @@ describe("calculateRecipePreview", () => {
       expect.objectContaining({ centerX: landmarks.leftEye.x, outwardSign: -1, scaleX: 1, scaleY: 1, shiftY: 0 }),
       expect.objectContaining({ centerX: landmarks.rightEye.x, outwardSign: 1, scaleX: 1, scaleY: 1, shiftY: 0 }),
     ]);
-    expect(transforms[0].shiftX).toBeGreaterThan(0);
-    expect(transforms[0].rotation).toBe(0);
-    expect(transforms[1].rotation).toBe(0);
-    expect(eyeOffset(transforms[0], 0, 0).x).toBeLessThan(0);
-    expect(eyeOffset(transforms[1], 0, 0).x).toBeGreaterThan(0);
-    expect(eyeOffset(transforms[1], eyeRadius.x, 0).x).toBeCloseTo(0, 6);
+    expect(transforms[0]!.shiftX).toBeGreaterThan(0);
+    expect(transforms[0]!.rotation).toBe(0);
+    expect(transforms[1]!.rotation).toBe(0);
+    expect(eyeOffset(transforms[0]!, 0, 0).x).toBeLessThan(0);
+    expect(eyeOffset(transforms[1]!, 0, 0).x).toBeGreaterThan(0);
+    expect(eyeOffset(transforms[1]!, eyeRadius.x, 0).x).toBeCloseTo(0, 6);
   });
 
   it.each([
@@ -466,11 +467,11 @@ describe("calculateRecipePreview", () => {
     const transforms = createEyeMeshTransforms(recipe, landmarks);
 
     expect(transforms).toHaveLength(2);
-    expect(transforms[0].rotation).toBeGreaterThan(0);
-    expect(transforms[1].rotation).toBeLessThan(0);
-    expect(Math.abs(transforms[0].rotation)).toBeCloseTo(Math.abs(transforms[1].rotation), 4);
-    expect(eyeOffset(transforms[0], -eyeRadius.x * 0.6, 0).y).toBeLessThan(0);
-    expect(eyeOffset(transforms[1], eyeRadius.x * 0.6, 0).y).toBeLessThan(0);
+    expect(transforms[0]!.rotation).toBeGreaterThan(0);
+    expect(transforms[1]!.rotation).toBeLessThan(0);
+    expect(Math.abs(transforms[0]!.rotation)).toBeCloseTo(Math.abs(transforms[1]!.rotation), 4);
+    expect(eyeOffset(transforms[0]!, -eyeRadius.x * 0.6, 0).y).toBeLessThan(0);
+    expect(eyeOffset(transforms[1]!, eyeRadius.x * 0.6, 0).y).toBeLessThan(0);
   });
 
   it("converts mouth controls into one local mesh transform around mouth landmarks", () => {
@@ -497,7 +498,7 @@ describe("calculateRecipePreview", () => {
         translateY: -0.2,
       }),
     ]);
-    expect(transforms[0].scaleX).toBeGreaterThan(transforms[0].scaleY);
+    expect(transforms[0]!.scaleX).toBeGreaterThan(transforms[0]!.scaleY);
   });
 
   it("keeps the mouth patch inside the face so mouth edits never move the jaw line or chin", () => {
@@ -517,7 +518,7 @@ describe("calculateRecipePreview", () => {
     recipe = updateMouthControl(recipe, "mouthSize", 0.35);
     recipe = updateMouthControl(recipe, "mouthHorizontal", 0.05);
     recipe = updateMouthControl(recipe, "mouthVertical", 0.06);
-    const [patch] = createMouthMeshTransforms(recipe, landmarks);
+    const patch = createMouthMeshTransforms(recipe, landmarks)[0]!;
 
     expect(patch.centerX - patch.radiusX).toBeGreaterThan(landmarks.jawLeft.x);
     expect(patch.centerX + patch.radiusX).toBeLessThan(landmarks.jawRight.x);
@@ -570,7 +571,7 @@ describe("calculateRecipePreview", () => {
       x: 0.5,
       y: 0.5,
     });
-    const stroke = recipe.liquify[0];
+    const stroke = recipe.liquify[0]!;
 
     const innerPixel = calculateDisplacementPixel([stroke], { x: 0.58, y: 0.5 });
     const outerPixel = calculateDisplacementPixel([stroke], { x: 0.84, y: 0.5 });
@@ -620,7 +621,7 @@ describe("calculateRecipePreview", () => {
     );
     const width = calculateRecipePreview(updateFaceControl(createEmptyRecipe(), "faceWidth", 0.2), { landmarks });
     const small = calculateRecipePreview(updateFaceControl(createEmptyRecipe(), "smallFace", 0.2), { landmarks });
-    const jawInward = (preview: typeof both) => preview.faceShapeTransform!.bands[0].inward[8];
+    const jawInward = (preview: typeof both) => preview.faceShapeTransform!.bands[0]!.inward[8]!;
 
     expect(jawInward(both)).toBeCloseTo(jawInward(width) + jawInward(small), 6);
   });
@@ -630,7 +631,7 @@ describe("calculateRecipePreview", () => {
     const host = document.createElement("div");
     const stage = await mountPixiStage(host);
     await stage.setImageUrl("/candidate.webp");
-    const imageMesh = pixiMocks.meshes[0];
+    const imageMesh = pixiMocks.meshes[0]!;
     const basePositions = clonePositions(imageMesh.geometry.positions);
 
     stage.applyRecipe(createEmptyRecipe());
@@ -649,14 +650,14 @@ describe("calculateRecipePreview", () => {
     const host = document.createElement("div");
     const stage = await mountPixiStage(host);
     await stage.setImageUrl("/candidate.webp");
-    pixiMocks.applications[0].render.mockClear();
-    const imageMesh = pixiMocks.meshes[0];
+    pixiMocks.applications[0]!.render.mockClear();
+    const imageMesh = pixiMocks.meshes[0]!;
     const basePositions = clonePositions(imageMesh.geometry.positions);
 
     stage.applyRecipe(updateFaceControl(createEmptyRecipe(), "faceWidth", 10));
 
     expect(positionsChanged(basePositions, imageMesh.geometry.positions)).toBe(true);
-    expect(pixiMocks.applications[0].render).toHaveBeenCalledTimes(1);
+    expect(pixiMocks.applications[0]!.render).toHaveBeenCalledTimes(1);
 
     stage.destroy();
   });
@@ -668,7 +669,7 @@ describe("calculateRecipePreview", () => {
 
     await stage.setImageUrl("/candidate.webp");
 
-    const imageMesh = pixiMocks.meshes[0];
+    const imageMesh = pixiMocks.meshes[0]!;
     expect(imageMesh.scale.set).toHaveBeenLastCalledWith(2, 2);
     expect(imageMesh.x).toBe(50);
     expect(imageMesh.y).toBe(0);
@@ -712,8 +713,8 @@ describe("calculateRecipePreview", () => {
     const host = document.createElement("div");
     const stage = await mountPixiStage(host);
     await stage.setImageUrl("/candidate.webp");
-    const imageContainer = pixiMocks.containers[0];
-    const imageMesh = pixiMocks.meshes[0];
+    const imageContainer = pixiMocks.containers[0]!;
+    const imageMesh = pixiMocks.meshes[0]!;
     const basePositions = clonePositions(imageMesh.geometry.positions);
 
     const recipe = updateEyeControl(
@@ -761,11 +762,11 @@ describe("calculateRecipePreview", () => {
     loads.get("/candidate-a.webp")?.resolve({ height: 100, url: "/candidate-a.webp", width: 100 });
     await firstLoad;
 
-    const imageContainer = pixiMocks.containers[0];
+    const imageContainer = pixiMocks.containers[0]!;
     const loadedImageMeshes = pixiMocks.meshes.filter((mesh) => mesh.texture.url);
     expect(imageContainer.removeChildren).toHaveBeenCalledTimes(1);
     expect(loadedImageMeshes).toHaveLength(1);
-    expect(loadedImageMeshes[0].texture.url).toBe("/candidate-b.webp");
+    expect(loadedImageMeshes[0]!.texture.url).toBe("/candidate-b.webp");
 
     stage.destroy();
   });
@@ -800,14 +801,14 @@ describe("calculateRecipePreview", () => {
     pixiMocks.extractCanvas.mockImplementation(() => document.createElement("canvas"));
     const stage = await mountPixiStage(document.createElement("div"));
     await stage.setImageUrl("/source.png");
-    const preview = pixiMocks.meshes[0];
+    const preview = pixiMocks.meshes[0]!;
     const beforeEdit = preview.geometry.positions.slice();
     stage.applyRecipe(updateEyeControl(createEmptyRecipe(), "eyeVertical", 1));
     const visible = preview.geometry.positions.slice();
     expect(visible).not.toEqual(beforeEdit);
     const position = { x: preview.x, y: preview.y, scale: preview.scale.x };
     expect(await stage.exportImage()).toBe(blob);
-    const options = pixiMocks.extractCanvas.mock.calls[0][0];
+    const options = pixiMocks.extractCanvas.mock.calls[0]![0];
     expect(options.frame).toEqual({ x: 0, y: 0, width: 1536, height: 1024 });
     expect(options.resolution).toBe(1);
     expect(options.target.geometry.positions).toEqual(visible);
@@ -849,22 +850,22 @@ describe("calculateRecipePreview", () => {
       deltaY: -0.02,
     });
     stage.applyRecipe(recipe);
-    const legacy = pixiMocks.meshes[0].geometry.positions.slice();
+    const legacy = pixiMocks.meshes[0]!.geometry.positions.slice();
     const anchored = anchorRecipeToImage(recipe, 1536, 1024, 1536 / 300);
     stage.applyRecipe(anchored);
-    const stable = pixiMocks.meshes[0].geometry.positions.slice();
-    expect(Math.max(...stable.map((value, index) => Math.abs(value - legacy[index])))).toBeLessThan(0.0003);
-    const renderer = pixiMocks.applications[0].renderer;
+    const stable = pixiMocks.meshes[0]!.geometry.positions.slice();
+    expect(Math.max(...stable.map((value, index) => Math.abs(value - legacy[index]!)))).toBeLessThan(0.0003);
+    const renderer = pixiMocks.applications[0]!.renderer;
     for (const [width, height] of [
       [390, 600],
       [1440, 900],
       [250, 150],
-    ]) {
+    ] as const) {
       renderer.width = width;
       renderer.height = height;
-      pixiMocks.meshes[0].scale.set(Math.min(width / 1536, height / 1024), Math.min(width / 1536, height / 1024));
+      pixiMocks.meshes[0]!.scale.set(Math.min(width / 1536, height / 1024), Math.min(width / 1536, height / 1024));
       stage.applyRecipe(anchored);
-      expect(pixiMocks.meshes[0].geometry.positions).toEqual(stable);
+      expect(pixiMocks.meshes[0]!.geometry.positions).toEqual(stable);
     }
     stage.destroy();
   });

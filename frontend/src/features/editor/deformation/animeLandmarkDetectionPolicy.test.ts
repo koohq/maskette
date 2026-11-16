@@ -39,11 +39,12 @@ it("a detector failure cannot enable the centered-crop editor fallback", async (
 });
 it("a single detected face reaches landmark inference", async () => {
   const { image, detectAnimeLandmarks } = await prepare([face]);
+  // getContext is overloaded and spyOn types it by its last (webgpu) signature, so the 2D stub is cast through never.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     fillRect: vi.fn(),
     drawImage: vi.fn(),
     getImageData: () => ({ data: new Uint8ClampedArray(256 * 256 * 4) }),
-  } as unknown as CanvasRenderingContext2D);
+  } as unknown as never);
   mock.run.mockRejectedValue(new Error("inference reached"));
   await expect(detectAnimeLandmarks(image, new AbortController().signal, true)).rejects.toThrow("inference reached");
   expect(mock.run).toHaveBeenCalledTimes(1);
@@ -54,11 +55,12 @@ const heatmaps = (peak: number) => {
   return { output: { data } };
 };
 function stubCanvas() {
+  // getContext is overloaded and spyOn types it by its last (webgpu) signature, so the 2D stub is cast through never.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     fillRect: vi.fn(),
     drawImage: vi.fn(),
     getImageData: () => ({ data: new Uint8ClampedArray(256 * 256 * 4) }),
-  } as unknown as CanvasRenderingContext2D);
+  } as unknown as never);
 }
 it("a false hit the detector prefers loses to the box the landmark model fits better", async () => {
   const hair = { boundingBox: { originX: 40, originY: 10, width: 200, height: 200 }, categories: [{ score: 0.9 }] };

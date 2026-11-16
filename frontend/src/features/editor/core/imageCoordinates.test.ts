@@ -14,8 +14,8 @@ describe("image coordinate recipes", () => {
       liquify: [{ mode: "warp" as const, radius: 72, strength: 0.2, x: 0.4, y: 0.5, deltaX: 0.05, deltaY: 0 }],
     };
     const anchored = anchorRecipeToImage(original, 2048, 1024, 4);
-    expect(anchored.liquify[0].radius).toBe(288);
-    expect(original.liquify[0].radius).toBe(72);
+    expect(anchored.liquify[0]!.radius).toBe(288);
+    expect(original.liquify[0]!.radius).toBe(72);
     const reopened = normalizeEditRecipe(JSON.parse(JSON.stringify(anchored)));
     expect(anchorRecipeToImage(reopened, 2048, 1024, 2)).toEqual(anchored);
     expect(() => anchorRecipeToImage(reopened, 1024, 1024)).toThrow("different image size");
