@@ -4,7 +4,7 @@
 
 import { isTurnaroundRole } from "../agent/agentApi";
 import { detectAnimeLandmarks } from "../editor/deformation/animeLandmarkDetector";
-import { eyeLandmarkConfidences } from "../editor/deformation/animeLandmarkMapping";
+import { eyeLandmarkConfidences, eyeOpenness } from "../editor/deformation/animeLandmarkMapping";
 import {
   analyzeEyeSymmetry,
   createSizedCanvas,
@@ -72,7 +72,8 @@ export async function correctEyeSymmetry(options: {
   const detection = await detectAnimeLandmarks(image, signal, true, regionOfInterest);
   if (!detection || signal?.aborted) return null;
 
-  const plan = analyzeEyeSymmetry(detection.controls, eyeLandmarkConfidences(detection.debug.points));
+  const { points } = detection.debug;
+  const plan = analyzeEyeSymmetry(detection.controls, eyeLandmarkConfidences(points), eyeOpenness(points));
   if (!plan) return null;
   if (eyesHaveDifferentColours(image, detection.controls, { height, width }, createCanvas)) return null;
 

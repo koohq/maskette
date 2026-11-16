@@ -157,15 +157,14 @@ describe("eye symmetry plan", () => {
   });
 
   it("keeps a wink: one closed eye is meant, not a mistake", () => {
-    const landmarks = symmetricLandmarks({
-      leftEye: { x: 0.42, y: 0.42 },
-      rightEye: { x: 0.58, y: 0.43 },
-      // The right eye is a flat closed line, the left one open.
-      eyeRegions: { left: eyeRegion(0.05, 0.05), right: eyeRegion(0.05, 0.01) },
-    });
+    const landmarks = symmetricLandmarks({ leftEye: { x: 0.42, y: 0.42 }, rightEye: { x: 0.58, y: 0.44 } });
+    // Contour openness measured on a generated front view with one eye redrawn closed.
+    const wink = { left: 0.76, right: 0.19 };
 
-    expect(isOneEyeClosed(landmarks)).toBe(true);
-    expect(analyzeEyeSymmetry(landmarks)).toBeNull();
+    expect(isOneEyeClosed(wink)).toBe(true);
+    expect(analyzeEyeSymmetry(landmarks, undefined, wink)).toBeNull();
+    // The same uneven pair with both eyes open is corrected.
+    expect(analyzeEyeSymmetry(landmarks, undefined, { left: 0.79, right: 0.72 })).not.toBeNull();
   });
 
   it("still corrects two open eyes of different sizes", () => {
@@ -175,8 +174,12 @@ describe("eye symmetry plan", () => {
       eyeRegions: { left: eyeRegion(0.05, 0.05), right: eyeRegion(0.04, 0.035) },
     });
 
-    expect(isOneEyeClosed(landmarks)).toBe(false);
-    expect(analyzeEyeSymmetry(landmarks)?.master).toBe("left");
+    expect(isOneEyeClosed({ left: 0.75, right: 0.69 })).toBe(false);
+    expect(analyzeEyeSymmetry(landmarks, undefined, { left: 0.75, right: 0.69 })?.master).toBe("left");
+  });
+
+  it("does not take a missing contour for a closed eye", () => {
+    expect(isOneEyeClosed({ left: 0, right: 0 })).toBe(false);
   });
 });
 

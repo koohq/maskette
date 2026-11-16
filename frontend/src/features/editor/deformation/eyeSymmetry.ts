@@ -44,10 +44,11 @@ export const eyeSymmetryThresholds = {
   /** Relative difference between the two detected eye regions. */
   sizeRatio: 0.2,
   /**
-   * An eye this much flatter than the other (height over width) is closed: a wink or a one-sided expression the
-   * design means, which a mirrored copy of the open eye would erase.
+   * An eye less than this share as open as the other (contour height over width) is closed: a wink or a one-sided
+   * expression the design means, which a mirrored copy of the open eye would erase. Measured on a generated front view,
+   * open eyes read 0.7-0.8 and a drawn closed eye 0.19.
    */
-  closedEyeAspectShare: 0.45,
+  closedEyeShare: 0.45,
   /** Patch size around the master eye's detected region: enough to cover the lashes and the lid edge. */
   patchScale: 1.35,
   /** The patch never reaches past this share of the distance to the centreline, so the two patches cannot overlap. */
@@ -59,6 +60,12 @@ export const eyeSymmetryThresholds = {
 } as const;
 
 export type EyeSymmetryConfidence = {
+  left: number;
+  right: number;
+};
+
+/** How open each eye is drawn, from its contour (`eyeOpenness` in the landmark mapping). */
+export type EyeOpenness = {
   left: number;
   right: number;
 };
@@ -78,19 +85,11 @@ function regionArea(region: EyeRegion) {
   return region.radiusX * region.radiusY;
 }
 
-function regionAspect(region: EyeRegion) {
-  return region.radiusX > 0 ? region.radiusY / region.radiusX : 0;
-}
-
 /** Whether one eye is drawn closed while the other is open: a wink, which is kept. */
-export function isOneEyeClosed(landmarks: ManualLandmarks): boolean {
-  const regions = landmarks.eyeRegions;
-  if (!regions) return false;
-  const left = regionAspect(regions.left);
-  const right = regionAspect(regions.right);
-  const open = Math.max(left, right);
+export function isOneEyeClosed(openness: EyeOpenness): boolean {
+  const open = Math.max(openness.left, openness.right);
   if (!(open > 0)) return false;
-  return Math.min(left, right) < open * eyeSymmetryThresholds.closedEyeAspectShare;
+  return Math.min(openness.left, openness.right) < open * eyeSymmetryThresholds.closedEyeShare;
 }
 
 /**
@@ -103,11 +102,12 @@ export function isOneEyeClosed(landmarks: ManualLandmarks): boolean {
 export function analyzeEyeSymmetry(
   landmarks: ManualLandmarks,
   confidence?: EyeSymmetryConfidence,
+  openness?: EyeOpenness,
 ): EyeSymmetryPlan | null {
   const { leftEye, rightEye } = landmarks;
   const eyeDistance = Math.abs(rightEye.x - leftEye.x);
   if (!(eyeDistance > 0.02)) return null;
-  if (isOneEyeClosed(landmarks)) return null;
+  if (openness && isOneEyeClosed(openness)) return null;
 
   const heightDelta = Math.abs(leftEye.y - rightEye.y);
   const eyeCenterX = (leftEye.x + rightEye.x) / 2;

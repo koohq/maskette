@@ -3,6 +3,7 @@ import {
   type DetectedPoint,
   decodeHrnetHeatmaps,
   expandFaceBox,
+  eyeOpenness,
   mapAnimePointsToManualLandmarks,
   normalizeAnimeDetailPoints,
 } from "./animeLandmarkMapping";
@@ -218,6 +219,40 @@ describe("anime landmark mapping", () => {
     expect(details[0]).toEqual({ x: 0.1, y: 0.25 });
     expect(details.some((point) => point.x === 0.11)).toBe(false);
     expect(details.some((point) => point.x === 0.22)).toBe(false);
+  });
+});
+
+describe("eye openness", () => {
+  it("reads how open each eye is from its contour points", () => {
+    const points: DetectedPoint[] = Array.from({ length: 28 }, () => ({ score: 1, x: 0, y: 0 }));
+    // Contour points of the two open eyes found on a generated front view (image pixels).
+    const leftEye = [
+      [274, 501],
+      [306, 476],
+      [350, 488],
+      [290, 532],
+      [318, 532],
+      [347, 526],
+    ];
+    const rightEye = [
+      [457, 491],
+      [504, 476],
+      [539, 501],
+      [460, 523],
+      [491, 532],
+      [520, 532],
+    ];
+    leftEye.forEach(([x = 0, y = 0], index) => {
+      points[11 + index] = { score: 1, x, y };
+    });
+    rightEye.forEach(([x = 0, y = 0], index) => {
+      points[17 + index] = { score: 1, x, y };
+    });
+
+    const open = eyeOpenness(points);
+    expect(open.left).toBeCloseTo(56 / 76, 2);
+    expect(open.right).toBeCloseTo(56 / 82, 2);
+    expect(eyeOpenness([])).toEqual({ left: 0, right: 0 });
   });
 });
 

@@ -46,6 +46,23 @@ export function eyeLandmarkConfidences(points: readonly DetectedPoint[]): { left
   return { left: meanScore(leftEyeContourIndexes), right: meanScore(rightEyeContourIndexes) };
 }
 
+/**
+ * How open each eye is drawn: the height of its contour points over their width. A closed eye (a wink) is a flat line.
+ * Read from the raw contour, because the eye regions above have a minimum size and stay round for a closed eye.
+ */
+export function eyeOpenness(points: readonly DetectedPoint[]): { left: number; right: number } {
+  const openness = (indexes: readonly number[]) => {
+    const eyePoints = indexes.map((index) => points[index]).filter(isDefined);
+    if (eyePoints.length < 2) return 0;
+    const xs = eyePoints.map((point) => point.x);
+    const ys = eyePoints.map((point) => point.y);
+    const width = Math.max(...xs) - Math.min(...xs);
+    return width > 0 ? (Math.max(...ys) - Math.min(...ys)) / width : 0;
+  };
+
+  return { left: openness(leftEyeContourIndexes), right: openness(rightEyeContourIndexes) };
+}
+
 function median(values: readonly number[]) {
   if (values.length === 0) return 0;
 
