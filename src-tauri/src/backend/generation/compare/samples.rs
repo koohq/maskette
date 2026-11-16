@@ -11,6 +11,9 @@
 //! Each character gets its own output folder under one parent folder; the
 //! `samples-report` step builds the parent's `index.html`, which puts every
 //! character's runs and the judge's verdicts side by side.
+//!
+//! Use only photos you took yourself or have permission to use: they are
+//! sent to the image model's provider along with the character.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
