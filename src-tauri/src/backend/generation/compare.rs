@@ -19,6 +19,11 @@
 //! and a local revision inside that ellipse. `MASKETTE_COMPARE_EDIT_NOTE`
 //! replaces the default edit (the star hairpin becomes a heart).
 //!
+//! `back` checks a user back view tagged "back"
+//! (`MASKETTE_COMPARE_BACK=<back view image>`): it makes the head shell
+//! turnaround from the front view with the back view added, and a character
+//! design turnaround from the character and the back view.
+//!
 //! Each step rebuilds `index.html` in the output folder, which shows the
 //! runs side by side. `MASKETTE_COMPARE_STEP=report` only rebuilds it (no
 //! model is called and no key is read).
@@ -262,7 +267,37 @@ async fn compare_image_models() {
                 run.job(model, "local", &request).await;
             }
         }
-        other => panic!("MASKETTE_COMPARE_STEP is front, follow or report, not {other:?}"),
+        "back" => {
+            // A user back view tagged "back": once in the head shell
+            // turnaround (approved front view + character + back view) and
+            // once in the character design turnaround (character + back view).
+            let back = PathBuf::from(env("MASKETTE_COMPARE_BACK"));
+            for model in &models {
+                let front = out.join(slug(model)).join("front.png");
+                assert!(
+                    front.is_file(),
+                    "no front view for {model}; run the front step first"
+                );
+                let back_key = run.reference("back", &back, "back.png");
+
+                let mut request = GenerationRequest::new("compare", "ja", Mode::Turnaround);
+                request.reference_keys = vec![
+                    run.reference("front", &front, &format!("{}-front.png", slug(model))),
+                    run.reference("supplemental", &reference, &reference_name),
+                    back_key.clone(),
+                ];
+                run.job(model, "turnaround-back", &request).await;
+
+                let mut request =
+                    GenerationRequest::new("compare", "ja", Mode::CharacterTurnaround);
+                request.reference_keys = vec![
+                    run.reference("front", &reference, &reference_name),
+                    back_key,
+                ];
+                run.job(model, "design-turnaround-back", &request).await;
+            }
+        }
+        other => panic!("MASKETTE_COMPARE_STEP is front, follow, back or report, not {other:?}"),
     }
     println!("report: {}", report::write(&out).display());
 }
