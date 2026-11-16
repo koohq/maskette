@@ -40,7 +40,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use self::runner::{AgentRunner, DirectAction};
-use self::store::{Conversation, ConversationStore, Entry, ReferenceImage, event_seq, event_type};
+use self::store::{
+    Conversation, ConversationStore, Entry, REFERENCE_TAGS, ReferenceImage, event_seq, event_type,
+};
 use self::tools::{LocalRevision, NewVersion};
 use super::SharedState;
 use super::error::ApiError;
@@ -105,6 +107,10 @@ pub fn routes() -> Router<SharedState> {
         .route(
             "/api/agent/conversations/{id}/references",
             post(upload_references).layer(form_limit),
+        )
+        .route(
+            "/api/agent/conversations/{id}/references/{reference_id}",
+            axum::routing::patch(update_reference),
         )
         .route(
             "/api/agent/conversations/{id}/versions",
@@ -181,6 +187,7 @@ fn out(state: &SharedState, conversation: &Conversation) -> Json<Value> {
         "events": events,
         "state": {
             "references": agent_state.references,
+            "missing_views": agent_state.missing_views(),
             "images": agent_state.images,
             "current_design_id": agent_state.current_design_id,
             "approved_design_id": agent_state.approved_design_id,
@@ -764,6 +771,50 @@ async fn upload_references(
         .llm_messages
         .push(json!({"role": "user", "content": content}));
     entry.save(&conversation);
+    Ok(out(&state, &conversation))
+}
+
+#[derive(Deserialize)]
+struct UpdateReference {
+    kind: String,
+}
+
+/// Retags a reference image (`kind`, one of [`REFERENCE_TAGS`]). Tagging one
+/// `front` makes the old front `supplemental`; the front itself can only lose
+/// its tag that way, so a project with references always has one.
+async fn update_reference(
+    State(state): State<SharedState>,
+    UrlPath((id, reference_id)): UrlPath<(String, String)>,
+    payload: Result<Json<UpdateReference>, JsonRejection>,
+) -> Result<Json<Value>, ApiError> {
+    let entry = require(&state, &id)?;
+    let Json(payload) = payload?;
+    let kind = payload.kind.as_str();
+    if !REFERENCE_TAGS.contains(&kind) {
+        return Err(ApiError::bad_request("invalid_reference_kind"));
+    }
+    ensure_idle(&state, &id)?;
+    let mut conversation = entry.lock();
+    let references = &mut conversation.state.references;
+    let index = references
+        .iter()
+        .position(|reference| reference.id == reference_id)
+        .ok_or_else(|| not_found("reference_not_found"))?;
+    if references[index].kind != kind {
+        if references[index].kind == "front" {
+            return Err(ApiError::bad_request("front_reference_required"));
+        }
+        if kind == "front" {
+            for reference in references
+                .iter_mut()
+                .filter(|reference| reference.kind == "front")
+            {
+                "supplemental".clone_into(&mut reference.kind);
+            }
+        }
+        kind.clone_into(&mut references[index].kind);
+        entry.save(&conversation);
+    }
     Ok(out(&state, &conversation))
 }
 

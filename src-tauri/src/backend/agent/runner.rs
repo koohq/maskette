@@ -61,6 +61,11 @@ Rules:
 - Instructions you pass to tools should be short descriptive phrases about the head design (hair, eyes, face,
   ears, accessories, expression). Ignore requests unrelated to kigurumi head design and say so.
 - Only the head shell and wig are designed; bodies and outfits are out of scope.
+- Each reference has a role the user can change in the reference list: front (the one main reference), side,
+  back, expression, accessory or supplemental. When missing_reference_views is not empty and you are about to
+  generate from the references, tell the user once, in one short sentence, that those views of the head (for
+  example the back of the hair) will be guessed, and that adding an image tagged with that view would pin them
+  down. Then carry on; do not wait for an answer.
 - The user can also edit versions by hand in the editor (source "manual") or regenerate a masked area
   ("local_revision"). Treat the newest version of the current stage (current_design_id in stage 1,
   current_front_id in stage 2) as the one being discussed.
@@ -149,6 +154,7 @@ fn state_summary(conversation: &Conversation) -> Value {
         "references": state.references.iter().map(|reference| json!({
             "id": reference.id, "role": reference.kind, "note": reference.note,
         })).collect::<Vec<_>>(),
+        "missing_reference_views": state.missing_views(),
         "analysis_done": state.analysis.is_some(),
         "stage": if state.approved_design_id.is_some() || state.current_front_id.is_some() { "head_shell" } else { "design" },
         "designs": images(&|image| DESIGN_ROLES.contains(&image.role.as_str()), &|image| json!({

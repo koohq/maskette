@@ -1,7 +1,7 @@
 import { IconPlus } from "@tabler/icons-react";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
-import type { Conversation, DesignImage } from "../agent/agentApi";
+import { type Conversation, type DesignImage, REFERENCE_TAGS, type ReferenceTag } from "../agent/agentApi";
 
 type ExplorerPanelProps = {
   conversation: Conversation | null;
@@ -10,7 +10,12 @@ type ExplorerPanelProps = {
   onOpenVersion: (imageId: string) => void;
   onOpenImage: (url: string) => void;
   onAddReferences: (files: File[]) => void;
+  onTagReference: (referenceId: string, kind: ReferenceTag) => void;
 };
+
+function isReferenceTag(value: string): value is ReferenceTag {
+  return (REFERENCE_TAGS as readonly string[]).includes(value);
+}
 
 export function ExplorerPanel({
   conversation,
@@ -19,10 +24,12 @@ export function ExplorerPanel({
   onOpenVersion,
   onOpenImage,
   onAddReferences,
+  onTagReference,
 }: ExplorerPanelProps) {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const references = conversation?.state.references ?? [];
+  const missingViews = conversation?.state.missing_views ?? [];
   const images = conversation?.state.images ?? [];
   const state = conversation?.state;
   const approvedIds = new Set([state?.approved_design_id, state?.approved_front_id].filter(Boolean) as string[]);
@@ -62,22 +69,48 @@ export function ExplorerPanel({
           <p className="ide-empty">{t("workspace.noReferences")}</p>
         ) : (
           <div className="ide-ref-grid">
-            {references.map((reference) => (
-              <button
-                className="ide-ref-thumb"
-                key={reference.id}
-                onClick={() => onOpenImage(reference.url)}
-                title={reference.file_name}
-                type="button"
-              >
-                <img alt={reference.file_name} src={reference.url} />
-                {reference.kind === "front" ? (
-                  <span className="ide-ref-thumb-tag">{t("agent.referenceMain")}</span>
-                ) : null}
-              </button>
-            ))}
+            {references.map((reference) => {
+              // The front keeps its tag until another image is made the front.
+              const isFront = reference.kind === "front";
+              return (
+                <div className="ide-ref-cell" key={reference.id}>
+                  <button
+                    className="ide-ref-thumb"
+                    data-front={isFront}
+                    onClick={() => onOpenImage(reference.url)}
+                    title={reference.file_name}
+                    type="button"
+                  >
+                    <img alt={reference.file_name} src={reference.url} />
+                  </button>
+                  <select
+                    aria-label={t("workspace.referenceTagFor", { name: reference.file_name })}
+                    className="ide-ref-tag"
+                    data-front={isFront}
+                    disabled={disabled}
+                    onChange={(event) => {
+                      const kind = event.target.value;
+                      if (isReferenceTag(kind)) onTagReference(reference.id, kind);
+                    }}
+                    title={isFront ? t("workspace.referenceFrontHint") : undefined}
+                    value={reference.kind}
+                  >
+                    {REFERENCE_TAGS.map((tag) => (
+                      <option disabled={isFront && tag !== "front"} key={tag} value={tag}>
+                        {t(`workspace.referenceTags.${tag}`)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })}
           </div>
         )}
+        {missingViews.length > 0 ? (
+          <p className="ide-ref-note" role="note">
+            {t(`workspace.missingViews.${missingViews.join("_")}`)}
+          </p>
+        ) : null}
 
         <div className="ide-section-title" style={{ marginTop: 18 }}>
           <span>{t("workspace.versions")}</span>

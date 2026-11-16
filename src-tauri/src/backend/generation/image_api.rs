@@ -176,7 +176,7 @@ fn prepare_generation(
             roles.push(if reference.kind == "design_extra" {
                 Role::DesignSheet
             } else {
-                Role::Supplemental
+                Role::for_tag(&reference.kind)
             });
         }
         if !merged.is_empty() {

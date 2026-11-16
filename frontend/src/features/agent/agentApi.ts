@@ -13,6 +13,10 @@ export const agentEventSchema = z
 
 export type AgentEvent = z.infer<typeof agentEventSchema> & Record<string, unknown>;
 
+/** What a reference image shows; `front` is the one main reference. Mirrors `REFERENCE_TAGS` in the backend. */
+export const REFERENCE_TAGS = ["front", "side", "back", "expression", "accessory", "supplemental"] as const;
+export type ReferenceTag = (typeof REFERENCE_TAGS)[number];
+
 const referenceSchema = z.object({
   id: z.string(),
   key: z.string(),
@@ -61,6 +65,8 @@ export const conversationSchema = z.object({
   events: z.array(agentEventSchema),
   state: z.object({
     references: z.array(referenceSchema),
+    /** The views (`side`, `back`) no reference shows, so generation will guess them. */
+    missing_views: z.array(z.string()).default([]),
     images: z.array(designImageSchema),
     current_design_id: z.string().nullable().default(null),
     approved_design_id: z.string().nullable().default(null),
@@ -146,6 +152,15 @@ export function uploadReferences(id: string, files: File[]) {
   const form = new FormData();
   for (const file of files) form.append("files", file, file.name);
   return request(`/conversations/${id}/references`, conversationSchema, { body: form, method: "POST" });
+}
+
+/** Retag a reference; tagging one `front` makes the old front `supplemental`. */
+export function tagReference(id: string, referenceId: string, kind: ReferenceTag) {
+  return request(`/conversations/${id}/references/${referenceId}`, conversationSchema, {
+    body: JSON.stringify({ kind }),
+    headers: { "Content-Type": "application/json" },
+    method: "PATCH",
+  });
 }
 
 /** Unwatermarked pixels of a version: the editor works on these so watermarks never stack. */

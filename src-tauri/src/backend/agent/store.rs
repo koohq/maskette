@@ -67,7 +67,8 @@ pub struct ReferenceImage {
     pub id: String,
     /// The object key (`references/...`).
     pub key: String,
-    /// `front` for the main character reference, else `supplemental`.
+    /// What the image shows, one of [`REFERENCE_TAGS`]: `front` for the one
+    /// main character reference; uploads after it start as `supplemental`.
     pub kind: String,
     pub url: String,
     pub file_name: String,
@@ -104,6 +105,20 @@ pub struct DesignImage {
 }
 
 pub const DESIGN_ROLES: [&str; 2] = ["design", "design_turnaround"];
+
+/// The tags a user can give a reference image: what it shows.
+pub const REFERENCE_TAGS: [&str; 6] = [
+    "front",
+    "side",
+    "back",
+    "expression",
+    "accessory",
+    "supplemental",
+];
+
+/// The views of the head that, without a reference, the model can only
+/// guess: the sides and back of a four-view sheet.
+const GUESSED_VIEWS: [&str; 2] = ["side", "back"];
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct AgentState {
@@ -144,6 +159,23 @@ impl AgentState {
     pub fn image(&self, image_id: Option<&str>) -> Option<&DesignImage> {
         let image_id = image_id?;
         self.images.iter().find(|image| image.id == image_id)
+    }
+
+    /// The views no reference is tagged with, so generation will guess them.
+    /// Empty before the first upload: there is nothing to warn about yet.
+    pub fn missing_views(&self) -> Vec<&'static str> {
+        if self.references.is_empty() {
+            return Vec::new();
+        }
+        GUESSED_VIEWS
+            .into_iter()
+            .filter(|view| {
+                !self
+                    .references
+                    .iter()
+                    .any(|reference| reference.kind == *view)
+            })
+            .collect()
     }
 }
 

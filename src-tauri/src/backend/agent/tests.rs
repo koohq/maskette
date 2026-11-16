@@ -1241,6 +1241,81 @@ async fn references_can_be_added_without_chatting() {
 }
 
 #[tokio::test]
+async fn references_can_be_tagged_with_what_they_show() {
+    let setup = setup(no_llm).await;
+    let id = setup.start().await;
+    let image = png(64, 80, [1, 2, 3]);
+    let response = setup
+        .form(
+            &format!("/api/agent/conversations/{id}/references"),
+            &[
+                Part::file("files", "a.png", "image/png", image.clone()),
+                Part::file("files", "b.png", "image/png", image.clone()),
+                Part::file("files", "c.png", "image/png", image),
+            ],
+        )
+        .await;
+    let body = json_body(response).await;
+    assert_eq!(body["state"]["missing_views"], json!(["side", "back"]));
+    let ids: Vec<String> = body["state"]["references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|r| r["id"].as_str().unwrap().to_owned())
+        .collect();
+    let tag = async |reference: &str, kind: &str| {
+        setup
+            .json(
+                Method::PATCH,
+                &format!("/api/agent/conversations/{id}/references/{reference}"),
+                json!({ "kind": kind }),
+            )
+            .await
+    };
+    let kinds = |body: &Value| -> Vec<String> {
+        body["state"]["references"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r["kind"].as_str().unwrap().to_owned())
+            .collect()
+    };
+
+    let body = json_body(tag(&ids[1], "back").await).await;
+    assert_eq!(kinds(&body), ["front", "back", "supplemental"]);
+    assert_eq!(body["state"]["missing_views"], json!(["side"]));
+
+    // A new front takes the place of the old one.
+    let body = json_body(tag(&ids[2], "front").await).await;
+    assert_eq!(kinds(&body), ["supplemental", "back", "front"]);
+
+    // The front keeps its tag until another image takes it.
+    let response = tag(&ids[2], "side").await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json_body(response).await["detail"],
+        "front_reference_required"
+    );
+    let response = tag(&ids[0], "outfit").await;
+    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        json_body(response).await["detail"],
+        "invalid_reference_kind"
+    );
+    let response = tag("ref-9-000000", "side").await;
+    assert_eq!(response.status(), StatusCode::NOT_FOUND);
+
+    let body = json_body(tag(&ids[0], "side").await).await;
+    assert_eq!(kinds(&body), ["side", "back", "front"]);
+    assert_eq!(body["state"]["missing_views"], json!([]));
+    assert_eq!(
+        kinds(&setup.conversation(&id).await),
+        ["side", "back", "front"]
+    );
+    assert_eq!(setup.llm.calls(), 0);
+}
+
+#[tokio::test]
 async fn local_revision_runs_as_a_direct_action() {
     let setup = setup(auto_front).await;
     let id = setup.start().await;

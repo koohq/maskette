@@ -16,6 +16,7 @@ function conversation(approved: string | null = null): Conversation {
     events: [],
     state: {
       references: [],
+      missing_views: [],
       images: [],
       current_design_id: null,
       approved_design_id: null,

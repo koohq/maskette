@@ -550,6 +550,24 @@ pub enum Role {
     DesignDraft,
     DesignSheet,
     Supplemental,
+    /// A reference the user tagged with what it shows.
+    SideView,
+    BackView,
+    Expression,
+    Accessory,
+}
+
+impl Role {
+    /// The role of a supplemental user reference, from its tag.
+    pub fn for_tag(tag: &str) -> Self {
+        match tag {
+            "side" => Self::SideView,
+            "back" => Self::BackView,
+            "expression" => Self::Expression,
+            "accessory" => Self::Accessory,
+            _ => Self::Supplemental,
+        }
+    }
 }
 
 impl Role {
@@ -581,6 +599,18 @@ first image does not show, such as the sides and back of the hair; never let it 
             Self::Supplemental => format!(
                 "{label} contains supplemental references of the same character (other angles, expressions, \
 accessories, or correction notes). Use them only to clarify details."
+            ),
+            Self::SideView => format!(
+                "{label} is a side-view reference of the same character. Use it for the side of the head: the ears, the sideburns, and how far the hair sticks out. It never changes the face or the design of the first image."
+            ),
+            Self::BackView => format!(
+                "{label} is a back-view reference of the same character. Use it for the back of the head: the length, layers, braids, ties and accessories of the back hair. It never changes the face or the design of the first image."
+            ),
+            Self::Expression => format!(
+                "{label} shows other expressions of the same character. Use it only to understand the eyes, brows and mouth; keep the expression of the first image unless the instructions ask for another."
+            ),
+            Self::Accessory => format!(
+                "{label} is a close-up of the character's head accessories. Use it for their exact shape, colours and placement."
             ),
         }
     }
@@ -920,6 +950,43 @@ mod tests {
         );
         assert!(!design.contains("porcelain"));
         assert!(design.contains("stage 1 of the kigurumi workflow"));
+    }
+
+    #[test]
+    fn tagged_references_say_what_they_show() {
+        let prompt = build_image_prompt(
+            &request(Mode::CharacterTurnaround),
+            &[
+                Role::Character,
+                Role::for_tag("side"),
+                Role::for_tag("back"),
+                Role::for_tag("expression"),
+                Role::for_tag("accessory"),
+                Role::for_tag("supplemental"),
+            ],
+            None,
+            &Overrides::default(),
+        );
+        assert!(prompt.contains(
+            "
+Image 2 is a side-view reference"
+        ));
+        assert!(prompt.contains(
+            "
+Image 3 is a back-view reference"
+        ));
+        assert!(prompt.contains(
+            "
+Image 4 shows other expressions"
+        ));
+        assert!(prompt.contains(
+            "
+Image 5 is a close-up of the character's head accessories"
+        ));
+        assert!(prompt.contains(
+            "
+Image 6 contains supplemental references"
+        ));
     }
 
     #[test]

@@ -14,6 +14,7 @@ const LANGUAGES = ["ja", "en", "zh-CN"];
 const NOT_SHOWN = new Set([
   "unknown_action", // the approve buttons only send known actions
   "reference_ids_invalid", // the editor always sends a JSON array
+  "invalid_reference_kind", // the reference list only offers the known tags
   "version_not_found", // the editor's image and the download link load these URLs directly
   "version_file_missing",
   "version_not_encoded",

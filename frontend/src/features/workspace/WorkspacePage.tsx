@@ -22,12 +22,14 @@ import {
   deleteAssistantMessage,
   isTurnaroundRole,
   prepareUpload,
+  type ReferenceTag,
   regenerateLastTurn,
   renameConversation,
   saveManualVersion,
   sendMessage,
   startAnnotatedRevision,
   startLocalRevision,
+  tagReference,
   uploadReferences,
   versionDownloadUrl,
   versionSourceUrl,
@@ -219,6 +221,16 @@ export function WorkspacePage() {
     }
   }
 
+  async function retagReference(referenceId: string, kind: ReferenceTag) {
+    if (!projectId) return;
+    try {
+      await tagReference(projectId, referenceId, kind);
+      await refresh();
+    } catch (error) {
+      reportError(error);
+    }
+  }
+
   async function handleSave(payload: EditorImageSavePayload) {
     if (!projectId || !activeVersion) return;
     setSaving(true);
@@ -382,6 +394,7 @@ export function WorkspacePage() {
                 onAddReferences={(files) => void addReferences(files)}
                 onOpenImage={setLightboxUrl}
                 onOpenVersion={(id) => openVersion(id)}
+                onTagReference={(referenceId, kind) => void retagReference(referenceId, kind)}
               />
             ) : (
               <>

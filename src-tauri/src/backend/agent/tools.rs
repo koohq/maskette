@@ -322,12 +322,21 @@ fn character_reference_keys(conversation: &Conversation) -> Vec<String> {
         .collect()
 }
 
+/// The references as helpers of another primary image: the front loses its
+/// rank, the other tags (side, back...) still say what each image shows.
 fn supplemental_keys(conversation: &Conversation) -> Vec<String> {
     conversation
         .state
         .references
         .iter()
-        .map(|reference| reference_key("supplemental", &reference.key))
+        .map(|reference| {
+            let kind = if reference.kind == "front" {
+                "supplemental"
+            } else {
+                &reference.kind
+            };
+            reference_key(kind, &reference.key)
+        })
         .collect()
 }
 

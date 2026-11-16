@@ -37,6 +37,7 @@ function conversation(images: DesignImage[], ids: Partial<Conversation["state"]>
     events: [],
     state: {
       references: [],
+      missing_views: [],
       images,
       current_design_id: null,
       approved_design_id: null,

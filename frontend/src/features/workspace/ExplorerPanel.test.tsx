@@ -40,6 +40,7 @@ const conversation: Conversation = {
   events: [],
   state: {
     references: [{ id: "ref-1", key: "k", kind: "front", url: "/r.png", file_name: "r.png", note: "" }],
+    missing_views: [],
     images: [
       image("front-1", "front", null, "agent"),
       image("front-2", "front", "front-1", "manual"),
@@ -64,6 +65,7 @@ describe("ExplorerPanel", () => {
         onAddReferences={vi.fn()}
         onOpenImage={vi.fn()}
         onOpenVersion={onOpenVersion}
+        onTagReference={vi.fn()}
       />,
     );
     const front2 = screen.getByText("front-2").closest("li") as HTMLElement;
@@ -87,11 +89,47 @@ describe("ExplorerPanel", () => {
         onAddReferences={onAddReferences}
         onOpenImage={vi.fn()}
         onOpenVersion={vi.fn()}
+        onTagReference={vi.fn()}
       />,
     );
     const input = container.querySelector('input[type="file"]') as HTMLInputElement;
     const file = new File(["x"], "a.png", { type: "image/png" });
     fireEvent.change(input, { target: { files: [file] } });
     expect(onAddReferences).toHaveBeenCalledWith([file]);
+  });
+
+  it("tags references with what they show and notes the views the AI will guess", () => {
+    const onTagReference = vi.fn();
+    const tagged: Conversation = {
+      ...conversation,
+      state: {
+        ...conversation.state,
+        references: [
+          { id: "ref-1", key: "k1", kind: "front", url: "/a.png", file_name: "a.png", note: "" },
+          { id: "ref-2", key: "k2", kind: "supplemental", url: "/b.png", file_name: "b.png", note: "" },
+        ],
+        missing_views: ["side", "back"],
+      },
+    };
+    render(
+      <ExplorerPanel
+        activeVersionId={null}
+        conversation={tagged}
+        disabled={false}
+        onAddReferences={vi.fn()}
+        onOpenImage={vi.fn()}
+        onOpenVersion={vi.fn()}
+        onTagReference={onTagReference}
+      />,
+    );
+    const front = screen.getByRole("combobox", { name: "a.png 的用途" }) as HTMLSelectElement;
+    expect(front.value).toBe("front");
+    // The front can only lose its tag by another image taking it.
+    expect(within(front).getByRole("option", { name: "背面" })).toBeDisabled();
+
+    const other = screen.getByRole("combobox", { name: "b.png 的用途" });
+    fireEvent.change(other, { target: { value: "back" } });
+    expect(onTagReference).toHaveBeenCalledWith("ref-2", "back");
+    expect(screen.getByRole("note").textContent).toContain("没有侧面和背面的参考图");
   });
 });

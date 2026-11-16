@@ -17,6 +17,8 @@ export const DETAIL_CODES = new Set([
   "empty_message",
   "too_many_files",
   "too_many_references",
+  "front_reference_required",
+  "reference_not_found",
   "unsupported_image_type",
   "unknown_image",
   "image_too_large",
