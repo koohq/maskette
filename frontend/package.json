@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json",
+    "vrt": "playwright test",
+    "vrt:update": "playwright test --update-snapshots",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p vrt/tsconfig.json",
     "deps:semver": "pnpm up -r",
     "deps:latest": "pnpm up -r --latest",
     "deps:interactive": "pnpm up -r -i --latest"
@@ -34,6 +36,7 @@
     "zustand": "5.0.16"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "4.3.3",
     "@testing-library/dom": "^10.4.2",
     "@testing-library/jest-dom": "^7.0.1",

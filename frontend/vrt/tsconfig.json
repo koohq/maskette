@@ -1,0 +1,10 @@
+{
+  "$schema": "https://www.schemastore.org/tsconfig",
+  // The visual regression tests and their config run in Node (Playwright), next to a browser page.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [".", "../playwright.config.ts"],
+  "exclude": ["__screenshots__"]
+}

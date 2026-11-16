@@ -43,6 +43,8 @@ Other scripts:
 | --- | --- |
 | `pnpm typecheck` | Type-check the Node scripts in `scripts/` and every workspace package, tests included |
 | `pnpm test` | Run the frontend tests (Vitest) |
+| `pnpm vrt` | Screenshot the main screens in every language at the default and the smallest window size, compare them with `frontend/vrt/__screenshots__`, and check that no text or control overflows its box (Playwright; the API is answered by fixtures). The first run needs `pnpm --filter maskette-frontend exec playwright install chromium` |
+| `pnpm vrt:update` | Accept the current screenshots as the new baselines; look at the changed images before committing them |
 | `pnpm build` | Build the frontend into `frontend/dist` |
 | `pnpm cargo:check` | `cargo check` the Tauri crate |
 | `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`), and copy it to `release/` |

@@ -3,6 +3,8 @@ node_modules/
 dist/
 release/
 coverage/
+frontend/vrt-results/
+frontend/vrt-report/
 .vite/
 *.log
 

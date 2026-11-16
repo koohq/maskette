@@ -33,6 +33,12 @@
       // In tests a non-null assertion is the check: a missing element fails the test at once.
       "includes": ["**/*.test.ts", "**/*.test.tsx"],
       "linter": { "rules": { "style": { "noNonNullAssertion": "off" } } }
+    },
+    {
+      // Biome turns its Playwright rules on because @playwright/test is installed for the visual tests
+      // (frontend/vrt); in the app they take any function named `describe` for Playwright's.
+      "includes": ["frontend/src/**"],
+      "linter": { "rules": { "correctness": { "usePlaywrightValidDescribeCallback": "off" } } }
     }
   ]
 }
