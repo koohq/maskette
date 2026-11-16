@@ -178,7 +178,12 @@ right: (1) front, facing the camera straight on; (2) front three-quarter, turned
 character's left, so the face is still clearly visible; (3) side profile, turned 90 degrees; (4) back, turned 180 \
 degrees, the back of the head and hair with no face visible. Within each view the head is upright, with no tilt, \
 roll or nod; only the turn differs. The four heads are the same size and scale, evenly spaced, aligned on one \
-common horizontal baseline, centred vertically, with clear margins around each and no overlap or cropping.";
+common horizontal baseline, centred vertically, with clear margins around each and no overlap or cropping. Left and \
+right belong to the head, not to the picture: a feature on the character's left side (the viewer's right in the front \
+view) stays on the character's left in every view. In the back view the sides are mirrored, so it appears on the \
+viewer's LEFT there; in the side profile it is on the far side of the head, hidden or only partly visible behind it. \
+A one-sided feature, such as a single braid, side ponytail, side lock or hairpin, keeps the same distance from the \
+centre line of the head in every view and is never moved to the middle of the back.";
 pub const FOUR_VIEW_CLEAN_LINE: &str = "Draw no text, labels, arrows, grid lines, panel borders or extra heads, and do not output four separate images.";
 
 const COMPOSITION_LINE: &str = "Composition: the whole head shell, the full wig silhouette and both ears are inside the frame, centred, with clear \
