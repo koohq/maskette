@@ -32,8 +32,22 @@
 //! Each step rebuilds `index.html` in the output folder, which shows the
 //! runs side by side. `MASKETTE_COMPARE_STEP=report` only rebuilds it (no
 //! model is called and no key is read).
+//!
+//! `samples` tries photos of real finished masks as examples of materials
+//! and finish (`MASKETTE_COMPARE_SAMPLES=<photo>;<photo>`, separated like
+//! `PATH`). It makes `front` with the app's prompt, then `front-samples1`,
+//! `front-samples2`, ... with the first one, two, ... photos added (see
+//! `samples.rs`; `MASKETTE_COMPARE_SAMPLE_COUNTS=0,1,2` picks the counts).
+//! `MASKETTE_COMPARE_SAMPLE_STAGE=turnaround` makes the head shell
+//! turnaround from each of those front views instead. Give each character
+//! its own output folder under one parent folder. `judge` compares pairs of
+//! those runs with a vision model (see `judge.rs`), and `samples-report`
+//! with the parent folder as `MASKETTE_COMPARE_OUT` builds the page that
+//! puts every character side by side.
 
+mod judge;
 mod report;
+mod samples;
 
 use std::collections::BTreeMap;
 use std::io::Write as _;
@@ -184,19 +198,15 @@ async fn compare_image_models() {
         println!("report: {}", report::write(&out).display());
         return;
     }
-    let reference = PathBuf::from(env("MASKETTE_COMPARE_REFERENCE"));
+    if step == "samples-report" {
+        println!("page: {}", samples::write_page(&out).display());
+        return;
+    }
     let models: Vec<String> = env("MASKETTE_COMPARE_MODELS")
         .split(',')
         .map(|model| model.trim().to_owned())
         .filter(|model| !model.is_empty())
         .collect();
-    // The report shows the character next to the results.
-    let extension = reference
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("png");
-    std::fs::copy(&reference, out.join(format!("reference.{extension}")))
-        .expect("reference copied");
 
     // The app falls back to the chat and analysis keys when they point at
     // OpenRouter; the keys are assumed to be OpenRouter's here.
@@ -209,6 +219,36 @@ async fn compare_image_models() {
     .into_iter()
     .find_map(|name| secrets.get(name).expect("credential store readable"))
     .expect("an OpenRouter key saved in Maskette's settings");
+    if step == "judge" {
+        let judge_model = std::env::var("MASKETTE_COMPARE_JUDGE")
+            .unwrap_or_else(|_| judge::DEFAULT_MODEL.to_owned());
+        let pairs = judge::parse_pairs(&env("MASKETTE_COMPARE_PAIRS"));
+        let kinds = judge::parse_kinds(
+            std::env::var("MASKETTE_COMPARE_JUDGE_KINDS")
+                .ok()
+                .as_deref(),
+        );
+        judge::run(
+            &reqwest::Client::new(),
+            &key,
+            &judge_model,
+            &kinds,
+            &out,
+            &models,
+            &pairs,
+        )
+        .await;
+        return;
+    }
+
+    let reference = PathBuf::from(env("MASKETTE_COMPARE_REFERENCE"));
+    // The report shows the character next to the results.
+    let extension = reference
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .unwrap_or("png");
+    std::fs::copy(&reference, out.join(format!("reference.{extension}")))
+        .expect("reference copied");
     let backend = TestBackend::new(false);
     backend
         .state
@@ -327,8 +367,41 @@ async fn compare_image_models() {
                 run.job(model, "design-turnaround-back", &request).await;
             }
         }
+        "samples" => {
+            let paths: Vec<PathBuf> =
+                std::env::split_paths(&env("MASKETTE_COMPARE_SAMPLES")).collect();
+            let samples = samples::load_samples(&paths, &out);
+            let counts: Vec<usize> = std::env::var("MASKETTE_COMPARE_SAMPLE_COUNTS").map_or_else(
+                |_| (0..=samples.len()).collect(),
+                |text| {
+                    text.split(',')
+                        .map(|count| count.trim().parse().expect("a count"))
+                        .collect()
+                },
+            );
+            assert!(
+                counts.iter().all(|count| *count <= samples.len()),
+                "more samples asked for than given"
+            );
+            let stage = std::env::var("MASKETTE_COMPARE_SAMPLE_STAGE")
+                .unwrap_or_else(|_| "front".to_owned());
+            samples::run_stage(
+                &run,
+                &models,
+                &stage,
+                &reference,
+                &reference_name,
+                &samples,
+                &counts,
+            )
+            .await;
+            if let Some(parent) = out.parent() {
+                println!("page: {}", samples::write_page(parent).display());
+            }
+            return;
+        }
         other => panic!(
-            "MASKETTE_COMPARE_STEP is front, follow, turnaround, back or report, not {other:?}"
+            "MASKETTE_COMPARE_STEP is front, follow, turnaround, back, samples, judge, report or samples-report, not {other:?}"
         ),
     }
     println!("report: {}", report::write(&out).display());
