@@ -24,6 +24,11 @@
 //! turnaround from the front view with the back view added, and a character
 //! design turnaround from the character and the back view.
 //!
+//! `turnaround` makes only the head shell turnaround of `follow`. With
+//! `MASKETTE_COMPARE_PROMPTS=<prompts.json>`, any step uses those prompt
+//! overrides (the app's `prompts.json` format), to try a text change
+//! without rebuilding.
+//!
 //! Each step rebuilds `index.html` in the output folder, which shows the
 //! runs side by side. `MASKETTE_COMPARE_STEP=report` only rebuilds it (no
 //! model is called and no key is read).
@@ -213,6 +218,14 @@ async fn compare_image_models() {
             ("openrouter_api_key".to_owned(), Some(key)),
         ])
         .expect("settings set");
+    // Prompt text to try, in the format of the app's prompts.json.
+    if let Ok(prompts) = std::env::var("MASKETTE_COMPARE_PROMPTS") {
+        std::fs::copy(
+            &prompts,
+            backend.dir.path().join(crate::backend::prompts::FILE_NAME),
+        )
+        .expect("prompts file copied");
+    }
     let run = Run {
         backend: &backend,
         out: out.clone(),
@@ -267,6 +280,23 @@ async fn compare_image_models() {
                 run.job(model, "local", &request).await;
             }
         }
+        "turnaround" => {
+            // Only the head shell turnaround of the follow step, for trying
+            // prompt text on the four-view sheet.
+            for model in &models {
+                let front = out.join(slug(model)).join("front.png");
+                assert!(
+                    front.is_file(),
+                    "no front view for {model}; run the front step first"
+                );
+                let mut request = GenerationRequest::new("compare", "ja", Mode::Turnaround);
+                request.reference_keys = vec![
+                    run.reference("front", &front, &format!("{}-front.png", slug(model))),
+                    run.reference("supplemental", &reference, &reference_name),
+                ];
+                run.job(model, "turnaround", &request).await;
+            }
+        }
         "back" => {
             // A user back view tagged "back": once in the head shell
             // turnaround (approved front view + character + back view) and
@@ -297,7 +327,9 @@ async fn compare_image_models() {
                 run.job(model, "design-turnaround-back", &request).await;
             }
         }
-        other => panic!("MASKETTE_COMPARE_STEP is front, follow, back or report, not {other:?}"),
+        other => panic!(
+            "MASKETTE_COMPARE_STEP is front, follow, turnaround, back or report, not {other:?}"
+        ),
     }
     println!("report: {}", report::write(&out).display());
 }
