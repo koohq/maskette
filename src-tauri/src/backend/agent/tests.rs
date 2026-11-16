@@ -1194,6 +1194,57 @@ async fn a_manual_version_keeps_its_clean_source_and_recipe() {
 }
 
 #[tokio::test]
+async fn an_eye_correction_is_its_own_version_and_the_assistant_hears_of_it() {
+    let setup = setup(auto_front).await;
+    let id = setup.start().await;
+    setup.send(&id, "", 1, &[]).await;
+    let response = setup
+        .form(
+            &format!("/api/agent/conversations/{id}/versions"),
+            &[
+                Part::text("base_image_id", "front-1"),
+                Part::text("note", "eyes levelled"),
+                Part::text("recipe", "{}"),
+                Part::text("source", "auto_symmetry"),
+                Part::file(
+                    "image",
+                    "corrected.png",
+                    "image/png",
+                    png(80, 110, [5, 5, 200]),
+                ),
+            ],
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let body = json_body(response).await;
+    let corrected = images(&body).last().unwrap().clone();
+    assert_eq!(corrected["source"], "auto_symmetry");
+    assert_eq!(corrected["parent_id"], "front-1");
+    // The corrected pixels are what the next stage builds on.
+    assert_eq!(body["state"]["current_front_id"], corrected["id"]);
+    let said = setup.transcript(&id).last().unwrap()["content"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert!(said.starts_with("[app action]"), "{said}");
+    assert!(said.contains("mirror-symmetric"), "{said}");
+
+    // The screen may only claim its own two sources.
+    let claimed = setup
+        .form(
+            &format!("/api/agent/conversations/{id}/versions"),
+            &[
+                Part::text("base_image_id", "front-1"),
+                Part::text("source", "agent"),
+                Part::file("image", "edit.png", "image/png", png(8, 8, [0, 0, 0])),
+            ],
+        )
+        .await;
+    assert_eq!(claimed.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(json_body(claimed).await["detail"], "unknown_version_source");
+}
+
+#[tokio::test]
 async fn references_can_be_added_without_chatting() {
     let setup = setup(no_llm).await;
     let response = setup

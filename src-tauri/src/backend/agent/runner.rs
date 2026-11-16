@@ -67,7 +67,8 @@ Rules:
   example the back of the hair) will be guessed, and that adding an image tagged with that view would pin them
   down. Then carry on; do not wait for an answer.
 - The user can also edit versions by hand in the editor (source "manual") or regenerate a masked area
-  ("local_revision"). Treat the newest version of the current stage (current_design_id in stage 1,
+  ("local_revision"). When a generated version has uneven eyes, the app may save a copy with the eyes
+  levelled and mirrored (source "auto_symmetry"); it is the newer version of that stage. Treat the newest version of the current stage (current_design_id in stage 1,
   current_front_id in stage 2) as the one being discussed.
 
 Current state:

@@ -108,7 +108,7 @@ const zhCN = {
     },
     versions: "版本",
     noVersions: "还没有版本。在右侧和助手对话，生成第一张正视图。",
-    sources: { agent: "AI", manual: "手动", local_revision: "局部" },
+    sources: { agent: "AI", manual: "手动", local_revision: "局部", auto_symmetry: "眼睛修正" },
     roles: { design: "设定图", design_turnaround: "设定四视图", front: "头壳正视图", turnaround: "头壳四视图" },
     stages: { design: "设定图", front: "头壳正视图", turnaround: "头壳四视图" },
     stageHint: "点击打开该阶段的版本",
@@ -132,6 +132,9 @@ const zhCN = {
     toggleTheme: "切换主题",
     busy: "助手正在处理，请稍后再试。",
     savedVersion: "已保存为 {{id}}",
+    autoSymmetryNote: "自动修正：左右眼原本不平，已对齐到同一水平线并镜像成对称的一对。",
+    autoSymmetryApplied: "已修正左右眼不对称，保存为新版本。",
+    autoSymmetryBusy: "正在修正左右眼，完成后请再确认一次。",
     tools: {
       annotation: "标注",
       proportion: "比例",
@@ -146,6 +149,7 @@ const zhCN = {
       detecting: "正在识别关键点…",
       landmarksReady: "关键点已识别",
       noLandmarks: "未识别关键点",
+      correctingEyes: "正在修正左右眼…",
     },
   },
   agent: {
@@ -321,6 +325,10 @@ const zhCN = {
     appearanceHint:
       "主按钮、选中项和焦点的颜色，以及背景色的组合。明暗可在标题栏切换。选择后立即生效，并保存在这台电脑上。",
     paletteDefault: "默认",
+    autoEyeSymmetrySection: "生成后的自动修正",
+    autoEyeSymmetryLabel: "自动修正左右眼不对称",
+    autoEyeSymmetryHint:
+      "AI 生成的设定图、正视图或四视图中，左右眼高低或大小不一致时，会把画得更好的一只眼镜像到另一侧，保存为新版本，原版本保留。眨眼和左右眼颜色不同（异色瞳）不会修正。四视图只修正正面那一格。保存在这台电脑上。",
     palettes: {
       mikan: "橘子（橙色）",
       sakura: "樱花（粉色）",

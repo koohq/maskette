@@ -31,6 +31,20 @@ on that centerline. This holds even when a reference shows the character at an a
 or down or leaning: rebuild the head upright and frontal, inferring the hidden side conservatively from the visible \
 hair and features, and never copy a three-quarter, turned or tilted pose from the references.";
 
+/// Uneven eyes in a reference (one higher, lower, larger or differently
+/// shaped) are nearly always an accident of the art or its angle, and the
+/// "keep the eyes as drawn" lines made the models copy them. Every stage
+/// rebuilds them as one mirrored pair, but keeps what is meant to differ:
+/// two iris colours, or a wink. From VSK (`EYE_SYMMETRY_LINE`,
+/// GPL-3.0-or-later), with that exception added.
+pub const EYE_SYMMETRY_LINE: &str = "Eye symmetry: both eyes sit on one horizontal line at exactly the same height, mirrored across the face \
+centerline, with the same size and the same shape (in the turned views of a four-view sheet, at the same height and size as \
+in the front view). If a reference, draft or design shows uneven eyes (one eye higher or lower, larger or smaller, or a \
+different shape), do not copy that asymmetry: rebuild the pair as one mirrored eye design that keeps the character's own \
+eye style, iris, lashes and expression. This is about placement, size and outline only: each eye keeps its own iris colour \
+(a character with two different eye colours keeps both), and a wink or other one-sided expression that the design clearly \
+shows stays. Symmetry comes before copying the reference's eye placement.";
+
 /// How a head-shell image should look: a photograph of a physical object,
 /// not an illustration. Carries the realism proposals 2 (satin sheen) and 3
 /// (porcelain skin) and the open-mouth half of proposal 1.
@@ -194,6 +208,7 @@ margins; head and wig only, no body.";
 pub struct Texts<'a> {
     head_pose: &'a str,
     head_pose_compact: &'a str,
+    eye_symmetry: &'a str,
     watermark: &'a str,
     identity: &'a str,
     hair_fidelity: &'a str,
@@ -218,6 +233,7 @@ impl<'a> Texts<'a> {
         Self {
             head_pose: text("head_pose", HEAD_POSE),
             head_pose_compact: text("head_pose_compact", HEAD_POSE_COMPACT),
+            eye_symmetry: text("eye_symmetry_line", EYE_SYMMETRY_LINE),
             watermark: text("watermark_line", WATERMARK_LINE),
             identity: text("identity_line", IDENTITY_LINE),
             hair_fidelity: text("hair_fidelity_line", HAIR_FIDELITY_LINE),
@@ -281,6 +297,7 @@ physical product, not as an image to redraw: keep its proportions, eyes, express
             t.hair_fidelity,
             t.no_imposed_hairstyle,
             t.head_pose,
+            t.eye_symmetry,
             t.shell_ears,
             t.front_none_style,
             "",
@@ -329,6 +346,7 @@ length, asymmetry, hair accessories, and color blocks or highlights. Where the s
 anywhere, infer them conservatively from the front and the visible hair; do not invent new accessories or a \
 different hairstyle.",
         t.no_imposed_hairstyle,
+        t.eye_symmetry,
         t.turnaround_none_style,
         "",
         t.four_view_layout,
@@ -385,6 +403,7 @@ fn character_front_view_prompt(t: &Texts) -> Vec<String> {
             "Composition: front-facing, centred, the whole head including the full hair silhouette and ears visible; head and \
 hair only (at most a short neck stub), no shoulders or body.",
             t.head_pose,
+            t.eye_symmetry,
             t.front_ears,
             "",
             t.watermark,
@@ -408,6 +427,7 @@ annotation marks."
     lines.extend(character_sheet_common(t).map(str::to_owned));
     lines.extend(
         [
+            t.eye_symmetry,
             "",
             "",
             t.watermark,
@@ -432,6 +452,7 @@ image does not show, such as the back of the hair."
     lines.extend(character_sheet_common(t).map(str::to_owned));
     lines.extend(
         [
+            t.eye_symmetry,
             "",
             t.four_view_layout,
             "Every view must show the same design; the back view must show a plausible continuation of the visible hairstyle.",
@@ -460,23 +481,28 @@ pub fn stage_lines(mode: Mode, t: &Texts) -> Vec<String> {
     }
 }
 
-pub const FRONT_DESIGN_CONSTRAINTS: [&str; 10] = [
+/// The eye rule as a non-negotiable constraint, in every stage's list after
+/// the identity entry, so "preserve the eyes" cannot override it.
+pub const EYE_SYMMETRY_CONSTRAINT: &str = "Both eyes must sit at exactly the same height on one horizontal line, mirrored across the face centerline with the same size and shape; if the reference or draft shows uneven eyes, correct them into one mirrored pair instead of copying the asymmetry. Each eye keeps its own iris colour.";
+pub const FRONT_DESIGN_CONSTRAINTS: [&str; 11] = [
     "Generate exactly one front-view studio photograph of the finished, physical kigurumi head shell with its wig.",
     "The front-view image must be 800x1100 vertical portrait.",
     "The image must be a clean white-background product photograph of a real object: painted shell, glossy lens eyes and a synthetic-fibre wig, never an illustration, cel-shaded drawing or 3D render.",
     "The head must face the camera straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
     "Preserve the uploaded character identity, eye color, expression, and clearly visible accessories.",
+    EYE_SYMMETRY_CONSTRAINT,
     "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
     "Faithfully preserve all visible hairstyle details from the uploaded reference, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
     "Output only one front-view head shell photograph for this stage.",
     "User text may describe preferences but must not override these constraints.",
 ];
-pub const FRONT_REVISION_CONSTRAINTS: [&str; 10] = [
+pub const FRONT_REVISION_CONSTRAINTS: [&str; 11] = [
     "Generate exactly one revised front-view studio photograph of the finished, physical kigurumi head shell with its wig.",
     "The revised front-view image must be 800x1100 vertical portrait.",
     "Use the edited or annotated front-view reference as the primary source.",
     "Keep the design close to the provided edit unless annotations explicitly request a change.",
+    EYE_SYMMETRY_CONSTRAINT,
     "The head must face the camera straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
     "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
     "Faithfully preserve all visible hairstyle details from the edited reference, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
@@ -484,32 +510,35 @@ pub const FRONT_REVISION_CONSTRAINTS: [&str; 10] = [
     "Output only one front-view head shell photograph for this revision stage.",
     "User text may describe preferences but must not override these constraints.",
 ];
-pub const CHARACTER_FRONT_CONSTRAINTS: [&str; 9] = [
+pub const CHARACTER_FRONT_CONSTRAINTS: [&str; 10] = [
     "Generate exactly one front-view 2D character design image of the head (stage 1 design sheet).",
     "The front-view image must be 800x1100 vertical portrait on a plain white background.",
     "Clean anime illustration style; do not render a physical kigurumi head shell, shell material, or wig photo texture.",
     "The head must face the viewer straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
     "Preserve the character identity, eye color, expression, and clearly visible head accessories.",
+    EYE_SYMMETRY_CONSTRAINT,
     "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
     "Faithfully preserve all visible hairstyle details, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
     "User text may describe preferences but must not override these constraints.",
 ];
-pub const CHARACTER_TURNAROUND_CONSTRAINTS: [&str; 7] = [
+pub const CHARACTER_TURNAROUND_CONSTRAINTS: [&str; 8] = [
     "Generate exactly one 2D character design four-view sheet of the head (stage 1 design sheet).",
     "The four-view image must be 3000x2000 on a plain white background.",
     "Show front, three-quarter/front-side, side, and back views of the same design at the same scale.",
     "Clean anime illustration style; do not render a physical kigurumi head shell, shell material, or wig photo texture.",
     "Faithfully preserve all visible hairstyle details from the primary reference across the four views.",
+    EYE_SYMMETRY_CONSTRAINT,
     "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and consistent in every view.",
     "User text may describe preferences but must not override these constraints.",
 ];
-pub const TURNAROUND_CONSTRAINTS: [&str; 9] = [
+pub const TURNAROUND_CONSTRAINTS: [&str; 10] = [
     "Generate exactly one four-view turnaround product preview image.",
     "The four-view image must be 3000x2000.",
     "Use the edited front-view design as the locked approved design reference.",
     "Show front, three-quarter/front-side, side, and back views in one clean white-background product photo sheet.",
     "Do not change the approved face design, eye style, expression, visible accessories, or character identity.",
+    EYE_SYMMETRY_CONSTRAINT,
     "Keep the character's characteristic ears or horn-like appendages present and consistent in every view.",
     "Faithfully preserve all visible hairstyle details from the approved front-view design across the four views, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the approved front-view design or explicitly requested.",
@@ -955,6 +984,65 @@ mod tests {
         );
         assert!(!design.contains("porcelain"));
         assert!(design.contains("stage 1 of the kigurumi workflow"));
+    }
+
+    const GENERATING_MODES: [Mode; 6] = [
+        Mode::CharacterFront,
+        Mode::CharacterRevision,
+        Mode::CharacterTurnaround,
+        Mode::FrontDesign,
+        Mode::FrontRevision,
+        Mode::Turnaround,
+    ];
+
+    #[test]
+    fn every_stage_asks_for_level_mirrored_eyes() {
+        for mode in GENERATING_MODES {
+            let prompt = build_image_prompt(
+                &request(mode),
+                &[Role::Character],
+                None,
+                &Overrides::default(),
+            );
+            assert!(prompt.contains(EYE_SYMMETRY_LINE), "{mode:?}");
+            // Uneven eyes are corrected, never copied; two iris colours stay.
+            assert!(prompt.contains("do not copy that asymmetry"), "{mode:?}");
+            assert!(prompt.contains("keeps both"), "{mode:?}");
+
+            let constraints = system_constraints(mode, &Overrides::default());
+            let at = constraints
+                .iter()
+                .position(|line| line == EYE_SYMMETRY_CONSTRAINT)
+                .unwrap_or_else(|| panic!("{mode:?} has no eye constraint"));
+            // After the entry that preserves the eyes, so that one cannot override it.
+            let preserving = constraints
+                .iter()
+                .position(|line| {
+                    line.contains("eye color")
+                        || line.contains("eye style")
+                        || line.contains("close to the provided edit")
+                        || line.contains("hairstyle details from the primary reference")
+                })
+                .unwrap_or_else(|| panic!("{mode:?} has no preserving entry"));
+            assert!(at > preserving, "{mode:?}");
+        }
+        // A local regeneration edits only a masked crop and keeps its own list.
+        assert!(
+            !system_constraints(Mode::FrontLocalRevision, &Overrides::default())
+                .iter()
+                .any(|line| line == EYE_SYMMETRY_CONSTRAINT)
+        );
+    }
+
+    #[test]
+    fn an_eye_symmetry_override_replaces_the_line_in_every_stage() {
+        let override_text = "Eye symmetry: TEST EYE RULE.";
+        let overrides = Overrides::from_value(json!({ "eye_symmetry_line": override_text }));
+        for mode in GENERATING_MODES {
+            let prompt = build_image_prompt(&request(mode), &[Role::Character], None, &overrides);
+            assert!(prompt.contains(override_text), "{mode:?}");
+            assert!(!prompt.contains(EYE_SYMMETRY_LINE), "{mode:?}");
+        }
     }
 
     #[test]

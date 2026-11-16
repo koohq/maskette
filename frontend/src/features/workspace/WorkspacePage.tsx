@@ -54,7 +54,9 @@ import {
   readStoredAgentOpen,
   readStoredAgentWidth,
 } from "./agentWidth";
+import { readAutoEyeSymmetry } from "./autoFixPreferences";
 import { ExplorerPanel } from "./ExplorerPanel";
+import { correctEyeSymmetry, supportsEyeSymmetryCorrection } from "./eyeSymmetryCorrection";
 import { ThemeToggle } from "./ThemeToggle";
 import { useEditorDrafts } from "./useEditorDrafts";
 import { AgentResizeHandle, EditorTab, ImageLightbox } from "./WorkspaceChrome";
@@ -86,8 +88,11 @@ export function WorkspacePage() {
   const [toast, setToast] = useState<{ text: string; tone?: "error" } | null>(null);
   const [dragging, setDragging] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [correctingEyes, setCorrectingEyes] = useState(false);
   const editorRef = useRef<EditorWorkspaceHandle | null>(null);
   const seenImageIds = useRef<Set<string> | null>(null);
+  const symmetryCheckedIds = useRef<Set<string> | null>(null);
+  const correctingEyesRef = useRef(false);
 
   const images = conversation?.state.images ?? [];
   const activeVersion = images.find((image) => image.id === activeTabId) ?? null;
@@ -110,6 +115,9 @@ export function WorkspacePage() {
     setOpenTabs([]);
     setActiveTabId(null);
     seenImageIds.current = null;
+    symmetryCheckedIds.current = null;
+    correctingEyesRef.current = false;
+    setCorrectingEyes(false);
   }, [projectId]);
 
   const openVersion = useCallback((imageId: string) => {
@@ -138,6 +146,58 @@ export function WorkspacePage() {
       openVersion(newest);
     }
   }, [conversation, openVersion]);
+
+  // Automatic eye symmetry. A freshly generated version can inherit an uneven eye pair from the references; the
+  // correction is deterministic (landmarks + a mirrored eye patch), costs no generation, and is saved as its own
+  // version, so the editor and the next stage both work on the corrected pixels and the original stays in the tree.
+  useEffect(() => {
+    if (!projectId || !conversation) return;
+    const known = symmetryCheckedIds.current;
+    if (known === null) {
+      // Versions that already exist when the project opens are left alone.
+      symmetryCheckedIds.current = new Set(conversation.state.images.map((image) => image.id));
+      return;
+    }
+    const fresh = conversation.state.images.filter((image) => !known.has(image.id));
+    if (fresh.length === 0) return;
+    // Wait for the turn to settle, so the pass sees the finished stage output instead of a mid-turn one.
+    if (running || correctingEyesRef.current) return;
+    for (const image of fresh) known.add(image.id);
+    // Only the newest version, and only when the app generated it: a manual save is the user's own decision, a
+    // corrected version is symmetric already, and an older fresh version was superseded.
+    const candidate = fresh[fresh.length - 1];
+    if (candidate?.source !== "agent" || !supportsEyeSymmetryCorrection(candidate.role)) return;
+    if (!readAutoEyeSymmetry()) return;
+
+    correctingEyesRef.current = true;
+    setCorrectingEyes(true);
+    void (async () => {
+      try {
+        const correction = await correctEyeSymmetry({
+          imageUrl: versionSourceUrl(projectId, candidate.id),
+          role: candidate.role,
+        });
+        if (!correction) return;
+        const updated = await saveManualVersion(projectId, {
+          baseImageId: candidate.id,
+          image: correction.blob,
+          note: t("workspace.autoSymmetryNote"),
+          recipe: {},
+          source: "auto_symmetry",
+        });
+        const created = updated.state.images[updated.state.images.length - 1];
+        if (created) known.add(created.id);
+        await refresh();
+        setToast({ text: t("workspace.autoSymmetryApplied") });
+      } catch (error) {
+        // A correction is a bonus, never a blocker: when it fails, the generated version stays as it is.
+        console.warn("Automatic eye symmetry correction failed", error);
+      } finally {
+        correctingEyesRef.current = false;
+        setCorrectingEyes(false);
+      }
+    })();
+  }, [conversation, projectId, refresh, running, t]);
 
   useEffect(() => {
     // Keep the active tool valid for the open version (turnarounds only support a subset).
@@ -501,7 +561,7 @@ export function WorkspacePage() {
                     toolbarTarget={toolbarEl}
                   />
                 ) : null}
-                <CanvasInfo activeVersion={activeVersion} editorStatus={editorStatus} />
+                <CanvasInfo activeVersion={activeVersion} correctingEyes={correctingEyes} editorStatus={editorStatus} />
               </div>
             </>
           ) : (
@@ -530,6 +590,12 @@ export function WorkspacePage() {
               conversation={conversation}
               events={events}
               onApprove={(imageId) => {
+                if (correctingEyesRef.current) {
+                  // The corrected version has to exist before the stage is approved, or the next stage starts from
+                  // the uneven eyes again.
+                  setToast({ text: t("workspace.autoSymmetryBusy") });
+                  return;
+                }
                 const action = approveActionFor(images.find((image) => image.id === imageId)?.role);
                 if (action) void sendChat("", [], { action, imageId });
               }}
@@ -740,9 +806,11 @@ function TitleBar({
 /** Which version is on the canvas and whether its face landmarks are ready, in a small label at the lower left. */
 function CanvasInfo({
   activeVersion,
+  correctingEyes,
   editorStatus,
 }: {
   activeVersion: DesignImage;
+  correctingEyes: boolean;
   editorStatus: EditorStatus | null;
 }) {
   const { t } = useTranslation();
@@ -759,6 +827,7 @@ function CanvasInfo({
     `${activeVersion.width}×${activeVersion.height}`,
     t(`workspace.sources.${activeVersion.source}`),
     landmarks,
+    correctingEyes ? t("workspace.status.correctingEyes") : null,
   ];
   return <div className="ide-canvas-info">{parts.filter(Boolean).join(" · ")}</div>;
 }

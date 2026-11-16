@@ -110,7 +110,7 @@ const en: TranslationResource = {
     },
     versions: "Versions",
     noVersions: "No versions yet. Chat with the assistant on the right to generate the first front view.",
-    sources: { agent: "AI", manual: "Manual", local_revision: "Local" },
+    sources: { agent: "AI", manual: "Manual", local_revision: "Local", auto_symmetry: "Eye fix" },
     roles: {
       design: "Design",
       design_turnaround: "Design four-view",
@@ -139,6 +139,10 @@ const en: TranslationResource = {
     toggleTheme: "Toggle theme",
     busy: "The assistant is working, please try again shortly.",
     savedVersion: "Saved as {{id}}",
+    autoSymmetryNote:
+      "Automatic correction: the eyes were uneven, so they were levelled onto one line and mirrored into a symmetric pair.",
+    autoSymmetryApplied: "Fixed the uneven eyes and saved the result as a new version.",
+    autoSymmetryBusy: "Fixing the uneven eyes. Approve again once it is done.",
     tools: {
       annotation: "Annotate",
       proportion: "Proportion",
@@ -153,6 +157,7 @@ const en: TranslationResource = {
       detecting: "Detecting landmarks…",
       landmarksReady: "Landmarks ready",
       noLandmarks: "No landmarks",
+      correctingEyes: "Fixing the eyes…",
     },
   },
   agent: {
@@ -339,6 +344,10 @@ const en: TranslationResource = {
     appearanceHint:
       "The color of primary buttons, selection and focus, together with the background colors. Switch between light and dark in the header. Applies at once and is kept on this computer.",
     paletteDefault: "Default",
+    autoEyeSymmetrySection: "Automatic fixes after generation",
+    autoEyeSymmetryLabel: "Fix uneven eyes automatically",
+    autoEyeSymmetryHint:
+      "When a design, front view or four-view the AI made has its eyes at different heights or sizes, the better-drawn eye is mirrored onto the other side and the result is saved as a new version; the original version stays. A wink and two different eye colours are left alone. On a four-view sheet only the front view is fixed. Kept on this computer.",
     palettes: {
       mikan: "Mandarin (orange)",
       sakura: "Cherry blossom (pink)",

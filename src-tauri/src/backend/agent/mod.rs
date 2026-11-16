@@ -968,7 +968,16 @@ fn parse_recipe(raw: &str) -> Result<Option<Value>, ApiError> {
     }
 }
 
+/// Where a version posted from the screen came from: the user's own edit in
+/// the editor, or the screen's automatic eye-symmetry correction of a
+/// generated version.
+const SCREEN_VERSION_SOURCES: [&str; 2] = ["manual", "auto_symmetry"];
+
 /// Stores an image edited in the editor as a new version of `base_image_id`.
+///
+/// `source` is `manual` (the default) for an edit, or `auto_symmetry` for the
+/// screen's eye correction, which the assistant is told about in its own
+/// words.
 async fn save_manual_version(
     State(state): State<SharedState>,
     UrlPath(id): UrlPath<String>,
@@ -978,6 +987,13 @@ async fn save_manual_version(
     let mut form = Form::read(form).await?;
     let base_image_id = form.required_text("base_image_id")?;
     let upload = form.required_file("image")?;
+    let source = match form.text("source").trim() {
+        "" => "manual",
+        text => SCREEN_VERSION_SOURCES
+            .into_iter()
+            .find(|known| *known == text)
+            .ok_or_else(|| ApiError::bad_request("unknown_version_source"))?,
+    };
     ensure_idle(&state, &id)?;
     let (base, session) = {
         let conversation = entry.lock();
@@ -1042,16 +1058,23 @@ async fn save_manual_version(
             height,
             instructions: &note,
             parent: Some(&base),
-            source: "manual",
+            source,
             job_id: "",
             recipe,
         },
     )
     .map_err(|error| ApiError::internal(format!("version_not_saved: {error}")))?;
-    let mut content = format!(
-        "[editor action] saved a manual edit of {} as {}",
-        base.id, version.id
-    );
+    let mut content = if source == "auto_symmetry" {
+        format!(
+            "[app action] the app found uneven eyes in {} and saved a corrected, mirror-symmetric              version as {}",
+            base.id, version.id
+        )
+    } else {
+        format!(
+            "[editor action] saved a manual edit of {} as {}",
+            base.id, version.id
+        )
+    };
     if !note.is_empty() {
         content.push_str(&format!(": {note}"));
     }

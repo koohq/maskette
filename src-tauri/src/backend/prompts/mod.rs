@@ -125,6 +125,10 @@ pub const FIELDS: &[(&str, Builtin)] = &[
         Builtin::Text(prompt::TURNAROUND_NONE_STYLE_LINE),
     ),
     ("head_pose", Builtin::Text(prompt::HEAD_POSE)),
+    (
+        "eye_symmetry_line",
+        Builtin::Text(prompt::EYE_SYMMETRY_LINE),
+    ),
     ("watermark_line", Builtin::Text(prompt::WATERMARK_LINE)),
     ("identity_line", Builtin::Text(prompt::IDENTITY_LINE)),
     (

@@ -110,7 +110,7 @@ const ja: TranslationResource = {
     },
     versions: "バージョン",
     noVersions: "まだバージョンがありません。右のアシスタントと会話して最初の正面図を作りましょう。",
-    sources: { agent: "AI", manual: "手動", local_revision: "部分" },
+    sources: { agent: "AI", manual: "手動", local_revision: "部分", auto_symmetry: "目の補正" },
     roles: { design: "設定画", design_turnaround: "設定四面図", front: "マスク正面図", turnaround: "マスク四面図" },
     stages: { design: "設定画", front: "マスク正面図", turnaround: "マスク四面図" },
     stageHint: "クリックでこの段階のバージョンを開く",
@@ -134,6 +134,9 @@ const ja: TranslationResource = {
     toggleTheme: "テーマ切り替え",
     busy: "アシスタントが作業中です。しばらくしてからお試しください。",
     savedVersion: "{{id}} として保存しました",
+    autoSymmetryNote: "自動補正：左右の目の高さや大きさがずれていたので、同じ高さにそろえ、左右対称の一対にしました。",
+    autoSymmetryApplied: "左右の目のずれを直し、新しいバージョンとして保存しました。",
+    autoSymmetryBusy: "左右の目のずれを直しています。終わってから、もう一度承認してください。",
     tools: {
       annotation: "注釈",
       proportion: "比率",
@@ -148,6 +151,7 @@ const ja: TranslationResource = {
       detecting: "キーポイントを認識中…",
       landmarksReady: "キーポイント認識済み",
       noLandmarks: "キーポイント未認識",
+      correctingEyes: "左右の目を補正中…",
     },
   },
   agent: {
@@ -334,6 +338,10 @@ const ja: TranslationResource = {
     appearanceHint:
       "主ボタン・選んだ項目・フォーカスの色と、背景の色の組み合わせです。明るい・暗いはヘッダーで切り替えます。選ぶとすぐ反映され、このコンピューターに保存されます。",
     paletteDefault: "既定",
+    autoEyeSymmetrySection: "生成のあとの自動補正",
+    autoEyeSymmetryLabel: "左右の目のずれを自動で直す",
+    autoEyeSymmetryHint:
+      "AI が作った設定画・正面図・四面図で、左右の目の高さや大きさがずれていたら、よく描けているほうの目を反転して反対側に貼り、新しいバージョンとして保存します。元のバージョンは残ります。ウインクと、左右で色が違う目（オッドアイ）は直しません。四面図は正面の 1 コマだけを直します。このコンピューターに保存されます。",
     palettes: {
       mikan: "蜜柑（オレンジ）",
       sakura: "桜（ピンク）",
