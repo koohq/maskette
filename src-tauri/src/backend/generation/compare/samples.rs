@@ -25,8 +25,10 @@ use super::super::hosted::HostedApi;
 use super::super::image_api;
 use super::super::prompt::{FRONT_NONE_STYLE_LINE, TURNAROUND_NONE_STYLE_LINE};
 use super::super::{GenerationRequest, ImageBackend, Mode, image_backend};
-use super::judge;
-use super::{Run, slug};
+use super::{Run, judge, report, slug};
+
+/// The band of an 800x1100 front view that holds the eyes and cheeks.
+const EYE_BAND: (u32, u32, u32, u32) = (150, 360, 649, 659);
 
 const ONE_SAMPLE: &str = "{label} is a photo of a real, finished kigurumi head made by a professional \
 workshop. It shows a different character: never copy its face, eye design, expression, hairstyle, hair \
@@ -398,6 +400,7 @@ h4 {{ font-size:14px; margin:12px 0 6px; }}
 .muted, small {{ color:var(--muted); }}
 .row {{ display:grid; gap:12px; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); }}
 .wide {{ display:grid; gap:12px; }}
+.eyes {{ display:grid; gap:12px; max-width:1000px; }}
 figure {{ margin:0; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:8px; min-width:0; }}
 figure img {{ display:block; width:100%; height:auto; border-radius:6px; }}
 figcaption {{ font-size:13px; margin-top:4px; }}
@@ -408,6 +411,8 @@ th:first-child, td:first-child {{ text-align:left; }}
 .pos {{ color:var(--good); font-weight:600; }}
 .neg {{ color:var(--bad); font-weight:600; }}
 .split {{ text-decoration:underline dotted; }}
+.crop {{ display:block; overflow:hidden; border-radius:6px; background:#fff; }}
+.crop img {{ display:block; max-width:none; border-radius:0; }}
 a {{ color:inherit; }}
 </style>
 </head>
@@ -482,6 +487,31 @@ a {{ color:inherit; }}
                 let _ = writeln!(html, "{body}");
             }
             html.push_str("</div>\n");
+            if stage == "front" {
+                // Small borrowed details (marks under the eyes, iris
+                // patterns) only show when the eyes are enlarged.
+                html.push_str("<h3>目元の拡大</h3>\n<div class=\"eyes\">\n");
+                for (key, _) in runs.iter().filter(|(key, _)| {
+                    let mode = key.rsplit_once('/').map_or(key.as_str(), |(_, mode)| mode);
+                    mode == "front" || mode.starts_with("front-samples")
+                }) {
+                    if !folder.join(format!("{key}.png")).is_file() {
+                        continue;
+                    }
+                    let mode = key.rsplit_once('/').map_or(key.as_str(), |(_, mode)| mode);
+                    let _ = writeln!(
+                        html,
+                        "<figure>{}<figcaption><b>{}</b></figcaption></figure>",
+                        report::crop(
+                            &format!("{name}/{key}.png"),
+                            super::super::FRONT_SIZE,
+                            EYE_BAND
+                        ),
+                        escape(&caption(mode))
+                    );
+                }
+                html.push_str("</div>\n");
+            }
         }
         let verdicts = judge::read(folder);
         if !verdicts.is_empty() {

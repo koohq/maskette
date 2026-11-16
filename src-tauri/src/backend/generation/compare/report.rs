@@ -109,7 +109,11 @@ fn crop_box(mask: &Path) -> Option<(u32, u32, u32, u32)> {
 }
 
 /// An image zoomed to `area` of its `full` size, linked to the whole file.
-fn crop(src: &str, (full_width, full_height): (u32, u32), area: (u32, u32, u32, u32)) -> String {
+pub(super) fn crop(
+    src: &str,
+    (full_width, full_height): (u32, u32),
+    area: (u32, u32, u32, u32),
+) -> String {
     let (x0, y0, x1, y1) = area;
     let width = f64::from(x1 - x0 + 1);
     let height = f64::from(y1 - y0 + 1);
