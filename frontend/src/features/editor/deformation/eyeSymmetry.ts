@@ -57,6 +57,12 @@ export const eyeSymmetryThresholds = {
   fallbackPatchShare: 0.34,
   /** Outer share of the patch that fades into the original pixels, so no hard seam is left behind. */
   feather: 0.35,
+  /**
+   * How far above and below its centre an eye's lashes and lid line reach, relative to the eye region's half height.
+   * The original eye under each patch sits half the height difference away from the levelled one; unless its lid line
+   * falls inside the patch's unfaded core, it shows through the fade as a faint second lid.
+   */
+  lashReach: 1.4,
 } as const;
 
 export type EyeSymmetryConfidence = {
@@ -135,8 +141,9 @@ export function analyzeEyeSymmetry(
   const patchHalfHeight = Math.max(
     masterHalfHeight * eyeSymmetryThresholds.patchScale,
     fallbackHalfSize,
-    // The patch has to reach over the difference in height, or the higher eye leaves pixels behind.
-    heightDelta / 2 + masterHalfHeight,
+    // The unfaded core has to cover the original eye's lid line, which sits half the height difference away;
+    // otherwise the old lid shows through the fade.
+    (heightDelta / 2 + masterHalfHeight * eyeSymmetryThresholds.lashReach) / (1 - eyeSymmetryThresholds.feather),
   );
 
   return {

@@ -106,6 +106,28 @@ describe("eye symmetry plan", () => {
     expect(plan?.patchHalfHeight).toBeGreaterThanOrEqual(0.07);
   });
 
+  it("keeps the original lid line inside the patch's unfaded core, so it cannot show through", () => {
+    // Measured on a generated front view with the right eye moved 31 px down (1100 px tall).
+    const region = eyeRegion(0.0695, 0.037);
+    const landmarks = symmetricLandmarks({
+      leftEye: { x: 0.3902, y: 0.4578 },
+      rightEye: { x: 0.621, y: 0.4864 },
+      eyeRegions: { left: eyeRegion(0.0641, 0.037), right: region },
+    });
+
+    const plan = analyzeEyeSymmetry(landmarks, { left: 0.5, right: 0.7 });
+
+    expect(plan).not.toBeNull();
+    if (!plan) return;
+    const core = plan.patchHalfHeight * (1 - eyeSymmetryThresholds.feather);
+    // Each original lid sits half the height difference from the levelled eye, its lashes beyond the region.
+    const originalLidReach = plan.heightDelta / 2 + 0.037 * eyeSymmetryThresholds.lashReach;
+    expect(core).toBeGreaterThanOrEqual(originalLidReach - 1e-4);
+    // The shape that looked clean when replayed on that image: about 1.3 times the old patch height.
+    expect(plan.patchHalfHeight * 1100).toBeGreaterThan(105);
+    expect(plan.patchHalfHeight * 1100).toBeLessThan(118);
+  });
+
   it("mirrors the eye the detector trusts most", () => {
     const landmarks = symmetricLandmarks({ leftEye: { x: 0.42, y: 0.4 }, rightEye: { x: 0.58, y: 0.46 } });
 
