@@ -296,12 +296,12 @@ function ToolCard({ event }: { event: AgentEvent }) {
   const label = TOOL_KEYS.has(tool) ? t(`agent.tools.${tool}`) : tool;
   return (
     <li className="agent-tool ml-8 flex flex-col gap-1.5" data-status={status}>
-      <div className="flex items-center gap-1.5 text-xs">
+      <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-xs">
         {running ? <IconLoader2 className="animate-spin" size={14} /> : null}
         {status === "succeeded" ? <IconCheck size={14} /> : null}
         {status === "failed" ? <IconX className="text-(--ide-danger)" size={14} /> : null}
         <span className="font-semibold">{label}</span>
-        <span className="truncate text-(--ide-text-muted)">
+        <span className="max-w-full truncate text-(--ide-text-muted)">
           · {running && event["phase"] ? phaseLabel(t, event["phase"] as string) : t(`agent.toolStatus.${status}`)}
           {elapsed !== null ? ` · ${t("agent.elapsed", { duration: formatElapsed(elapsed) })}` : ""}
         </span>

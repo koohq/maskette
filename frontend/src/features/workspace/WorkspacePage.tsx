@@ -495,7 +495,7 @@ export function WorkspacePage() {
           {activeVersion && projectId ? (
             <>
               <div className="ide-toolbar">
-                <div className="min-w-0 flex-1" ref={setToolbarEl} />
+                <div className="ide-toolbar-view" ref={setToolbarEl} />
                 <div className="ide-toolbar-actions">
                   {editorTool === "annotation" &&
                   (activeVersion.role === "front" || activeVersion.role === "design") ? (
@@ -768,21 +768,23 @@ function TitleBar({
           {t("workspace.projects")}
         </Link>
         <span>/</span>
-        <input
-          aria-label={t("workspace.rename")}
-          onBlur={commit}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") (event.target as HTMLInputElement).blur();
-            if (event.key === "Escape") {
-              setDraft(conversation?.title ?? "");
-              (event.target as HTMLInputElement).blur();
-            }
-          }}
-          placeholder={t("workspace.untitled")}
-          size={Math.max(8, draft.length + 2)}
-          value={draft}
-        />
+        {/* The hidden copy of the name in ::after sizes the field to its text, wide characters included. */}
+        <span className="ide-titlebar-name" data-value={draft || t("workspace.untitled")}>
+          <input
+            aria-label={t("workspace.rename")}
+            onBlur={commit}
+            onChange={(event) => setDraft(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") (event.target as HTMLInputElement).blur();
+              if (event.key === "Escape") {
+                setDraft(conversation?.title ?? "");
+                (event.target as HTMLInputElement).blur();
+              }
+            }}
+            placeholder={t("workspace.untitled")}
+            value={draft}
+          />
+        </span>
       </div>
       <StageTrack conversation={conversation} onOpenVersion={onOpenVersion} />
       <button
@@ -798,7 +800,7 @@ function TitleBar({
       </button>
       <SettingsLink />
       <ThemeToggle />
-      <LanguageSelector compact />
+      <LanguageSelector compact height={28} />
     </header>
   );
 }

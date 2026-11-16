@@ -169,7 +169,7 @@ function VersionTree({
           <img alt="" src={image.url} />
           <span className="ide-tree-item-text">
             <span className="ide-tree-item-title">
-              {image.id}
+              <span className="ide-tree-item-id">{image.id}</span>
               <span className="ide-badge">{t(`workspace.sources.${image.source}`)}</span>
               {approvedIds.has(image.id) ? (
                 <span className="ide-badge" data-tone="success">

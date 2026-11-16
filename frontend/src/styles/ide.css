@@ -33,17 +33,38 @@
   font-size: 12px;
 }
 
+/* The name field is as wide as its text (or placeholder): a hidden copy in ::after sets the width, since
+  the input's own `size` counts characters and Japanese ones are about twice as wide. */
+.ide-titlebar-name {
+  display: inline-grid;
+  max-width: 320px;
+  min-width: 0;
+}
+
+.ide-titlebar-name::after,
 .ide-titlebar-title input {
-  background: transparent;
   border: 1px solid transparent;
-  border-radius: 4px;
-  color: var(--ide-text);
   font: inherit;
   font-weight: 600;
-  max-width: 320px;
-  min-width: 80px;
+  grid-area: 1 / 1;
   padding: 2px 6px;
+}
+
+.ide-titlebar-name::after {
+  content: attr(data-value) " ";
+  overflow: hidden;
+  visibility: hidden;
+  white-space: pre;
+}
+
+.ide-titlebar-title input {
+  background: transparent;
+  border-radius: 4px;
+  color: var(--ide-text);
+  min-width: 0;
   text-align: center;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
 .ide-titlebar-title input:hover {
@@ -358,12 +379,19 @@
   min-width: 0;
 }
 
+/* A narrow sidebar moves the badges to the next line rather than breaking the version id. */
 .ide-tree-item-title {
   align-items: center;
   display: flex;
+  flex-wrap: wrap;
   font-size: 12px;
   font-weight: 600;
-  gap: 6px;
+  gap: 2px 6px;
+}
+
+.ide-tree-item-id,
+.ide-badge {
+  white-space: nowrap;
 }
 
 .ide-tree-item-sub {
@@ -469,13 +497,20 @@
   opacity: 1;
 }
 
+/* When the canvas column is too narrow for the view controls and the actions side by side, the actions
+  move to a second row instead of pushing the controls out of sight. */
 .ide-toolbar {
   align-items: center;
   display: flex;
-  gap: 6px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 2px 6px;
   min-height: 40px;
   padding: 4px 8px;
-  flex-shrink: 0;
+}
+
+.ide-toolbar-view {
+  flex: 1 0 auto;
 }
 
 .ide-toolbar .editor-viewport-toolbar {
@@ -486,7 +521,10 @@
 .ide-toolbar-actions {
   align-items: center;
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  justify-content: flex-end;
+  margin-left: auto;
 }
 
 .ide-canvas {

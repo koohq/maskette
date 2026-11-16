@@ -110,20 +110,30 @@ function findOverflowInPage(tolerance: number): OverflowFinding[] {
     if (rect.width > 0 && rect.height > 0) check(nameOf(control), [rect], control.parentElement);
   }
 
-  const canvas = document.createElement("canvas").getContext("2d");
+  // Text is measured in a hidden span rather than a canvas: a canvas has no `lang`, so it picks other CJK
+  // fallback fonts than the page does in Chinese and measures Japanese kana several pixels wider.
+  const ruler = document.createElement("span");
+  ruler.style.cssText = "position:fixed;left:-10000px;top:0;visibility:hidden;white-space:pre";
+  document.body.append(ruler);
   for (const field of document.querySelectorAll("input")) {
-    if (!canvas || hiddenOnPurpose(field) || !/^(text|search|url|email|number|)$/.test(field.type)) continue;
+    if (hiddenOnPurpose(field) || !/^(text|search|url|email|number|)$/.test(field.type)) continue;
     const text = field.value || field.placeholder;
     if (!text) continue;
     const style = getComputedStyle(field);
-    canvas.font = `${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`;
-    const room = field.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
-    const by = canvas.measureText(text).width - room;
+    ruler.lang = field.closest("[lang]")?.getAttribute("lang") ?? "";
+    ruler.style.font = style.font;
+    ruler.style.letterSpacing = style.letterSpacing;
+    ruler.textContent = text;
+    // From the box rather than `clientWidth`, which is rounded and for some fields leaves out the padding already.
+    const sides = [style.borderLeftWidth, style.borderRightWidth, style.paddingLeft, style.paddingRight];
+    const room = field.getBoundingClientRect().width - sides.reduce((sum, side) => sum + Number.parseFloat(side), 0);
+    const by = ruler.getBoundingClientRect().width - room;
     // A URL or key is expected to scroll inside a long field; only a field too narrow for short text is reported.
     if (by > tolerance && room < 400) {
       add({ kind: "clipped", what: text.slice(0, 60), box: boxPath(field), by: Math.round(by) });
     }
   }
+  ruler.remove();
   return findings;
 }
 

@@ -2918,7 +2918,9 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
         height: isMobileEditor ? "auto" : "100%",
         justifyContent: "center",
         maxHeight: isMobileEditor ? "min(58dvh, 560px)" : undefined,
-        minHeight: isMobileEditor ? 280 : 520,
+        // In the workspace the stage fills whatever the canvas area leaves, so the floating compare button
+        // stays inside it in a short window.
+        minHeight: isMobileEditor ? 280 : isIdeLayout ? 0 : 520,
         overflow: "hidden",
         position: "relative",
         touchAction: "none",

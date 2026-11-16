@@ -12,38 +12,8 @@ export type KnownOverflow = {
   box: RegExp;
 };
 
-export const KNOWN_OVERFLOW: KnownOverflow[] = [
-  {
-    issue: "The project name field in the workspace title bar is too narrow for the name or its placeholder.",
-    screens: /^workspace-(ja|en|zh-CN)-|^workspace-empty-(ja|en)-/,
-    kind: "clipped",
-    box: /ide-titlebar-title > input/,
-  },
-  {
-    issue: "The language button is 40px tall in a shorter title bar.",
-    screens: /^workspace/,
-    kind: "spills",
-    box: /header\.ide-titlebar$/,
-  },
-  {
-    issue: "The canvas toolbar hides the zoom, fit and landmark controls that do not fit.",
-    screens: /^workspace-(ja|en|zh-CN)-/,
-    kind: "clipped",
-    box: /editor-viewport-toolbar/,
-  },
-  {
-    issue: '"Save as new version" runs past the editor toolbar into the assistant panel.',
-    screens: /^workspace-en-min$/,
-    kind: "spills",
-    box: /div\.ide-toolbar$/,
-  },
-  {
-    issue: "The hold-to-compare button sits below the bottom of the canvas area.",
-    screens: /^workspace-(ja|en|zh-CN)-min$/,
-    kind: "spills",
-    box: /ide-editor-stage$/,
-  },
-];
+// Empty: every screen fits. Add an entry only for overflow that is accepted for now, saying why.
+export const KNOWN_OVERFLOW: KnownOverflow[] = [];
 
 function matches(known: KnownOverflow, finding: OverflowFinding): boolean {
   return known.kind === finding.kind && known.box.test(finding.box);

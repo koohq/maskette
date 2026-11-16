@@ -4,7 +4,8 @@ import { useTranslation } from "react-i18next";
 import { type AppLocale, normalizeLocale, SUPPORTED_LOCALES, writeStoredLocale } from "../../i18n/locales";
 import { Button, Menu, MenuItem } from "../../ui/mui";
 
-export function LanguageSelector({ compact = false }: { compact?: boolean }) {
+/** `height` lets a slimmer bar (the workspace title bar) fit the button inside it. */
+export function LanguageSelector({ compact = false, height = 40 }: { compact?: boolean; height?: number }) {
   const { i18n, t } = useTranslation();
   const menuId = useId();
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -28,11 +29,11 @@ export function LanguageSelector({ compact = false }: { compact?: boolean }) {
         aria-haspopup="menu"
         aria-label={ariaLabel}
         data-testid="header-language-button"
-        h={40}
+        h={height}
         leftSection={<IconLanguage size={16} />}
         miw={compact ? 40 : 124}
         onClick={(event: MouseEvent<HTMLButtonElement>) => setAnchorEl(event.currentTarget)}
-        px={compact ? 0 : undefined}
+        px={compact ? 1 : undefined}
         size="sm"
         variant="light"
       >
