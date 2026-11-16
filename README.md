@@ -26,7 +26,7 @@ Like them, Maskette is licensed under GPL-3.0-or-later. See
 
 Requirements:
 
-- Node.js 26 and pnpm (see `.node-version` and `mise.toml`)
+- Node.js 26 and pnpm. With [mise](https://mise.jdx.dev/), `mise install` sets up both from `mise.toml`; pnpm then switches itself to the version in `packageManager` (`package.json`)
 - Rust (stable, 1.90 or later)
 - The [Tauri prerequisites](https://tauri.app/start/prerequisites/) for
   your OS. On Windows: Microsoft C++ Build Tools ("Desktop development with

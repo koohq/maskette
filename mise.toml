@@ -1,4 +1,6 @@
 [tools]
 node = "26"
+# Only bootstraps pnpm. The exact version is `packageManager` in package.json,
+# which pnpm switches itself to inside this repository.
 pnpm = "latest"
 rust = "1.99"
