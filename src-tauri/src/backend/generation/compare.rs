@@ -24,6 +24,16 @@
 //! turnaround from the front view with the back view added, and a character
 //! design turnaround from the character and the back view.
 //!
+//! `local` makes only the local revision of `follow`, as the editor makes it
+//! by default: `MASKETTE_COMPARE_EDIT_NOTE` (required here) inside the
+//! ellipse of `MASKETTE_COMPARE_MASKS` on `<model>/front.png` in the output
+//! folder (put any 800x1100 front view there), the edge blended into its
+//! surroundings (`MASKETTE_COMPARE_LOCK_OUTSIDE=1` keeps the outside
+//! instead, as `follow` does), and the character as the optional reference,
+//! tagged "supplemental" like the editor's.
+//! `MASKETTE_COMPARE_EDIT_REFERENCE=<image>` attaches that image instead,
+//! and `none` attaches nothing. Like the editor, it gets no analysis.
+//!
 //! `turnaround` makes only the head shell turnaround of `follow`. With
 //! `MASKETTE_COMPARE_PROMPTS=<prompts.json>`, any step uses those prompt
 //! overrides (the app's `prompts.json` format), to try a text change
@@ -215,6 +225,42 @@ impl Run<'_> {
         request
     }
 
+    /// The editor's local revision of `front` (`run_local_revision` in
+    /// `agent/tools.rs`): `ellipse` masked, `reference` (a key) as the
+    /// optional reference, and the edge blended over 16 pixels, or 3 with
+    /// `lock_outside`.
+    fn local_request(
+        &self,
+        front: &Path,
+        ellipse: (f64, f64, f64, f64),
+        note: &str,
+        reference: Option<String>,
+        lock_outside: bool,
+    ) -> GenerationRequest {
+        let (base_width, base_height) = super::FRONT_SIZE;
+        assert_eq!(
+            image::image_dimensions(front).expect("front view readable"),
+            (base_width, base_height),
+            "the mask is drawn on a {base_width}x{base_height} front view, not {}",
+            front.display()
+        );
+        let mask = front.with_file_name("mask.png");
+        ellipse_mask(&mask, ellipse);
+        let mut request = GenerationRequest::new("compare", "ja", Mode::FrontLocalRevision);
+        request.free_text = note.to_owned();
+        request.reference_keys = reference.into_iter().collect();
+        request.local_edit = Some(LocalEdit {
+            base_image_path: front.to_owned(),
+            mask_image_path: mask,
+            edit_note: note.to_owned(),
+            base_width,
+            base_height,
+            feather_radius_px: if lock_outside { 3 } else { 16 },
+            subject: "head_shell",
+        });
+        request
+    }
+
     /// The stored analysis in `path`, or a new one of the character and the
     /// extra references made as the chat's `analyze_references` makes it and
     /// saved to `path`.
@@ -342,6 +388,11 @@ async fn compare_image_models() {
         extras.is_empty() || step == "front",
         "MASKETTE_COMPARE_EXTRA only goes with the front step"
     );
+    // An analysis would be made (and billed) for nothing.
+    assert!(
+        step != "local" || std::env::var_os("MASKETTE_COMPARE_ANALYSIS").is_none(),
+        "the local step takes no MASKETTE_COMPARE_ANALYSIS; the editor's local revision gets none"
+    );
 
     // The app falls back to the chat and analysis keys when they point at
     // OpenRouter; the keys are assumed to be OpenRouter's here.
@@ -447,20 +498,50 @@ async fn compare_image_models() {
                     println!("no mask for {model}; skipping its local revision");
                     continue;
                 };
-                let mask = out.join(slug(model)).join("mask.png");
-                ellipse_mask(&mask, ellipse);
-                let (base_width, base_height) = super::FRONT_SIZE;
-                let mut request = GenerationRequest::new("compare", "ja", Mode::FrontLocalRevision);
-                request.reference_keys = vec![character];
-                request.local_edit = Some(LocalEdit {
-                    base_image_path: front,
-                    mask_image_path: mask,
-                    edit_note: note.clone(),
-                    base_width,
-                    base_height,
-                    feather_radius_px: 3,
-                    subject: "head_shell",
-                });
+                let request = run.local_request(&front, ellipse, &note, Some(character), true);
+                run.job(model, "local", &request).await;
+            }
+        }
+        "local" => {
+            let masks = parse_masks(&env("MASKETTE_COMPARE_MASKS"));
+            let note = env("MASKETTE_COMPARE_EDIT_NOTE");
+            let lock_outside =
+                std::env::var("MASKETTE_COMPARE_LOCK_OUTSIDE").is_ok_and(|value| value == "1");
+            // Everything is checked before the first billed call.
+            for model in &models {
+                assert!(
+                    out.join(slug(model)).join("front.png").is_file(),
+                    "no front view for {model}; put one at <out>/{}/front.png",
+                    slug(model)
+                );
+                assert!(masks.contains_key(model), "no mask for {model}");
+            }
+            let edit_reference = match std::env::var_os("MASKETTE_COMPARE_EDIT_REFERENCE") {
+                None => Some(run.reference("supplemental", &reference, &reference_name)),
+                Some(value) if value == "none" => None,
+                Some(value) => {
+                    let image = PathBuf::from(value);
+                    assert!(image.is_file(), "no edit reference at {}", image.display());
+                    let extension = image
+                        .extension()
+                        .and_then(|ext| ext.to_str())
+                        .unwrap_or("png");
+                    Some(run.reference(
+                        "supplemental",
+                        &image,
+                        &format!("edit-reference.{extension}"),
+                    ))
+                }
+            };
+            for model in &models {
+                let front = out.join(slug(model)).join("front.png");
+                let request = run.local_request(
+                    &front,
+                    masks[model],
+                    &note,
+                    edit_reference.clone(),
+                    lock_outside,
+                );
                 run.job(model, "local", &request).await;
             }
         }
@@ -552,7 +633,7 @@ async fn compare_image_models() {
             return;
         }
         other => panic!(
-            "MASKETTE_COMPARE_STEP is front, follow, turnaround, back, samples, judge, report or samples-report, not {other:?}"
+            "MASKETTE_COMPARE_STEP is front, follow, local, turnaround, back, samples, judge, report or samples-report, not {other:?}"
         ),
     }
     println!("report: {}", report::write(&out).display());
@@ -666,6 +747,71 @@ async fn extra_references_follow_the_character_with_their_tags() {
         prepared.prompt
     );
     assert!(run.job("vendor/model", "front", &request).await.is_some());
+}
+
+/// The local step sends what the editor sends by default: the cut-out of
+/// the masked area, the optional reference as Image 2, an edge blended over
+/// 16 pixels and no analysis; no model is called.
+#[tokio::test]
+async fn the_local_step_sends_what_the_editor_sends() {
+    let backend = TestBackend::new(true);
+    let out = tempfile::tempdir().expect("output folder");
+    let folder = out.path().join(slug("vendor/model"));
+    std::fs::create_dir_all(&folder).expect("model folder");
+    let front = folder.join("front.png");
+    let (width, height) = super::FRONT_SIZE;
+    image::RgbImage::from_pixel(width, height, image::Rgb([230, 220, 210]))
+        .save(&front)
+        .expect("front view written");
+    let eyes = out.path().join("eyes.png");
+    image::RgbImage::from_pixel(96, 40, image::Rgb([80, 160, 90]))
+        .save(&eyes)
+        .expect("eyes written");
+
+    let run = Run {
+        backend: &backend,
+        out: out.path().to_owned(),
+        detail_lock: Some(json!({"features": [{"kind": "eyes", "description": "丸い瞳孔"}]})),
+    };
+    let key = run.reference("supplemental", &eyes, "edit-reference.png");
+    let request = run.local_request(
+        &front,
+        (250.0, 400.0, 550.0, 520.0),
+        "Redraw only the eyes.",
+        Some(key),
+        false,
+    );
+    let edit = request.local_edit.as_ref().expect("a local edit");
+    assert_eq!(edit.feather_radius_px, 16);
+    assert_eq!(edit.subject, "head_shell");
+    assert_eq!(edit.mask_image_path, folder.join("mask.png"));
+    assert_eq!(request.free_text, "Redraw only the eyes.");
+
+    let prepared =
+        image_api::prepare(backend.dir.path(), &request, 4, None).expect("images prepared");
+    assert_eq!(prepared.images.len(), 2);
+    assert_eq!(prepared.images[1].dimensions(), (96, 40));
+    assert!(
+        prepared
+            .prompt
+            .contains("Apply this local edit to Image 1: Redraw only the eyes.")
+            && prepared
+                .prompt
+                .contains("\nImage 2 is a supplemental reference"),
+        "{}",
+        prepared.prompt
+    );
+    assert!(run.job("vendor/model", "local", &request).await.is_some());
+    let records = backend.state.generation.jobs.list();
+    let record = records.last().expect("a job");
+    assert_eq!(record.prompt_payload["detail_lock"], Value::Null);
+
+    let locked = run.local_request(&front, (250.0, 400.0, 550.0, 520.0), "x", None, true);
+    assert_eq!(
+        locked.local_edit.expect("a local edit").feather_radius_px,
+        3
+    );
+    assert!(locked.reference_keys.is_empty());
 }
 
 #[test]
