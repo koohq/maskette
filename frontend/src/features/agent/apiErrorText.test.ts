@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
+import { BACKEND_UNREACHABLE } from "../../api/backend";
 import i18n from "../../i18n";
 import { AgentApiError } from "./agentApi";
 import { apiErrorText, DETAIL_CODES, detailText, errorDetail } from "./apiErrorText";
@@ -83,7 +84,7 @@ afterAll(async () => {
 
 describe("HTTP error codes", () => {
   it("translates or knowingly skips every code the backend sends", () => {
-    const sent = new Set([...backendDetailCodes(), ...devProxyDetailCodes()]);
+    const sent = new Set([...backendDetailCodes(), ...devProxyDetailCodes(), BACKEND_UNREACHABLE]);
     // The scan must find the codes it is meant to find, or it proves nothing.
     expect(sent).toContain("image_too_large");
     expect(sent).toContain("settings_not_saved");
@@ -143,6 +144,13 @@ describe("HTTP error codes", () => {
     await i18n.changeLanguage("en");
     expect(errorDetail(i18n.t, new Error("dev_backend_no_answer"))).toBe(
       "The Maskette app did not answer. Check that it is still running.",
+    );
+  });
+
+  it("says in the UI language when a request gets no answer at all", async () => {
+    await i18n.changeLanguage("ja");
+    expect(apiErrorText(i18n.t, new Error(BACKEND_UNREACHABLE))).toBe(
+      "Maskette の中の通信に失敗しました。Maskette を再起動してから、もう一度試してください。",
     );
   });
 

@@ -264,6 +264,7 @@ const en: TranslationResource = {
       token_rejected: "The connection to Maskette was lost. Restart Maskette.",
       dev_backend_not_running: "The Maskette app is not running. Start it with `pnpm dev`.",
       dev_backend_no_answer: "The Maskette app did not answer. Check that it is still running.",
+      backend_unreachable: "Maskette could not reach its own backend. Restart Maskette and try again.",
       reference_not_saved: "The reference image could not be saved. Check the free disk space and write permissions.",
       load: "Failed to load the chat: {{message}}",
     },

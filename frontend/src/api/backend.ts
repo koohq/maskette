@@ -37,13 +37,26 @@ function isApiPath(value: string): boolean {
   return value === "/api" || value.startsWith("/api/") || value.startsWith("/api?");
 }
 
+/**
+ * What `apiFetch` throws when a request gets no answer at all. The browser's own words for it ("Failed to fetch",
+ * "Load failed", "NetworkError when attempting to fetch resource.") differ by engine and are always English, so the
+ * screen shows this code in the UI language instead (`agent.errors.backend_unreachable`).
+ */
+export const BACKEND_UNREACHABLE = "backend_unreachable";
+
 /** `fetch` an `/api/...` path on the backend, with the token attached. */
-export function apiFetch(path: string, init?: RequestInit): Promise<Response> {
+export async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const info = backendInfo();
-  if (!info) return fetch(path, init);
-  const headers = new Headers(init?.headers);
-  headers.set("Authorization", `Bearer ${info.token}`);
-  return fetch(new URL(path, info.baseUrl).toString(), { ...init, headers });
+  try {
+    if (!info) return await fetch(path, init);
+    const headers = new Headers(init?.headers);
+    headers.set("Authorization", `Bearer ${info.token}`);
+    return await fetch(new URL(path, info.baseUrl).toString(), { ...init, headers });
+  } catch (error) {
+    // A cancelled request is the caller's own doing, not a lost connection.
+    if (init?.signal?.aborted || (error instanceof DOMException && error.name === "AbortError")) throw error;
+    throw new Error(BACKEND_UNREACHABLE, { cause: error });
+  }
 }
 
 /**

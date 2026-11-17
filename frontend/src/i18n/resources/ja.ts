@@ -258,6 +258,7 @@ const ja: TranslationResource = {
       token_rejected: "Maskette との接続が切れました。Maskette を再起動してください。",
       dev_backend_not_running: "Maskette のアプリが起動していません。`pnpm dev` で起動してください。",
       dev_backend_no_answer: "Maskette のアプリが応答しません。アプリが動いているか確かめてください。",
+      backend_unreachable: "Maskette の中の通信に失敗しました。Maskette を再起動してから、もう一度試してください。",
       reference_not_saved: "参考画像を保存できませんでした。ディスクの空きと書き込みの権限を確かめてください。",
       load: "チャットの読み込みに失敗しました：{{message}}",
     },

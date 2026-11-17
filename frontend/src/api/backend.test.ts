@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { apiFetch, apiUrl, inDesktopWindow, resolveApiUrls, TOKEN_QUERY_PARAM } from "./backend";
+import { apiFetch, apiUrl, BACKEND_UNREACHABLE, inDesktopWindow, resolveApiUrls, TOKEN_QUERY_PARAM } from "./backend";
 
 const info = { baseUrl: "http://127.0.0.1:4321", token: "test-token" };
 
@@ -78,5 +78,28 @@ describe("with the injected backend (Maskette window)", () => {
       ],
       title: "/apiary",
     });
+  });
+});
+
+describe("when a request gets no answer", () => {
+  it("throws a code the screen translates instead of the browser's English", async () => {
+    window.__MASKETTE_BACKEND__ = info;
+    const lost = new TypeError("Failed to fetch");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(lost));
+
+    const error = await apiFetch("/api/health").catch((caught: unknown) => caught);
+
+    expect(error).toBeInstanceOf(Error);
+    expect((error as Error).message).toBe(BACKEND_UNREACHABLE);
+    expect((error as Error).cause).toBe(lost);
+  });
+
+  it("passes a cancelled request through as it is", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const aborted = new DOMException("The operation was aborted.", "AbortError");
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(aborted));
+
+    await expect(apiFetch("/api/health", { signal: controller.signal })).rejects.toBe(aborted);
   });
 });
