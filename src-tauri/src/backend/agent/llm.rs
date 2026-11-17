@@ -93,7 +93,7 @@ pub async fn complete(
             let text = cli::claude::run(
                 backends.cli,
                 backends.workspace,
-                "agent-turn",
+                &next_step_label(backends.workspace),
                 &prompt,
                 cli::claude::Tools::None,
                 settings.get("agent_claude_code_model"),
@@ -140,6 +140,29 @@ pub async fn complete(
         .await
         .map_err(|error| error.to_failure(base_url, "Agent LLM "))?;
     Ok(parse_openai_message(&result.message))
+}
+
+/// Names the kept prompt and output files of the next Claude Code step
+/// (`agent-turn-0001-prompt.md`, …). Every step of the conversation gets its
+/// own number, so a turn that calls tools keeps all its steps, not only the
+/// last.
+fn next_step_label(workspace: &Path) -> String {
+    let last = std::fs::read_dir(workspace)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|entry| {
+            entry
+                .file_name()
+                .to_str()?
+                .strip_prefix("agent-turn-")?
+                .strip_suffix("-prompt.md")?
+                .parse::<u32>()
+                .ok()
+        })
+        .max()
+        .unwrap_or(0);
+    format!("agent-turn-{:04}", last + 1)
 }
 
 /// The stored tool name is only for the transcript; some providers reject

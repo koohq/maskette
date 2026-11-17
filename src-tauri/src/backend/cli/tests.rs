@@ -297,18 +297,34 @@ async fn the_chat_assistant_can_run_on_claude_code() {
     assert_eq!(turn.text, "参考画像を見ます");
     assert_eq!(turn.tool_calls[0].name, "analyze_references");
 
-    let calls = runner.calls.lock().unwrap();
-    let call = &calls[0];
-    assert_eq!(call.program, "claude");
-    assert_eq!(call.cwd, workspace);
-    let at = args(call).iter().position(|arg| arg == "--tools").unwrap();
-    assert_eq!(args(call)[at + 1], "");
-    assert!(args(call).ends_with(&["--model".to_owned(), "opus".to_owned()]));
-    let prompt = stdin(call);
-    assert!(prompt.starts_with("SYSTEM\n\n## Tools\n- analyze_references: Analyze."));
-    assert!(prompt.contains("[user] <script>見て</script>"));
-    assert!(workspace.join("agent-turn-prompt.md").is_file());
-    assert!(workspace.join("agent-turn-output.json").is_file());
+    {
+        let calls = runner.calls.lock().unwrap();
+        let call = &calls[0];
+        assert_eq!(call.program, "claude");
+        assert_eq!(call.cwd, workspace);
+        let at = args(call).iter().position(|arg| arg == "--tools").unwrap();
+        assert_eq!(args(call)[at + 1], "");
+        assert!(args(call).ends_with(&["--model".to_owned(), "opus".to_owned()]));
+        let prompt = stdin(call);
+        assert!(prompt.starts_with("SYSTEM\n\n## Tools\n- analyze_references: Analyze."));
+        assert!(prompt.contains("[user] <script>見て</script>"));
+        assert!(workspace.join("agent-turn-0001-prompt.md").is_file());
+        assert!(workspace.join("agent-turn-0001-output.json").is_file());
+    }
+
+    // The next step keeps its own files instead of overwriting the first's.
+    llm::complete(
+        &backend.state.settings.settings(),
+        &backends,
+        "SYSTEM",
+        &[json!({"role": "user", "content": "次へ"})],
+        &tools,
+    )
+    .await
+    .unwrap();
+    assert!(workspace.join("agent-turn-0001-prompt.md").is_file());
+    assert!(workspace.join("agent-turn-0002-prompt.md").is_file());
+    assert!(workspace.join("agent-turn-0002-output.json").is_file());
 }
 
 #[tokio::test]
