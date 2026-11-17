@@ -303,7 +303,7 @@ async fn openrouter_generates_a_labelled_front_view() {
     let prompt = sent["prompt"].as_str().unwrap();
     assert!(prompt.starts_with("Image 1 is the character reference."));
     assert!(prompt.contains("Image 2 contains supplemental references"));
-    assert!(prompt.contains("porcelain-pale skin paint"));
+    assert!(prompt.contains("pale skin paint with a light"));
     assert!(prompt.ends_with("keep the bow"));
 
     // The public image carries the label; the clean copy does not.

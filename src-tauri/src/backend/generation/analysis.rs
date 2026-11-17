@@ -268,7 +268,11 @@ const DETAIL_ANALYSIS_RULES: [&str; 12] = [
     "Only analyze head and face details that are physically on the head or face.",
     "Allowed scope: face, head, hair, headwear, ears, eyes, expression, and accessories physically worn on the head or face.",
     "Treat horn-like head features or similar head appendages as ears details.",
-    "When the character has visible or characteristic ears (elf/pointed, animal, or horn-like), always include an ears feature that describes their shape, size, and attachment position, and states that both sides must stay visible and symmetric in every generated view even if the reference only shows one side.",
+    // No size or height in words: "large ears, visible from every angle"
+    // made the images enlarge the ears and push them up, and an estimate
+    // ("tips clearly above the hair") was wrong for ears level with it
+    // (2026-11-17). The image shows both; the feature only points at it.
+    "When the character has visible or characteristic ears (elf/pointed, animal, or horn-like), always include an ears feature that describes their shape, colours and where on the head they attach. Do not estimate their size or how high they reach (no large, small, tall or sticking up): the image shows that. Instead state that both sides stay present and symmetric in every generated view, at exactly the size and height drawn, even if the reference only shows one side.",
     // From VSK (GPL-3.0-or-later): uneven eyes in a reference are an accident,
     // not a feature to lock. Two iris colours and a wink are real and stay.
     "Treat uneven eyes in a reference (one eye higher or lower, larger or smaller, or a different shape) as an accident of the reference art or its angle, never as a feature to lock: do not describe the asymmetry as intended and do not record a different height, size or shape per eye. A different iris colour per eye, or a wink the character clearly has, is a real feature: record it.",

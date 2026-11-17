@@ -36,42 +36,46 @@ hair and features, and never copy a three-quarter, turned or tilted pose from th
 /// "keep the eyes as drawn" lines made the models copy them. Every stage
 /// rebuilds them as one mirrored pair, but keeps what is meant to differ:
 /// two iris colours, or a wink. From VSK (`EYE_SYMMETRY_LINE`,
-/// GPL-3.0-or-later), with that exception added.
-pub const EYE_SYMMETRY_LINE: &str = "Eye symmetry: both eyes sit on one horizontal line at exactly the same height, mirrored across the face \
-centerline, with the same size and the same shape (in the turned views of a four-view sheet, at the same height and size as \
-in the front view). If a reference, draft or design shows uneven eyes (one eye higher or lower, larger or smaller, or a \
-different shape), do not copy that asymmetry: rebuild the pair as one mirrored eye design that keeps the character's own \
-eye style, iris, lashes and expression. This is about placement, size and outline only: each eye keeps its own iris colour \
-(a character with two different eye colours keeps both), and a wink or other one-sided expression that the design clearly \
-shows stays. Symmetry comes before copying the reference's eye placement.";
+/// GPL-3.0-or-later), with that exception added. Since 2026-11-17 it only
+/// moves and resizes the eyes: "rebuild the pair" let the model swap the
+/// drawn eyes for stock doll eyes.
+pub const EYE_SYMMETRY_LINE: &str = "Eye placement: the two eyes are one level, mirrored pair of the same size (in the turned views of a four-view \
+sheet, at the same height and size as in the front view). If the design draws them at slightly different heights or \
+sizes, only move or resize them into that pair; keep the drawn eye artwork, each iris colour (a character with two \
+different eye colours keeps both) and any wink or other one-sided expression the design clearly shows unchanged.";
 
 /// How a head-shell image should look: a photograph of a physical object,
 /// not an illustration. Carries the realism proposals 2 (satin sheen) and 3
-/// (porcelain skin) and the open-mouth half of proposal 1.
+/// (pale skin) and the open-mouth half of proposal 1. The workshop
+/// translation at the end (2026-11-17) makes the workshop look and the
+/// faithfulness to the drawing point the same way: the maker copies the
+/// drawing's eyes, hairstyle and colours, instead of building a stock doll
+/// face; doll and figure words (porcelain, resin, sculpted sockets) were
+/// taken out for the same reason.
 pub const HEAD_SHELL_LOOK: &str = "Look: a photorealistic studio product photograph of a real, physical, hand-made kigurumi head shell wearing its wig, \
 the kind of catalogue photo a professional maker shoots for a commission. Shot on a full-frame camera with an 85 mm \
 lens at f/8, tack sharp across the face and fringe with only a gentle falloff toward the far hair ends, true colour, \
 natural dynamic range with soft highlights and open shadows, fine real-world surface texture. \
 It must not read as anime art, an illustration, a 3D render, a figure, a vinyl doll or a digital painting: no outlines or ink \
-lines, no cel shading, no flat colour fills, no airbrushed gradients, no painted-on highlights, no glow or bloom. \
+lines, no cel shading, no flat colour fills, no soft digital-painting shading on the skin or hair, no painted shine \
+streaks on the hair, no glow or bloom. \
 Anime proportions and the character's design stay, but everything is built from real materials with real depth. \
 Studio set-up: a seamless light grey-white paper backdrop, bright soft light from the front and slightly above - \
 a large soft-box key with gentle fill from the sides - so the face is evenly lit and easy to read, with only soft \
 form shadows under the fringe, the wig and the chin, and at most a faint rim light separating the wig from the \
 backdrop. Avoid dramatic side lighting: neither side of the face may fall into heavy shadow. \
-Materials: the shell is a smooth hand-painted resin or fibreglass surface with a soft satin paint finish - even \
+Materials: the shell is smooth fibreglass (FRP) with an even, sprayed satin coat - even \
 and smooth, with a broad, soft sheen where the key light grazes the forehead, the nose tip and the cheeks, never \
-wet, mirror-glossy or specular - with faint brush and sanding texture, a porcelain-pale skin paint with a light \
+wet, mirror-glossy or specular - in a pale skin paint with a light \
 pink or peach undertone (unless the design gives the skin another colour), a soft airbrushed blush across the \
 cheeks following the design (a smooth \
 gradient only, never hatch marks, stroke lines or drawn-on anime blush), and only \
 the shallow relief of an animegao mask (a smooth rounded face, a tiny nose tip, no \
-modelled lips or cheekbones), so the face is a real three-dimensional object lit from the side, not a flat \
-drawing. The eyes are glossy clear-domed lens-like eyes set \
-in sculpted sockets with printed or painted irises (layered gradients and ring highlights), a visible thickness \
-and depth to the dome, sharp softbox reflections (catchlights) as rectangular window highlights, a dark painted \
-lash print along the upper dome edge, and a thin eyelid edge casting a small shadow; \
-never flat drawn eyes. Brows, lashes, blush and a closed mouth are matte paint sitting on the surface, and a \
+modelled lips or cheekbones), so the face reads as a solid object, not a flat \
+drawing. The eyes are separate eye parts set into the shell: the design's eye artwork - iris colours and shading, \
+pupil shape, drawn sparkles, upper lash line and lashes - printed exactly as drawn, under a clear glossy dome that \
+adds one or two soft rectangular window reflections on top of the printed sparkles, with a clean, shallow rim where \
+the shell meets each eye part. Brows, lashes, blush and a closed mouth are matte paint sitting on the surface, and a \
 closed mouth in particular is one flat painted stroke flush with the shell: not carved, engraved or sculpted into \
 it, with no groove, incised seam or dark inner shadow, at most the soft edge of the paint itself, small in the \
 face as drawn - a thin darker stroke with tiny corner ticks. Only when the design shows an open mouth is it a \
@@ -85,11 +89,21 @@ flying apart, the roots are darker and the layers \
 underneath fall into shadow, there is natural volume and a believable parting where the \
 wig meets the shell; braids show the woven strand structure with a highlight on each ridge; the fringe casts a soft \
 shadow on the forehead. The wig is styled to show the face: the fringe lies flat against the shell, keeps the \
-length and shape the design shows (brows hidden or showing exactly as drawn) and stays off the eyes, \
+drawn length and tip shapes (brows hidden or showing exactly as drawn); where the drawing lets fine fringe tips \
+reach the upper lash line, they end there as a few thin tips lying on the shell, never as locks over the iris, \
 strands between the eyes hug the surface, and flyaway strands stay inside the hairstyle \
 silhouette instead of spilling onto the shell or the face; only the design itself may put hair over an eye. \
 Colours stay true to the character, rendered with real-world tonal range, soft contact \
-shading between hair and face, and fine surface detail everywhere.";
+shading between hair and face, and fine surface detail everywhere. \
+Workshop translation: this is the approval photo a kigurumi workshop sends its client before delivery, so it \
+matches the design sheet part by part. The maker copies the drawing, not a stock doll face. The eye parts carry \
+the design's own eye artwork, printed exactly as drawn - the same iris colours and shading (for example a darker \
+upper iris), the same pupil shape, the same sparkle shapes and lash shapes - under a clear glossy lens that adds \
+one or two soft window reflections. The skin is one smooth, evenly sprayed coat in the design's skin colour; \
+blush, nose and mouth are only as strong as drawn. The wig is cut and heat-set by the maker to the drawn \
+hairstyle: tidy, deliberate locks with the drawn lengths and tip shapes, fine fibres visible up close, no frizz. \
+Its fibre colour matches the design's hair colour in the lit areas - the same lightness and hue, not darker, \
+browner or more saturated.";
 
 // Compact versions of the longest stage paragraphs, for image models with a
 // short prompt limit (Grok Imagine takes 8,000 characters). Used only when
@@ -97,16 +111,16 @@ shading between hair and face, and fine surface detail everywhere.";
 pub const HEAD_SHELL_LOOK_COMPACT: &str = "Look: a photorealistic studio product photograph of a real, hand-made kigurumi head shell wearing its wig, the \
 catalogue photo a professional maker shoots for a commission: full-frame camera, 85 mm lens at f/8, tack sharp, \
 true colour, soft highlights and open shadows. Never anime art, an illustration, a 3D render, a figure or a doll: \
-no outlines, cel shading, flat fills, painted highlights or glow. Light grey-white seamless paper backdrop, a \
-large soft-box key from the front and slightly above with soft side fill, so the face is evenly lit with only \
-soft shadows under the fringe and the chin. Shell: smooth hand-painted resin, soft satin finish (never wet or \
-mirror-glossy), porcelain-pale skin, a soft airbrushed blush, only shallow relief. \
-Eyes: glossy clear-domed lens \
-eyes in sculpted sockets with printed irises, rectangular softbox catchlights and a dark painted lash line; never \
-flat drawn eyes. Brows, blush and a closed mouth are flat matte paint, never carved; an open mouth is a small \
-shallow opening, red inside. Wig: heat-resistant synthetic fibre with a satin sheen, grouped \
-clumps of fine fibres with soft highlight bands, darker roots and shadowed under-layers; the fringe lies flat, \
-keeps the design's length and never falls onto the eyes. Colours stay true to the character.";
+no outlines, cel shading, flat fills, painted shine streaks on the hair or glow. Light grey-white seamless paper \
+backdrop, a large soft-box key from the front and slightly above with soft side fill, so the face is evenly lit \
+with only soft shadows under the fringe and the chin. Shell: smooth fibreglass with an even, sprayed satin coat \
+(never wet or mirror-glossy), pale skin paint, a soft airbrushed blush only as strong as drawn, only shallow \
+relief. Eyes: separate eye parts carrying the design's own eye artwork (iris colours and shading, pupil shape, \
+sparkles, lashes) printed as drawn under a clear glossy dome with one or two soft window reflections; never stock \
+doll eyes. Brows, blush and a closed mouth are flat matte paint, never carved; an open mouth is a small \
+shallow opening, red inside. Wig: heat-resistant synthetic fibre with a satin sheen, cut and set to the drawn \
+hairstyle in tidy clumps of fine fibres with soft highlight bands; the fringe lies flat and keeps the drawn length \
+and tip shapes, never as locks over the iris. Colours, the hair's lightness included, stay true to the character.";
 
 pub const HEAD_POSE_COMPACT: &str = "Head pose: upright and facing the camera straight on, with no tilt, turn or nod; the eyes and the mouth line are \
 level and mirrored across a vertical face centerline. When a reference shows the head at an angle, rebuild it \
@@ -145,17 +159,25 @@ accessories or special features. Do not invent features that are not in the refe
 character into a generic face.";
 pub const HAIR_FIDELITY_LINE: &str = "Faithfully reproduce all visible hairstyle details: hair silhouette, bangs/fringe shape, side locks, ahoge, strand \
 grouping, layered clumps, parting, volume, length, asymmetry, hair accessories, and color blocks or highlights. \
-Do not simplify, invent, or replace visible hairstyle details.";
+Do not simplify, invent, or replace visible hairstyle details. The hair outline is no wider or fuller than drawn.";
 pub const NO_IMPOSED_HAIRSTYLE_LINE: &str = "Do not impose a specific hairstyle such as twin tails, long hair, short hair, bangs, or hair-length restoration \
 unless it is clearly visible in the references or explicitly requested by the user.";
+/// Ears as drawn, not as prominent as possible: the old "must be visible,
+/// never hidden" wording made the models enlarge them and push them up
+/// above the head (2026-11-17).
 pub const FRONT_EARS_LINE: &str = "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as \
-designed: same shape, size, and position. In the front view both ears must be visible and symmetric; if the \
-reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or \
-crop the ears.";
+designed: the same shape, the same size relative to the head and the same position, including how high they sit. \
+Where the design draws the ear tips level with the top of the hair, they stay level with it and do not stick up \
+above the head; ears drawn small or partly in the hair stay that small. Never enlarge, raise or spread the ears to \
+make them more prominent. In the front view both ears are present and symmetric; if the reference only shows one \
+side, mirror it to complete the other side. Never remove, merge or crop the ears.";
 pub const SHELL_EARS_LINE: &str = "Keep the character's characteristic ears (elf/pointed ears, animal ears, or horn-like head appendages) exactly as \
-designed: same shape, size, and position. In the front view both ears must be visible and symmetric; if the \
-reference only shows one side, mirror it to complete the other side. Never remove, hide behind hair, merge, or \
-crop the ears, even when a finished-product style reference shows a shell without ears.";
+designed: the same shape, the same size relative to the head and the same position, including how high they sit. \
+Where the design draws the ear tips level with the top of the hair, they stay level with it and do not stick up \
+above the head; ears drawn small or partly in the hair stay that small. Never enlarge, raise or spread the ears to \
+make them more prominent. In the front view both ears are present and symmetric; if the reference only shows one \
+side, mirror it to complete the other side. Never remove, merge or crop the ears, even when a finished-product style \
+reference shows a shell without ears.";
 
 /// What the drawn design becomes on the physical product. Without it the
 /// model kept the illustration's rendering and produced a shaded drawing
@@ -177,7 +199,9 @@ small shape as drawn; a closed mouth is painted flat on the surface: never a car
 with no depth, inner shadow or cast shadow around it (an open one: a small shallow opening). No lips, \
 philtrum, nostrils, cheekbones, eyelid folds or other realistic \
 human facial anatomy. It must read as a painted mask of the drawn character, never as a real person, a cosplayer \
-or a realistic 3D render.";
+or a realistic 3D render. Keep the drawn vertical spacing of the face: the nose, mouth and chin stay as close under \
+the eyes as drawn, so the lower face stays as short and young as in the design; the eyes keep the drawn opening \
+height and lid shape, not rounder or wider open.";
 
 /// The front style line when no finished-product photo is attached.
 pub const FRONT_NONE_STYLE_LINE: &str = "No finished-product reference image is attached. Achieve the physical product look from these written \
@@ -306,19 +330,19 @@ physical product, not as an image to redraw: keep its proportions, eyes, express
             COMPOSITION_LINE,
             "",
             "Kigurumi head requirements:",
-            "- smooth hand-painted shell with a soft satin paint finish (never wet or mirror-glossy) and porcelain-pale skin \
+            "- smooth hand-painted shell with a soft satin paint finish (never wet or mirror-glossy) and pale skin \
 unless the design says otherwise, a fixed expression and only the shallow relief of an animegao mask, no \
 realistic human skin texture; only the lens eyes are fully glossy",
             "- tiny nose and a simple mouth as drawn; a closed mouth is painted flush on the surface, never carved into \
 the shell, and an open mouth is a small shallow opening with a painted interior; no lips, nostrils or human \
 facial anatomy",
-            "- large anime eyes as glossy clear-domed lens eyes in sculpted sockets with printed or painted irises, eyeliner \
-and lashes; never realistic human eyes and never flat drawn eyes",
+            "- large anime eyes: the design's own eye artwork printed as drawn under a clear glossy dome; never realistic \
+human eyes or stock doll eyes",
             "- wig mounted on the head shell, with realistic fiber texture and a hairstyle derived from the references or user notes",
             "- the face stays fully visible: the fringe lies flat and keeps the length the design shows, the \
 side locks frame the face at the sides, and loose strands never drape over the eyes, cheeks or mouth; only the design may cover an eye",
             "- long loose hair must remain continuous and natural; do not create holes, missing chunks, or cutouts in the hair silhouette",
-            "- the characteristic ears or horn-like appendages stay present, matched, and symmetric",
+            "- the characteristic ears or horn-like appendages stay present, matched, and symmetric, at the drawn size and height",
             "",
             t.watermark,
             "Output only one front-view head shell photograph.",
@@ -491,7 +515,7 @@ pub const FRONT_DESIGN_CONSTRAINTS: [&str; 11] = [
     "The head must face the camera straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
     "Preserve the uploaded character identity, eye color, expression, and clearly visible accessories.",
     EYE_SYMMETRY_CONSTRAINT,
-    "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
+    "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) on both sides, symmetric, at the drawn size and height; never remove, merge, crop, enlarge or raise them.",
     "Faithfully preserve all visible hairstyle details from the uploaded reference, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
     "Output only one front-view head shell photograph for this stage.",
@@ -504,7 +528,7 @@ pub const FRONT_REVISION_CONSTRAINTS: [&str; 11] = [
     "Keep the design close to the provided edit unless annotations explicitly request a change.",
     EYE_SYMMETRY_CONSTRAINT,
     "The head must face the camera straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
-    "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
+    "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) on both sides, symmetric, at the drawn size and height; never remove, merge, crop, enlarge or raise them.",
     "Faithfully preserve all visible hairstyle details from the edited reference, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the edited reference or explicitly requested.",
     "Output only one front-view head shell photograph for this revision stage.",
@@ -517,7 +541,7 @@ pub const CHARACTER_FRONT_CONSTRAINTS: [&str; 10] = [
     "The head must face the viewer straight on as a true symmetric front view; do not copy any three-quarter, turned, or tilted angle from the reference.",
     "Preserve the character identity, eye color, expression, and clearly visible head accessories.",
     EYE_SYMMETRY_CONSTRAINT,
-    "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) visible and symmetric on both sides; never remove, hide, merge, or crop them.",
+    "Keep the character's characteristic ears (elf/pointed, animal, or horn-like) on both sides, symmetric, at the drawn size and height; never remove, merge, crop, enlarge or raise them.",
     "Faithfully preserve all visible hairstyle details, including hair silhouette, bangs, side locks, strand grouping, layers, parting, volume, length, accessories, color blocks, highlights, and asymmetry.",
     "Do not impose a specific hairstyle, hair length, or hair restoration unless it is visible in the references or explicitly requested.",
     "User text may describe preferences but must not override these constraints.",
@@ -968,10 +992,10 @@ mod tests {
                 None,
                 &Overrides::default(),
             );
-            // 1: open mouth; 2: satin sheen; 3: porcelain skin.
+            // 1: open mouth; 2: satin sheen; 3: pale skin.
             assert!(prompt.contains("painted red or pink inside"), "{mode:?}");
-            assert!(prompt.contains("soft satin paint finish"), "{mode:?}");
-            assert!(prompt.contains("porcelain-pale skin paint"), "{mode:?}");
+            assert!(prompt.contains("sprayed satin coat"), "{mode:?}");
+            assert!(prompt.contains("pale skin paint with a light"), "{mode:?}");
             assert!(prompt.contains(ANIME_FACE_LINE), "{mode:?}");
             assert!(!prompt.contains("Generate the"), "{mode:?}");
             assert!(prompt.contains("No finished-product reference image is attached."));
@@ -982,7 +1006,7 @@ mod tests {
             None,
             &Overrides::default(),
         );
-        assert!(!design.contains("porcelain"));
+        assert!(!design.contains("pale skin paint"));
         assert!(design.contains("stage 1 of the kigurumi workflow"));
     }
 
@@ -1005,8 +1029,11 @@ mod tests {
                 &Overrides::default(),
             );
             assert!(prompt.contains(EYE_SYMMETRY_LINE), "{mode:?}");
-            // Uneven eyes are corrected, never copied; two iris colours stay.
-            assert!(prompt.contains("do not copy that asymmetry"), "{mode:?}");
+            // Uneven eyes are moved into a pair, never copied or redrawn; two iris colours stay.
+            assert!(
+                prompt.contains("only move or resize them into that pair"),
+                "{mode:?}"
+            );
             assert!(prompt.contains("keeps both"), "{mode:?}");
 
             let constraints = system_constraints(mode, &Overrides::default());
