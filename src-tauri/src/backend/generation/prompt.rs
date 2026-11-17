@@ -88,11 +88,14 @@ streaks on single strands; spiky styles are built from grouped clumps, never fro
 flying apart, the roots are darker and the layers \
 underneath fall into shadow, there is natural volume and a believable parting where the \
 wig meets the shell; braids show the woven strand structure with a highlight on each ridge; the fringe casts a soft \
-shadow on the forehead. The wig is styled to show the face: the fringe lies flat against the shell, keeps the \
-drawn length and tip shapes (brows hidden or showing exactly as drawn); where the drawing lets fine fringe tips \
-reach the upper lash line, they end there as a few thin tips lying on the shell, never as locks over the iris, \
-strands between the eyes hug the surface, and flyaway strands stay inside the hairstyle \
-silhouette instead of spilling onto the shell or the face; only the design itself may put hair over an eye. \
+shadow on the forehead. The maker sets the wig by matching the part, the height of the roots above it, and the \
+large locks that define the outline in front view: where the drawing lifts the fringe roots from the part before \
+the locks fall, that lift is set firmly with heat and spray, so the fringe keeps the drawn sculpted outline instead \
+of dropping flat from the crown. Follow each defining lock from its root through its bend to the place where its \
+tip meets the brow, the lash line, the cheek or the jaw in the reference. Preserve blunt sections as a continuous \
+edge and pointed sections as distinct tips. Fine fibres run together along each styled lock and share a soft \
+highlight, and flyaway strands stay inside the hairstyle silhouette. Match which portions of the eyes and cheeks \
+the drawn fringe and side locks actually expose; only the design itself may put hair over an eye. \
 Colours stay true to the character, rendered with real-world tonal range, soft contact \
 shading between hair and face, and fine surface detail everywhere. \
 Workshop translation: this is the approval photo a kigurumi workshop sends its client before delivery, so it \
@@ -119,7 +122,7 @@ relief. Eyes: separate eye parts carrying the design's own eye artwork (iris col
 sparkles, lashes) printed as drawn under a clear glossy dome with one or two soft window reflections; never stock \
 doll eyes. Brows, blush and a closed mouth are flat matte paint, never carved; an open mouth is a small \
 shallow opening, red inside. Wig: heat-resistant synthetic fibre with a satin sheen, cut and set to the drawn \
-hairstyle in tidy clumps of fine fibres with soft highlight bands; the fringe lies flat and keeps the drawn length \
+hairstyle in tidy clumps of fine fibres with soft highlight bands; the fringe keeps the drawn root lift, length \
 and tip shapes, never as locks over the iris. Colours, the hair's lightness included, stay true to the character.";
 
 pub const HEAD_POSE_COMPACT: &str = "Head pose: upright and facing the camera straight on, with no tilt, turn or nod; the eyes and the mouth line are \
@@ -130,8 +133,8 @@ pub const HEAD_SHELL_PRESENTATION_COMPACT: &str = "Presentation: the head shell 
 floor shadow; it ends at its natural jaw edge. Nothing below the head appears: no shoulders, body or clothing, \
 even when a reference shows a collar, shirt, jacket or neck ribbon. Loose hair, braids and tails hang straight \
 down under gravity into \
-open air. The fringe and side locks lie flat against the shell and frame the face without covering it; long hair \
-falls beside or behind the shell. Only the design itself may put hair over an eye.";
+open air. The fringe and side locks end where the drawing places them and frame the face without covering it; \
+long hair falls beside or behind the shell. Only the design itself may put hair over an eye.";
 
 /// Shared by every head-shell image (front, revisions and four-view) so they
 /// all hang the same way.
@@ -143,12 +146,9 @@ Nothing below the head appears: no shoulders, body or clothing. Even when a refe
 jacket, neck ribbon or tie, leave it out entirely; the photograph shows the head shell and its wig alone. \
 The wig hangs freely under gravity: loose hair, braids, twin tails and ponytails fall straight down with \
 natural weight, pass beyond the bottom of the shell through open air, and never rest on, bend against or pile up on \
-any surface; long braids end in the air with their tips pointing down. The fringe and the side locks lie flat \
-against the shell and stay off the face: the fringe keeps the length the design shows and stays off the eyes, \
-with any strands between \
-the eyes hugging the surface, the side locks frame the face at the sides and end around jaw level without \
-sweeping across the cheeks or the mouth, and long hair falls beside or behind the shell, never in front of the \
-face. Only the character design itself may put hair over an eye.";
+any surface; long braids end in the air with their tips pointing down. The ends of the fringe and the side locks \
+rest where the drawing places them, with the same overlap with the cheeks and the same visibility of each eye as \
+drawn, and long hair falls beside or behind the shell, never in front of the face.";
 
 pub const WATERMARK_LINE: &str = "Reference and base images may carry a watermark: faint tiled text and an AI-generated notice in a corner. Ignore it \
 as if it were not there and never reproduce it. Do not generate any watermark, text, logo, signature, UI, labels, \
