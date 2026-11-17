@@ -280,13 +280,11 @@ async fn analyze_references(arguments: &JsonObject, context: &ToolContext) -> To
         &focus_note,
         &locale,
     );
-    let features = serde_json::to_value(&result.features).unwrap_or_default();
-    context.entry.lock().state.analysis = Some(json!({
-        "id": analysis_id,
-        "focus_note": focus_note,
-        "features": features,
-        "warnings": result.warnings,
-    }));
+    context.entry.lock().state.analysis = Some(analysis::stored_analysis(
+        &analysis_id,
+        &focus_note,
+        &result,
+    ));
     Ok(json!({
         "ok": true,
         "features": result.features.iter().map(|feature| json!({
@@ -341,27 +339,14 @@ fn supplemental_keys(conversation: &Conversation) -> Vec<String> {
 }
 
 /// The analysed details, as the lock that keeps them in generated images.
+/// Only the character design and the head shell front view carry it (the
+/// compare harness's `LOCKED_MODES` follows this).
 fn detail_lock(conversation: &Conversation) -> Option<Value> {
-    let analysis = conversation.state.analysis.as_ref()?;
-    let features: Vec<Value> = analysis
-        .get("features")
-        .and_then(Value::as_array)
-        .map(|features| {
-            features
-                .iter()
-                .take(24)
-                .map(|feature| {
-                    let text = |key: &str| feature.get(key).and_then(Value::as_str).unwrap_or_default();
-                    json!({"id": text("id"), "kind": text("kind"), "label": text("label"), "description": text("description")})
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    Some(json!({
-        "source_analysis_id": analysis.get("id").cloned().unwrap_or(Value::Null),
-        "user_note": analysis.get("focus_note").and_then(Value::as_str).unwrap_or_default(),
-        "features": features,
-    }))
+    conversation
+        .state
+        .analysis
+        .as_ref()
+        .map(analysis::detail_lock)
 }
 
 fn request_for(conversation: &Conversation, mode: Mode, free_text: &str) -> GenerationRequest {

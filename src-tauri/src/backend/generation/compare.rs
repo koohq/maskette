@@ -29,6 +29,16 @@
 //! overrides (the app's `prompts.json` format), to try a text change
 //! without rebuilding.
 //!
+//! In the app, the character design and the head shell front view also get
+//! the details the reference analysis found ("Confirmed design facts" in the
+//! prompt). Without `MASKETTE_COMPARE_ANALYSIS=<analysis.json>` they get
+//! none, so the runs differ from what users get. With it, those runs carry
+//! the analysis in that file (a project's stored `analysis`, which may be
+//! edited by hand); when the file does not exist yet, the analysis is made
+//! once as the chat's `analyze_references` makes it (the default analysis
+//! model on OpenRouter, billed) and saved there, so every later run and
+//! prompt variant gets the same details.
+//!
 //! Each step rebuilds `index.html` in the output folder, which shows the
 //! runs side by side. `MASKETTE_COMPARE_STEP=report` only rebuilds it (no
 //! model is called and no key is read).
@@ -61,11 +71,21 @@ use std::time::Instant;
 
 use serde_json::{Value, json};
 
+use super::analysis::{self, AnalysisRequest, AnalysisResult, Feature};
 use super::{GenerationRequest, LocalEdit, Mode, image_backend};
+use crate::backend::ids;
 use crate::backend::settings::secrets::{KeyringSecrets, SERVICE, SecretStore as _};
 use crate::backend::tests::TestBackend;
 
 const DEFAULT_EDIT_NOTE: &str = "星のヘアピンを、同じ金色のハート形のヘアピンに変えてください。";
+
+/// The generations the app gives the analysed details to (`detail_lock` in
+/// `agent/tools.rs`): the character design and the head shell front view.
+const LOCKED_MODES: [Mode; 3] = [
+    Mode::CharacterFront,
+    Mode::CharacterTurnaround,
+    Mode::FrontDesign,
+];
 
 fn env(name: &str) -> String {
     std::env::var(name).unwrap_or_else(|_| panic!("set {name}"))
@@ -117,6 +137,8 @@ fn parse_masks(text: &str) -> BTreeMap<String, (f64, f64, f64, f64)> {
 struct Run<'a> {
     backend: &'a TestBackend,
     out: PathBuf,
+    /// The analysed details for `LOCKED_MODES`, from `MASKETTE_COMPARE_ANALYSIS`.
+    detail_lock: Option<Value>,
 }
 
 impl Run<'_> {
@@ -136,16 +158,52 @@ impl Run<'_> {
         format!("{kind}:references/compare/{name}")
     }
 
+    /// The stored analysis in `path`, or a new one of the character made as
+    /// the chat's `analyze_references` makes it and saved to `path`.
+    async fn analysis(&self, path: &Path, character: &Path, name: &str) -> Value {
+        if path.is_file() {
+            let text = std::fs::read_to_string(path).expect("analysis readable");
+            println!("analysis read: {}", path.display());
+            return serde_json::from_str(&text).expect("the analysis file is JSON");
+        }
+        let state = &self.backend.state;
+        let backend =
+            analysis::analysis_backend(&state.settings.settings()).expect("an analysis backend");
+        let analysis_id = ids::uuid4();
+        let request = AnalysisRequest {
+            locale: "ja".to_owned(),
+            reference_keys: vec![self.reference("front", character, name)],
+            character_session_id: "compare".to_owned(),
+            analysis_id: analysis_id.clone(),
+            ..AnalysisRequest::default()
+        };
+        let result = match backend.analyze(state, &request).await {
+            Ok(result) => result,
+            Err(error) => panic!("the analysis failed: {error:?}"),
+        };
+        let result =
+            analysis::ensure_user_requirement(analysis::filter_head_details(result), "", "ja");
+        let stored = analysis::stored_analysis(&analysis_id, "", &result);
+        let text = serde_json::to_string_pretty(&stored).expect("analysis as JSON");
+        std::fs::write(path, text).expect("analysis written");
+        println!("analysis saved: {}", path.display());
+        stored
+    }
+
     /// Runs one job, keeps its clean output as `<model>/<label>.png` and
     /// appends what happened to `results.jsonl`.
     async fn job(&self, model: &str, label: &str, request: &GenerationRequest) -> Option<PathBuf> {
         self.use_model(model);
+        let mut request = request.clone();
+        if request.detail_lock.is_none() && LOCKED_MODES.contains(&request.generation_mode) {
+            request.detail_lock.clone_from(&self.detail_lock);
+        }
         let started = Instant::now();
         let result = async {
             image_backend(&self.backend.state.settings.settings())?
                 .generate(
                     &self.backend.state,
-                    request,
+                    &request,
                     &AtomicBool::new(false),
                     &|_, _| {},
                 )
@@ -259,7 +317,9 @@ async fn compare_image_models() {
         .settings
         .update(&[
             ("image_provider".to_owned(), Some("openrouter".to_owned())),
-            ("openrouter_api_key".to_owned(), Some(key)),
+            ("openrouter_api_key".to_owned(), Some(key.clone())),
+            // The analysis goes to the chat assistant's endpoint, OpenRouter by default.
+            ("agent_llm_api_key".to_owned(), Some(key)),
         ])
         .expect("settings set");
     // Prompt text to try, in the format of the app's prompts.json.
@@ -270,11 +330,18 @@ async fn compare_image_models() {
         )
         .expect("prompts file copied");
     }
-    let run = Run {
+    let mut run = Run {
         backend: &backend,
         out: out.clone(),
+        detail_lock: None,
     };
     let reference_name = format!("character.{extension}");
+    if let Ok(path) = std::env::var("MASKETTE_COMPARE_ANALYSIS") {
+        let stored = run
+            .analysis(Path::new(&path), &reference, &reference_name)
+            .await;
+        run.detail_lock = Some(analysis::detail_lock(&stored));
+    }
 
     match step.as_str() {
         "front" => {
@@ -416,4 +483,70 @@ async fn compare_image_models() {
         ),
     }
     println!("report: {}", report::write(&out).display());
+}
+
+/// The harness gives the analysed details to the same generations as the
+/// app, with no model called: the analysis comes from a file and the images
+/// from the fixture backend.
+#[tokio::test]
+async fn analysis_reaches_only_the_locked_generations() {
+    let backend = TestBackend::new(true);
+    let out = tempfile::tempdir().expect("output folder");
+    let character = out.path().join("character.png");
+    image::RgbImage::from_pixel(64, 64, image::Rgb([240, 180, 150]))
+        .save(&character)
+        .expect("character written");
+    let result = AnalysisResult {
+        features: vec![Feature {
+            id: "hair-1".to_owned(),
+            kind: "hair".to_owned(),
+            label: "髪".to_owned(),
+            description: "明るいピーチ色のボブ".to_owned(),
+        }],
+        warnings: Vec::new(),
+    };
+    let file = out.path().join("analysis.json");
+    let stored = analysis::stored_analysis("analysis-1", "", &result);
+    std::fs::write(&file, stored.to_string()).expect("analysis written");
+
+    let mut run = Run {
+        backend: &backend,
+        out: out.path().to_owned(),
+        detail_lock: None,
+    };
+    let read = run.analysis(&file, &character, "character.png").await;
+    assert_eq!(read, stored);
+    run.detail_lock = Some(analysis::detail_lock(&read));
+
+    let front_key = run.reference("front", &character, "character.png");
+    let mut front = GenerationRequest::new("compare", "ja", Mode::FrontDesign);
+    front.reference_keys = vec![front_key.clone()];
+    assert!(run.job("vendor/model", "front", &front).await.is_some());
+    let mut turnaround = GenerationRequest::new("compare", "ja", Mode::Turnaround);
+    turnaround.reference_keys = vec![front_key];
+    assert!(
+        run.job("vendor/model", "turnaround", &turnaround)
+            .await
+            .is_some()
+    );
+
+    // The fixture backend writes no prompt text, but each job keeps its
+    // request, which the prompt is built from.
+    let lock_of = |mode: &str| {
+        let records = backend.state.generation.jobs.list();
+        let record = records
+            .iter()
+            .find(|record| record.generation_mode == mode)
+            .unwrap_or_else(|| panic!("a {mode} job"));
+        record.prompt_payload["detail_lock"].clone()
+    };
+    assert_eq!(lock_of("front_design"), analysis::detail_lock(&stored));
+    assert_eq!(
+        lock_of("front_design")["features"][0]["description"],
+        "明るいピーチ色のボブ"
+    );
+    assert_eq!(lock_of("turnaround"), Value::Null);
+    // The prompt's "Confirmed design facts" section is built from that lock.
+    let facts = super::prompt::format_detail_lock(Some(&lock_of("front_design")));
+    assert!(facts.contains("- hair: 明るいピーチ色のボブ"), "{facts}");
 }

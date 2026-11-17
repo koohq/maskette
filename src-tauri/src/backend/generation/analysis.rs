@@ -965,6 +965,43 @@ pub fn ensure_user_requirement(
     }
 }
 
+/// An analysis as a project keeps it (`state.analysis`): what the chat's
+/// `analyze_references` saves, and what the compare harness writes and
+/// reads back.
+pub fn stored_analysis(analysis_id: &str, focus_note: &str, result: &AnalysisResult) -> Value {
+    json!({
+        "id": analysis_id,
+        "focus_note": focus_note,
+        "features": serde_json::to_value(&result.features).unwrap_or_default(),
+        "warnings": result.warnings,
+    })
+}
+
+/// A stored analysis as the detail lock of a generation request: the
+/// analysed details (at most 24) that the image must keep.
+pub fn detail_lock(analysis: &Value) -> Value {
+    let features: Vec<Value> = analysis
+        .get("features")
+        .and_then(Value::as_array)
+        .map(|features| {
+            features
+                .iter()
+                .take(24)
+                .map(|feature| {
+                    let text =
+                        |key: &str| feature.get(key).and_then(Value::as_str).unwrap_or_default();
+                    json!({"id": text("id"), "kind": text("kind"), "label": text("label"), "description": text("description")})
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+    json!({
+        "source_analysis_id": analysis.get("id").cloned().unwrap_or(Value::Null),
+        "user_note": analysis.get("focus_note").and_then(Value::as_str).unwrap_or_default(),
+        "features": features,
+    })
+}
+
 fn user_requirement_label(locale: &str) -> &'static str {
     match locale {
         "en" => "User requirement",
@@ -976,6 +1013,28 @@ fn user_requirement_label(locale: &str) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_stored_analysis_becomes_a_detail_lock_of_at_most_24_details() {
+        let features: Vec<Feature> = (0..30)
+            .map(|index| Feature::new(&format!("f{index}"), "hair", "Hair", "twin tails"))
+            .collect();
+        let result = AnalysisResult {
+            features,
+            warnings: vec!["w".to_owned()],
+        };
+        let stored = stored_analysis("analysis-1", "keep the bow", &result);
+        assert_eq!(stored["warnings"], json!(["w"]));
+        let lock = detail_lock(&stored);
+        assert_eq!(lock["source_analysis_id"], "analysis-1");
+        assert_eq!(lock["user_note"], "keep the bow");
+        let kept = lock["features"].as_array().expect("features");
+        assert_eq!(kept.len(), 24);
+        assert_eq!(
+            kept[0],
+            json!({"id": "f0", "kind": "hair", "label": "Hair", "description": "twin tails"})
+        );
+    }
 
     #[test]
     fn only_head_details_and_one_requirement_are_kept() {
