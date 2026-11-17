@@ -39,6 +39,15 @@
 //! model on OpenRouter, billed) and saved there, so every later run and
 //! prompt variant gets the same details.
 //!
+//! `MASKETTE_COMPARE_EXTRA=<tag>=<image>` adds a reference to the `front`
+//! step with a tag a user can give it in the app (`side`, `back`,
+//! `expression`, `accessory` or `supplemental`); several are separated like
+//! `PATH`. They follow the character as the user's other references do when
+//! the chat makes the front view without a design (`skip_design`), each sent
+//! as it is and described by its tag, and an analysis made for the run sees
+//! them too, as the chat's `analyze_references` does. A stored analysis file
+//! is used as it is. The other steps refuse them.
+//!
 //! Each step rebuilds `index.html` in the output folder, which shows the
 //! runs side by side. `MASKETTE_COMPARE_STEP=report` only rebuilds it (no
 //! model is called and no key is read).
@@ -72,7 +81,8 @@ use std::time::Instant;
 use serde_json::{Value, json};
 
 use super::analysis::{self, AnalysisRequest, AnalysisResult, Feature};
-use super::{GenerationRequest, LocalEdit, Mode, image_backend};
+use super::{GenerationRequest, LocalEdit, Mode, image_api, image_backend};
+use crate::backend::agent::store::REFERENCE_TAGS;
 use crate::backend::ids;
 use crate::backend::settings::secrets::{KeyringSecrets, SERVICE, SecretStore as _};
 use crate::backend::tests::TestBackend;
@@ -117,6 +127,28 @@ fn ellipse_mask(path: &Path, (x0, y0, x1, y1): (f64, f64, f64, f64)) {
     mask.save(path).expect("mask written");
 }
 
+/// The extra references of `MASKETTE_COMPARE_EXTRA`, as (tag, image).
+fn parse_extras(text: &std::ffi::OsStr) -> Vec<(String, PathBuf)> {
+    std::env::split_paths(text)
+        .filter(|part| !part.as_os_str().is_empty())
+        .map(|part| {
+            let part = part.to_string_lossy();
+            let (tag, image) = part.split_once('=').unwrap_or_else(|| {
+                panic!("MASKETTE_COMPARE_EXTRA takes <tag>=<image>, not {part:?}")
+            });
+            let tag = tag.trim();
+            assert!(
+                REFERENCE_TAGS.contains(&tag) && tag != "front",
+                "an extra reference is tagged one of {:?} but front, not {tag:?}",
+                REFERENCE_TAGS
+            );
+            let image = PathBuf::from(image.trim());
+            assert!(image.is_file(), "no extra reference at {}", image.display());
+            (tag.to_owned(), image)
+        })
+        .collect()
+}
+
 fn parse_masks(text: &str) -> BTreeMap<String, (f64, f64, f64, f64)> {
     text.split(';')
         .filter(|part| !part.trim().is_empty())
@@ -158,9 +190,41 @@ impl Run<'_> {
         format!("{kind}:references/compare/{name}")
     }
 
-    /// The stored analysis in `path`, or a new one of the character made as
-    /// the chat's `analyze_references` makes it and saved to `path`.
-    async fn analysis(&self, path: &Path, character: &Path, name: &str) -> Value {
+    /// Copies the extra references into the data folder and returns their
+    /// keys, each with its tag.
+    fn extra_references(&self, extras: &[(String, PathBuf)]) -> Vec<String> {
+        extras
+            .iter()
+            .enumerate()
+            .map(|(index, (tag, image))| {
+                let extension = image
+                    .extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("png");
+                self.reference(tag, image, &format!("extra{}.{extension}", index + 1))
+            })
+            .collect()
+    }
+
+    /// The front view request: the character, then the extra references.
+    fn front_request(&self, character: &Path, name: &str, extras: &[String]) -> GenerationRequest {
+        let mut request = GenerationRequest::new("compare", "ja", Mode::FrontDesign);
+        request.reference_keys = std::iter::once(self.reference("front", character, name))
+            .chain(extras.iter().cloned())
+            .collect();
+        request
+    }
+
+    /// The stored analysis in `path`, or a new one of the character and the
+    /// extra references made as the chat's `analyze_references` makes it and
+    /// saved to `path`.
+    async fn analysis(
+        &self,
+        path: &Path,
+        character: &Path,
+        name: &str,
+        extras: &[String],
+    ) -> Value {
         if path.is_file() {
             let text = std::fs::read_to_string(path).expect("analysis readable");
             println!("analysis read: {}", path.display());
@@ -172,7 +236,9 @@ impl Run<'_> {
         let analysis_id = ids::uuid4();
         let request = AnalysisRequest {
             locale: "ja".to_owned(),
-            reference_keys: vec![self.reference("front", character, name)],
+            reference_keys: std::iter::once(self.reference("front", character, name))
+                .chain(extras.iter().cloned())
+                .collect(),
             character_session_id: "compare".to_owned(),
             analysis_id: analysis_id.clone(),
             ..AnalysisRequest::default()
@@ -269,6 +335,13 @@ async fn compare_image_models() {
         .map(|model| model.trim().to_owned())
         .filter(|model| !model.is_empty())
         .collect();
+    let extras = std::env::var_os("MASKETTE_COMPARE_EXTRA")
+        .map(|text| parse_extras(&text))
+        .unwrap_or_default();
+    assert!(
+        extras.is_empty() || step == "front",
+        "MASKETTE_COMPARE_EXTRA only goes with the front step"
+    );
 
     // The app falls back to the chat and analysis keys when they point at
     // OpenRouter; the keys are assumed to be OpenRouter's here.
@@ -336,9 +409,10 @@ async fn compare_image_models() {
         detail_lock: None,
     };
     let reference_name = format!("character.{extension}");
+    let extra_keys = run.extra_references(&extras);
     if let Ok(path) = std::env::var("MASKETTE_COMPARE_ANALYSIS") {
         let stored = run
-            .analysis(Path::new(&path), &reference, &reference_name)
+            .analysis(Path::new(&path), &reference, &reference_name, &extra_keys)
             .await;
         run.detail_lock = Some(analysis::detail_lock(&stored));
     }
@@ -346,8 +420,7 @@ async fn compare_image_models() {
     match step.as_str() {
         "front" => {
             for model in &models {
-                let mut request = GenerationRequest::new("compare", "ja", Mode::FrontDesign);
-                request.reference_keys = vec![run.reference("front", &reference, &reference_name)];
+                let request = run.front_request(&reference, &reference_name, &extra_keys);
                 run.job(model, "front", &request).await;
             }
         }
@@ -514,7 +587,7 @@ async fn analysis_reaches_only_the_locked_generations() {
         out: out.path().to_owned(),
         detail_lock: None,
     };
-    let read = run.analysis(&file, &character, "character.png").await;
+    let read = run.analysis(&file, &character, "character.png", &[]).await;
     assert_eq!(read, stored);
     run.detail_lock = Some(analysis::detail_lock(&read));
 
@@ -549,4 +622,60 @@ async fn analysis_reaches_only_the_locked_generations() {
     // The prompt's "Confirmed design facts" section is built from that lock.
     let facts = super::prompt::format_detail_lock(Some(&lock_of("front_design")));
     assert!(facts.contains("- hair: 明るいピーチ色のボブ"), "{facts}");
+}
+
+/// An extra reference goes after the character, uncut and described by its
+/// tag, as a tagged user reference does in the app; no model is called.
+#[tokio::test]
+async fn extra_references_follow_the_character_with_their_tags() {
+    let backend = TestBackend::new(true);
+    let out = tempfile::tempdir().expect("output folder");
+    let character = out.path().join("character.png");
+    image::RgbImage::from_pixel(64, 64, image::Rgb([240, 180, 150]))
+        .save(&character)
+        .expect("character written");
+    let eyes = out.path().join("eyes.png");
+    image::RgbImage::from_pixel(96, 40, image::Rgb([80, 160, 90]))
+        .save(&eyes)
+        .expect("eyes written");
+    let text =
+        std::env::join_paths([format!("expression={}", eyes.display())]).expect("a path list");
+    let extras = parse_extras(&text);
+    assert_eq!(extras, vec![("expression".to_owned(), eyes)]);
+
+    let run = Run {
+        backend: &backend,
+        out: out.path().to_owned(),
+        detail_lock: None,
+    };
+    let keys = run.extra_references(&extras);
+    assert_eq!(keys, vec!["expression:references/compare/extra1.png"]);
+    let request = run.front_request(&character, "character.png", &keys);
+    let prepared =
+        image_api::prepare(backend.dir.path(), &request, 4, None).expect("images prepared");
+    assert_eq!(prepared.images.len(), 2);
+    assert_eq!(prepared.images[1].dimensions(), (96, 40));
+    assert!(
+        prepared
+            .prompt
+            .starts_with("Image 1 is the character reference.")
+            && prepared
+                .prompt
+                .contains("\nImage 2 shows other expressions"),
+        "{}",
+        prepared.prompt
+    );
+    assert!(run.job("vendor/model", "front", &request).await.is_some());
+}
+
+#[test]
+#[should_panic(expected = "but front")]
+fn an_extra_reference_cannot_be_a_second_front() {
+    let out = tempfile::tempdir().expect("output folder");
+    let image = out.path().join("other.png");
+    image::RgbImage::from_pixel(8, 8, image::Rgb([0, 0, 0]))
+        .save(&image)
+        .expect("image written");
+    let text = std::env::join_paths([format!("front={}", image.display())]).expect("a path list");
+    parse_extras(&text);
 }
