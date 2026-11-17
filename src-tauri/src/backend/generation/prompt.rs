@@ -131,7 +131,9 @@ frontal and never copy that angle.";
 
 pub const HEAD_SHELL_PRESENTATION_COMPACT: &str = "Presentation: the head shell floats in mid-air with no mount, mannequin, neck, base or surface under it and no \
 floor shadow; it ends at its natural jaw edge. Nothing below the head appears: no shoulders, body or clothing, \
-even when a reference shows a collar, shirt, jacket or neck ribbon. Loose hair, braids and tails hang straight \
+even when a reference shows a collar, shirt, jacket or neck ribbon. A hood is clothing too: leave it out and show \
+the wig's crown and hairline that lay under it; hats, headbands and hairpins stay as drawn. Loose hair, braids and \
+tails hang straight \
 down under gravity into \
 open air. The fringe and side locks end where the drawing places them and frame the face without covering it; \
 long hair falls beside or behind the shell. Only the design itself may put hair over an eye.";
@@ -144,6 +146,10 @@ floor or contact shadow beneath it (at most a faint soft shadow far behind it on
 hollow head: below the face it simply ends at its natural jaw and opening edge, with no neck stub and no base. \
 Nothing below the head appears: no shoulders, body or clothing. Even when a reference shows a collar, shirt, \
 jacket, neck ribbon or tie, leave it out entirely; the photograph shows the head shell and its wig alone. \
+A hood attached to the clothing is part of the clothing, not a head accessory: leave it out as well, and show the \
+crown of the wig, its hairline and the roots of its fringe in a shape that reads naturally as the hair that lay \
+under the hood, continuing the fringe and side locks the drawing shows. Accessories worn on the head itself, such \
+as hats, headbands and hairpins, stay exactly as drawn. \
 The wig hangs freely under gravity: loose hair, braids, twin tails and ponytails fall straight down with \
 natural weight, pass beyond the bottom of the shell through open air, and never rest on, bend against or pile up on \
 any surface; long braids end in the air with their tips pointing down. The ends of the fringe and the side locks \
@@ -1010,6 +1016,29 @@ mod tests {
         assert!(design.contains("stage 1 of the kigurumi workflow"));
     }
 
+    #[test]
+    fn a_hood_is_left_out_with_the_clothing() {
+        for mode in [Mode::FrontDesign, Mode::FrontRevision, Mode::Turnaround] {
+            let prompt = build_image_prompt(
+                &request(mode),
+                &[Role::ApprovedFront],
+                None,
+                &Overrides::default(),
+            );
+            // Right after the clothing sentence, so a hood is not read as a head accessory.
+            assert!(
+                prompt.contains(
+                    "the photograph shows the head shell and its wig alone. A hood attached to the \
+clothing is part of the clothing, not a head accessory: leave it out as well, and show the crown of the wig, its \
+hairline and the roots of its fringe in a shape that reads naturally as the hair that lay under the hood, \
+continuing the fringe and side locks the drawing shows. Accessories worn on the head itself, such as hats, \
+headbands and hairpins, stay exactly as drawn. The wig hangs freely"
+                ),
+                "{mode:?}"
+            );
+        }
+    }
+
     const GENERATING_MODES: [Mode; 6] = [
         Mode::CharacterFront,
         Mode::CharacterRevision,
@@ -1170,6 +1199,7 @@ Image 6 contains supplemental references"
         assert!(short.contains(HEAD_SHELL_PRESENTATION_COMPACT));
         // Neck, body and clothing stay out even in the compact version.
         assert!(short.contains("no shoulders, body or clothing"));
+        assert!(short.contains("A hood is clothing too: leave it out"));
         assert!(short.contains(request.free_text.trim()));
         let tiny = build_image_prompt(
             &request,
