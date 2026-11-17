@@ -25,7 +25,6 @@ const updateQuotaPolicyMock = vi.mocked(updateQuotaPolicy);
 
 function renderAdminAuditPage() {
   Object.defineProperty(window, "matchMedia", {
-    writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,

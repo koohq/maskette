@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { settingKind, settingLabel } from "../settings/settingLabels";
 
 /**
  * Codes the backend sends as the `detail` of an HTTP error (`src-tauri/src/backend/error.rs` and the routers) that a
@@ -48,7 +49,8 @@ export const DETAIL_CODES = new Set([
 ]);
 
 /**
- * Codes that carry a value after a colon: `invalid_setting:<key>` names the setting; the `..._not_saved: <error>`
+ * Codes that carry a value after a colon: `invalid_setting:<key>` names the setting, shown by its name on the settings
+ * page with what the backend checks that kind of value for; the `..._not_saved: <error>`
  * ones add the system's own words, which are shown as they are (like `detail` in `failureText.ts`).
  */
 const VALUE_PARAMS: Record<string, "key" | "detail"> = {
@@ -65,7 +67,16 @@ export function detailText(t: TFunction, detail: string): string | null {
   if (!code || !DETAIL_CODES.has(code)) return null;
   const value = match[2]?.trim() ?? "";
   const param = VALUE_PARAMS[code];
-  if (param === "key") return t(`agent.errors.${code}`, { key: value });
+  if (param === "key") {
+    const kind = settingKind(value);
+    const key =
+      kind === "secret"
+        ? "agent.errors.invalidSettingSecret"
+        : kind === "extra_body"
+          ? "agent.errors.invalidSettingJson"
+          : "agent.errors.invalid_setting";
+    return t(key, { label: settingLabel(t, value) });
+  }
   const text = t(`agent.errors.${code}`);
   if (param === "detail" && value)
     return [text, t("agent.failures.detail", { detail: value })].join(t("agent.failures.gap"));

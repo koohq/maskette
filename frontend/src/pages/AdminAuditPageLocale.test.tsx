@@ -105,7 +105,6 @@ function job(overrides: Partial<AuditGenerationJob>): AuditGenerationJob {
 
 function renderPage({ authenticated }: { authenticated: boolean }) {
   Object.defineProperty(window, "matchMedia", {
-    writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,

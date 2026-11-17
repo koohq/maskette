@@ -45,8 +45,6 @@ pub struct SecretOut {
 
 #[derive(Serialize, Debug)]
 pub struct SettingsOut {
-    /// Always true: the old backend refused changes only in production.
-    pub writable: bool,
     pub values: BTreeMap<&'static str, String>,
     pub secrets: BTreeMap<&'static str, SecretOut>,
     pub overridden: Vec<String>,
@@ -128,7 +126,6 @@ pub fn describe(store: &SettingsStore) -> SettingsOut {
     ]);
 
     SettingsOut {
-        writable: true,
         values,
         secrets: store::secret_keys()
             .map(|key| (key, secret_out(&settings, key)))

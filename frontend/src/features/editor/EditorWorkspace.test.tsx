@@ -52,7 +52,6 @@ vi.mock("./deformation/animeLandmarkDetector", () => ({
 
 function renderEditor(props: Partial<React.ComponentProps<typeof EditorWorkspace>> = {}) {
   Object.defineProperty(window, "matchMedia", {
-    writable: true,
     value: vi.fn().mockImplementation((query: string) => ({
       matches: false,
       media: query,

@@ -307,7 +307,7 @@ export function WorkspacePage() {
       drafts.discard(activeVersion.id);
       await refresh();
       openVersion(created.id);
-      setToast({ text: t("workspace.savedVersion", { id: created.id }) });
+      setToast({ text: t("workspace.savedVersion") });
     } catch (error) {
       reportError(error);
     } finally {

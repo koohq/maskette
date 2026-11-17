@@ -7,7 +7,6 @@ import { SettingsPage } from "./SettingsPage";
 import type { BackendSettings } from "./settingsApi";
 
 const initial: BackendSettings = {
-  writable: true,
   values: {
     agent_llm_provider: "openai_compatible",
     agent_llm_base_url: "https://example.test/v1",
@@ -34,7 +33,7 @@ const initial: BackendSettings = {
   secrets: {
     agent_llm_api_key: { set: false, source: "", hint: "" },
     analysis_llm_api_key: { set: false, source: "", hint: "" },
-    siliconflow_api_key: { set: true, source: "env", hint: "…0000" },
+    siliconflow_api_key: { set: true, source: "override", hint: "…0000" },
     ark_api_key: { set: false, source: "", hint: "" },
     openrouter_api_key: { set: false, source: "", hint: "" },
   },
@@ -293,20 +292,14 @@ describe("SettingsPage", () => {
     expect(screen.queryByRole("alert")).toBeNull();
   });
 
-  it("warns when the selected backend is not configured and disables editing when read-only", async () => {
-    const readOnly = { ...initial, writable: false, values: { ...initial.values, image_provider: "ark" } };
+  it("warns when the selected backend is not configured", async () => {
+    const unconfigured = { ...initial, values: { ...initial.values, image_provider: "ark" } };
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () => new Response(JSON.stringify(readOnly))),
+      vi.fn(async () => new Response(JSON.stringify(unconfigured))),
     );
     renderPage();
 
-    await screen.findByText("需要填写方舟 API Key");
-    expect(screen.getByText("生产环境下设置为只读，请修改 .env。")).toBeTruthy();
-    // The colour choice is kept in this browser, not in the backend settings, so it stays editable.
-    const backendRadios = () =>
-      screen.getAllByRole("radio").filter((radio) => (radio as HTMLInputElement).name !== "palette");
-    await waitFor(() => expect(backendRadios().every((radio) => (radio as HTMLInputElement).disabled)).toBe(true));
-    expect(screen.getAllByRole("radio").some((radio) => (radio as HTMLInputElement).name === "palette")).toBe(true);
+    expect(await screen.findByText("需要填写方舟 API Key")).toBeTruthy();
   });
 });

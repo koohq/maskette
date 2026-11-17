@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { settingLabels } from "../settings/settingLabels";
 
 /**
  * Failures the backend sends as a code with the values to fill in (`src-tauri/src/backend/failure.rs`):
@@ -53,6 +54,8 @@ export function failureText(t: TFunction, code: unknown, params: unknown, fallba
         ? t(`agent.failures.rejectReason.${reason}`)
         : t("agent.failures.rejectReason.reference_unusable");
   }
+  const settings = values["settings"];
+  if (typeof settings === "string") values["settings"] = settingLabels(t, settings);
   const parts = [t(`agent.failures.${code}`, values)];
   const exitCode = values["exit_code"];
   if (typeof exitCode === "number") parts.push(t("agent.failures.exitCode", { exitCode }));

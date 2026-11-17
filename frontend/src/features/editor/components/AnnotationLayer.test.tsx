@@ -37,7 +37,12 @@ describe("AnnotationLayer marks", () => {
 
   it.each([
     ["zh-CN", ["标注 1", "箭头标注 2", "矩形标注 3", "文字标注 4: 眼睛大一点"], "关键点 左眼", "删除标注"],
-    ["ja", ["注釈 1", "矢印の注釈 2", "矩形の注釈 3", "文字の注釈 4: 眼睛大一点"], "左目のキーポイント", "注釈を削除"],
+    [
+      "ja",
+      ["注釈 1", "矢印の注釈 2", "四角形の注釈 3", "文字の注釈 4: 眼睛大一点"],
+      "左目のキーポイント",
+      "注釈を削除",
+    ],
     [
       "en",
       ["Annotation 1", "Arrow annotation 2", "Rectangle annotation 3", "Text annotation 4: 眼睛大一点"],
@@ -144,13 +149,13 @@ describe("AnnotationLayer marks", () => {
     const arrow = screen.getByRole("button", { name: "矢印の注釈 2" });
     arrow.focus();
     fireEvent.keyDown(arrow, { key: "Delete" });
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "矩形の注釈 3" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "四角形の注釈 3" }));
     expect(onAnnotationSelect).toHaveBeenLastCalledWith("c");
 
     const last = screen.getByRole("button", { name: "文字の注釈 4: 眼睛大一点" });
     last.focus();
     fireEvent.keyDown(last, { key: "Backspace" });
-    expect(document.activeElement).toBe(screen.getByRole("button", { name: "矩形の注釈 3" }));
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "四角形の注釈 3" }));
   });
 
   it("deletes the selected mark from its delete button on a click, not on the press", async () => {

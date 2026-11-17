@@ -56,7 +56,7 @@ export function SettingsPage() {
   const changed = data ? Object.keys(form).filter((key) => form[key] !== data.values[key]) : [];
   const changedSecrets = Object.entries(secrets).filter(([, value]) => value === null || value.trim() !== "");
   const unsaved = changed.length + changedSecrets.length > 0;
-  const disabled = busy || !data?.writable;
+  const disabled = busy || !data;
 
   async function apply(action: () => Promise<BackendSettings>) {
     setBusy(true);
@@ -117,7 +117,6 @@ export function SettingsPage() {
         <p className="mb-1 text-sm text-(--ide-text-muted)">{t("settings.intro")}</p>
         <p className="mb-6 text-xs text-(--ide-text-faint)">{t("settings.keyStorageNote")}</p>
         {settings.isError ? <p className="text-sm text-(--ide-danger)">{t("settings.loadFailed")}</p> : null}
-        {data && !data.writable ? <p className="mb-4 text-sm text-(--ide-warning)">{t("settings.readOnly")}</p> : null}
         {data ? (
           <div className="flex flex-col gap-4">
             <BackendSection
@@ -161,7 +160,7 @@ export function SettingsPage() {
                     value={form["agent_llm_extra_body"]}
                   />
                   {data.values["agent_llm_provider"] === "openai_compatible" ? (
-                    <ProbePanel disabled={!data.writable} probeRole="agent" unsaved={unsaved} />
+                    <ProbePanel probeRole="agent" unsaved={unsaved} />
                   ) : null}
                 </>
               )}
@@ -206,7 +205,7 @@ export function SettingsPage() {
                   />
                   <p className="text-xs text-(--ide-text-muted)">{t("settings.visionRequired")}</p>
                   {data.values["llm_provider"] === "openai_compatible" ? (
-                    <ProbePanel disabled={!data.writable} probeRole="analysis" unsaved={unsaved} />
+                    <ProbePanel probeRole="analysis" unsaved={unsaved} />
                   ) : null}
                 </>
               ) : null}
@@ -457,7 +456,7 @@ const probeIcons = {
 };
 
 /** Tests the saved settings of one LLM role with a real request and lists what works. */
-function ProbePanel({ probeRole, unsaved, disabled }: { probeRole: ProbeRole; unsaved: boolean; disabled: boolean }) {
+function ProbePanel({ probeRole, unsaved }: { probeRole: ProbeRole; unsaved: boolean }) {
   const { t } = useTranslation();
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<ProbeResult | null>(null);
@@ -487,12 +486,7 @@ function ProbePanel({ probeRole, unsaved, disabled }: { probeRole: ProbeRole; un
   return (
     <div className="flex flex-col gap-2" data-testid={`probe-${probeRole}`}>
       <div className="flex items-center gap-2">
-        <button
-          className="ide-button"
-          disabled={disabled || running || unsaved}
-          onClick={() => void run()}
-          type="button"
-        >
+        <button className="ide-button" disabled={running || unsaved} onClick={() => void run()} type="button">
           <IconPlugConnected size={14} />
           {running ? t("settings.probing") : t("settings.probe")}
         </button>
@@ -538,7 +532,7 @@ function SecretField({
   const state = clearing
     ? t("settings.keyClearing")
     : saved?.set
-      ? t(saved.source === "override" ? "settings.keyFromPage" : "settings.keyFromEnv", { hint: saved.hint })
+      ? t("settings.keyFromPage", { hint: saved.hint })
       : t("settings.keyMissing");
   return (
     <div className="flex flex-col gap-1 text-xs text-(--ide-text-muted)">

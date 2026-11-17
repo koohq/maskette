@@ -2203,7 +2203,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       );
       const selectedAnnotation = selectedAnnotationIndex >= 0 ? recipe.annotations[selectedAnnotationIndex] : null;
       const annotationModes: Array<{ icon: typeof IconCircleDot; label: string; value: AnnotationToolMode }> = [
-        { icon: IconCircleDot, label: "标注", value: "pin" },
+        { icon: IconCircleDot, label: "标记点", value: "pin" },
         { icon: IconArrowUpRight, label: "箭头", value: "arrow" },
         { icon: IconRectangle, label: "矩形", value: "rect" },
         { icon: IconTypography, label: "文字", value: "text" },

@@ -17,7 +17,7 @@ describe("AutoFixSection", () => {
 
   it("fixes uneven eyes by default and remembers turning it off and on", () => {
     render(<AutoFixSection />);
-    const toggle = screen.getByRole("checkbox", { name: "左右の目のずれを自動で直す" });
+    const toggle = screen.getByRole("checkbox", { name: "左右の目のずれを自動で補正する" });
 
     expect(toggle).toBeChecked();
     expect(readAutoEyeSymmetry()).toBe(true);
@@ -35,6 +35,6 @@ describe("AutoFixSection", () => {
     window.localStorage.setItem(AUTO_EYE_SYMMETRY_STORAGE_KEY, "0");
     render(<AutoFixSection />);
 
-    expect(screen.getByRole("checkbox", { name: "左右の目のずれを自動で直す" })).not.toBeChecked();
+    expect(screen.getByRole("checkbox", { name: "左右の目のずれを自動で補正する" })).not.toBeChecked();
   });
 });

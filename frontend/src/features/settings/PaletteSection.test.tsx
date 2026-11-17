@@ -34,8 +34,8 @@ describe("PaletteSection", () => {
 
   it("switches the app colours at once and keeps the choice", () => {
     renderSection();
-    fireEvent.click(screen.getByRole("radio", { name: "藍（以前の青）" }));
-    expect(screen.getByRole("radio", { name: "藍（以前の青）" })).toBeChecked();
+    fireEvent.click(screen.getByRole("radio", { name: "藍（青）" }));
+    expect(screen.getByRole("radio", { name: "藍（青）" })).toBeChecked();
     expect(document.documentElement.dataset["palette"]).toBe("ai");
     expect(document.documentElement.style.getPropertyValue("--ide-bg")).toBe(idePalettes.ai.dark.background);
     expect(window.localStorage.getItem(PALETTE_STORAGE_KEY)).toBe("ai");

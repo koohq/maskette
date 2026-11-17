@@ -214,7 +214,6 @@ const emptyConversation = {
 };
 
 const settings = {
-  writable: true,
   values: {
     agent_llm_provider: "openai_compatible",
     agent_llm_base_url: "https://llm.example.test/v1",

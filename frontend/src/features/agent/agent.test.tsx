@@ -71,7 +71,7 @@ describe("ChatTimeline", () => {
         running={false}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /就用这张/ }));
+    fireEvent.click(screen.getByRole("button", { name: /确认正视图/ }));
     expect(onApprove).toHaveBeenCalledWith("front-1");
   });
 
@@ -85,7 +85,7 @@ describe("ChatTimeline", () => {
         running
       />,
     );
-    expect(screen.queryByRole("button", { name: /就用这张/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /确认正视图/ })).toBeNull();
     rerender(
       <ChatTimeline
         conversation={conversation("front-1")}
@@ -95,7 +95,7 @@ describe("ChatTimeline", () => {
         running={false}
       />,
     );
-    expect(screen.queryByRole("button", { name: /就用这张/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /确认正视图/ })).toBeNull();
     expect(screen.getByText("已确认")).toBeTruthy();
   });
 

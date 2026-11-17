@@ -2,7 +2,6 @@ import { z } from "zod";
 import { apiFetch, resolveApiUrls } from "../../api/backend";
 
 export const backendSettingsSchema = z.object({
-  writable: z.boolean(),
   values: z.record(z.string(), z.string()),
   // API keys are write-only: only whether they are set, where from, and the last characters.
   secrets: z.record(z.string(), z.object({ set: z.boolean(), source: z.string(), hint: z.string() })),

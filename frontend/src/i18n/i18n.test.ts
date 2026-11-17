@@ -41,16 +41,14 @@ describe("i18n", () => {
 
   it("uses English resources when English is selected", async () => {
     await i18n.changeLanguage("en");
-    expect(i18n.t("workflow.steps.detail")).toBe("Confirm Details");
-    expect(i18n.t("detailConfirmation.analysisStatus.title")).toBe("Analyzing Details");
-    expect(i18n.t("generation.waitingForProgress")).toBe("Waiting for generation updates");
+    expect(i18n.t("workspace.savedVersion")).toBe("Saved as a new version");
+    expect(i18n.t("agent.tools.approve_design")).toBe("Approving character design");
   });
 
   it("uses Japanese resources when Japanese is selected", async () => {
     await i18n.changeLanguage("ja");
-    expect(i18n.t("workflow.steps.detail")).toBe("細部を確認");
-    expect(i18n.t("detailConfirmation.analysisStatus.title")).toBe("細部を分析中");
-    expect(i18n.t("generation.waitingForProgress")).toBe("生成状況の更新を待っています");
+    expect(i18n.t("workspace.savedVersion")).toBe("新しいバージョンとして保存しました");
+    expect(i18n.t("agent.tools.approve_design")).toBe("設定画を確定");
   });
 
   it("stores and reads supported locale values", () => {

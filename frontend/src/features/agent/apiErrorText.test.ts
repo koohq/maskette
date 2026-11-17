@@ -154,7 +154,16 @@ describe("HTTP error codes", () => {
 
   it("fills in the value a code carries", async () => {
     await i18n.changeLanguage("ja");
-    expect(detailText(i18n.t, "invalid_setting:agent_extra_body")).toContain("設定 agent_extra_body の値");
+    // A setting is named as the settings page names it, with what to check for its kind of value.
+    expect(detailText(i18n.t, "invalid_setting:agent_llm_extra_body")).toBe(
+      "「チャットアシスタント」の「追加パラメーター」が正しい JSON ではありません。{ } で囲んだ形で入力してください。",
+    );
+    expect(detailText(i18n.t, "invalid_setting:openrouter_api_key")).toBe(
+      "「画像生成」の「API キー」に空白や改行が含まれていないか確認してください。",
+    );
+    expect(detailText(i18n.t, "invalid_setting:agent_llm_base_url")).toBe(
+      "「チャットアシスタント」の「API URL」の値が正しくありません（300 文字まで）。",
+    );
     expect(detailText(i18n.t, "settings_not_saved: credential store: test_key: denied")).toBe(
       "設定を保存できませんでした。詳細：credential store: test_key: denied",
     );
@@ -177,7 +186,7 @@ describe("HTTP error codes", () => {
     expect(apiErrorText(i18n.t, new AgentApiError("load", 500))).toBe("エラーが発生しました：load");
     expect(errorDetail(i18n.t, new Error("Failed to fetch"))).toBe("Failed to fetch");
     expect(errorDetail(i18n.t, "probe_unsupported")).toBe(
-      "接続テストは、経路に「OpenAI 互換 API」を選んで保存したときだけ使えます。",
+      "接続テストは、「OpenAI 互換 API」を選んで保存したときだけ使えます。",
     );
   });
 });

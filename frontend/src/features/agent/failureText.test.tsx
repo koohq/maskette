@@ -72,12 +72,12 @@ describe("CLI failures", () => {
     renderTimeline(failedTurn);
     expect(
       screen.getByText(
-        "Codex の CLI（codex）が見つかりません。インストールしてログインするか、設定で API キーの経路を選んでください。",
+        "Codex の CLI（codex）が見つかりません。インストールしてログインするか、設定で API キー方式に切り替えてください。",
       ),
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "エラーが発生しました：Claude Code の利用上限に達しました。時間をおいて試すか、設定で API キーの経路を選んでください。",
+        "エラーが発生しました：Claude Code の利用上限に達しました。時間をおいて試すか、設定で API キー方式に切り替えてください。",
       ),
     ).toBeTruthy();
     expect(screen.queryByText(/was not found/)).toBeNull();
@@ -150,11 +150,13 @@ describe("API and other failures", () => {
     renderTimeline(apiTurn);
     expect(
       screen.getByText(
-        "OpenRouter が API キーを受け付けませんでした（HTTP 401）。設定のキーを確かめてください。詳細：No auth credentials found",
+        "OpenRouter が API キーを受け付けませんでした（HTTP 401）。設定の API キーを確認してください。詳細：No auth credentials found",
       ),
     ).toBeTruthy();
     expect(
-      screen.getByText("エラーが発生しました：openrouter.ai が 180 秒以内に答えませんでした。もう一度試してください。"),
+      screen.getByText(
+        "エラーが発生しました：openrouter.ai が 180 秒以内に応答しませんでした。もう一度試してください。",
+      ),
     ).toBeTruthy();
     expect(screen.queryByText(/trace_id/)).toBeNull();
   });
@@ -187,14 +189,17 @@ describe("API and other failures", () => {
     );
   });
 
-  it("name the missing settings", async () => {
+  it("name the missing settings as the settings page does", async () => {
     await i18n.changeLanguage("ja");
     expect(failureText(i18n.t, "api_key_missing", { settings: "openrouter_api_key" }, "x")).toBe(
-      "API キーが設定されていません（openrouter_api_key）。設定で入れてください。",
+      "「画像生成」の「API キー」が設定されていません。設定画面で入力してください。",
+    );
+    expect(failureText(i18n.t, "setting_missing", { settings: "agent_llm_base_url, agent_llm_model" }, "x")).toBe(
+      "「チャットアシスタント」の「API URL」、「チャットアシスタント」の「モデル」が入力されていません。設定画面で入力してください。",
     );
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "setting_missing", { settings: "agent_llm_model" }, "x")).toBe(
-      "Required settings are empty (agent_llm_model). Fill them in in the settings.",
+      "Empty: Model (Chat assistant LLM). Fill it in on the settings page.",
     );
   });
 
@@ -203,7 +208,7 @@ describe("API and other failures", () => {
     expect(
       failureText(i18n.t, "reference_rejected", { reason: "reference_adult_explicit", detail: "explicit" }, "x"),
     ).toBe("この参考画像は使えません：性的に露骨な画像とみられます。詳細：explicit");
-    expect(failureText(i18n.t, "cancelled", {}, "Cancelled by the user.")).toBe("止めました。");
+    expect(failureText(i18n.t, "cancelled", {}, "Cancelled by the user.")).toBe("停止しました。");
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "reference_rejected", { reason: "reference_unusable" }, "x")).toBe(
       "This reference image cannot be used: the character cannot be made out well enough for a mask design.",

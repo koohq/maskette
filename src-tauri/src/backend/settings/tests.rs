@@ -59,7 +59,6 @@ async fn body_text(response: Response) -> String {
 async fn settings_report_effective_backends() {
     let body = read(&backend().app()).await;
 
-    assert_eq!(body["writable"], true);
     assert_eq!(body["values"]["llm_provider"], "fixture");
     assert_eq!(body["values"]["image_provider"], "fixture");
     assert_eq!(

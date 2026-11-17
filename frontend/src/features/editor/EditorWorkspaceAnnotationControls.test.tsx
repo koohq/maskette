@@ -55,7 +55,6 @@ function renderEditor(props: Partial<React.ComponentProps<typeof EditorWorkspace
       removeEventListener: vi.fn(),
       removeListener: vi.fn(),
     })),
-    writable: true,
   });
 
   class ResizeObserverStub {
