@@ -153,7 +153,7 @@ function getImageUsage(summary?: AuditSummary | null): ImageUsageSummary {
  */
 function loginErrorMessage(error: unknown) {
   if (error instanceof ApiError && error.status === 401) {
-    return "与 Maskette 的连接已断开，请重新启动 Maskette。";
+    return "连接已断开，请重新启动应用。";
   }
   return "登录失败，请重试。";
 }

@@ -128,12 +128,10 @@ describe("HTTP error codes", () => {
   it("tells the user to restart the app when the backend refuses its token", async () => {
     await i18n.changeLanguage("ja");
     expect(apiErrorText(i18n.t, new AgentApiError("token_rejected", 401))).toBe(
-      "Maskette との接続が切れました。Maskette を再起動してください。",
+      "接続が切れました。アプリを再起動してください。",
     );
     await i18n.changeLanguage("en");
-    expect(errorDetail(i18n.t, new Error("token_rejected"))).toBe(
-      "The connection to Maskette was lost. Restart Maskette.",
-    );
+    expect(errorDetail(i18n.t, new Error("token_rejected"))).toBe("The connection was lost. Restart the app.");
   });
 
   it("says in the UI language when the dev server cannot reach the app", async () => {
@@ -150,7 +148,7 @@ describe("HTTP error codes", () => {
   it("says in the UI language when a request gets no answer at all", async () => {
     await i18n.changeLanguage("ja");
     expect(apiErrorText(i18n.t, new Error(BACKEND_UNREACHABLE))).toBe(
-      "Maskette の中の通信に失敗しました。Maskette を再起動してから、もう一度試してください。",
+      "通信に失敗しました。アプリを再起動してから、もう一度試してください。",
     );
   });
 

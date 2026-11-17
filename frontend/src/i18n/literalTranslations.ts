@@ -116,7 +116,7 @@ const en: Record<string, string> = {
   审计: "Audit",
   "审计数据加载失败，请确认后端服务和登录状态。": "Audit data failed to load. Check backend service and login state.",
   审计面板: "Audit Panel",
-  "与 Maskette 的连接已断开，请重新启动 Maskette。": "The connection to Maskette was lost. Restart Maskette.",
+  "连接已断开，请重新启动应用。": "The connection was lost. Restart the app.",
   小时: "hours",
   已取消: "Cancelled",
   并发生成上限: "Concurrent generation limit",
@@ -598,7 +598,7 @@ const ja: Record<string, string> = {
   "审计数据加载失败，请确认后端服务和登录状态。":
     "監査データの読み込みに失敗しました。バックエンドサービスとログイン状態を確認してください。",
   审计面板: "監査パネル",
-  "与 Maskette 的连接已断开，请重新启动 Maskette。": "Maskette との接続が切れました。Maskette を再起動してください。",
+  "连接已断开，请重新启动应用。": "接続が切れました。アプリを再起動してください。",
   小时: "時間",
   已取消: "キャンセル済み",
   并发生成上限: "同時生成の上限",

@@ -232,7 +232,7 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
     [
       "the server refuses the app",
       new ApiError("API request failed: 401", 401, "token_rejected"),
-      "与 Maskette 的连接已断开，请重新启动 Maskette。",
+      "连接已断开，请重新启动应用。",
     ],
     // The desktop backend has no retry limit; a 429 would be an ordinary failure.
     ["too many tries", new ApiError("API request failed: 429", 429, null), "登录失败，请重试。"],
@@ -251,7 +251,7 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
   });
 
   it("says the same as the other screens when the backend refuses the app's token", () => {
-    const chinese = "与 Maskette 的连接已断开，请重新启动 Maskette。";
+    const chinese = "连接已断开，请重新启动应用。";
     expect(i18n.t("agent.errors.token_rejected", { lng: "zh-CN" })).toBe(chinese);
     expect(literalTranslations[locale][chinese]).toBe(i18n.t("agent.errors.token_rejected", { lng: locale }));
   });
