@@ -389,6 +389,7 @@ impl ImageBackend {
                     &request,
                     api.reference_limit(),
                     api.prompt_limit(),
+                    api.aspect_ratios().as_deref(),
                 )?;
                 let api_request = api.api().build_request(
                     &prepared.prompt,
@@ -400,7 +401,10 @@ impl ImageBackend {
             })
             .await?
         };
-        job.record_prompt(&prepared.prompt, image_api::request_summary(&api_request));
+        job.record_prompt(
+            &prepared.prompt,
+            image_api::request_summary(&api_request, &prepared.images),
+        );
         job.step("generating", 45, "Generating");
         let answer = image_api::request_image(
             &state.generation.client,

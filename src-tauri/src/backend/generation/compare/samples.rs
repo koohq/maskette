@@ -165,7 +165,13 @@ pub async fn job(
                 .await;
         }
         let limit = api.reference_limit();
-        let mut prepared = image_api::prepare(&state.data_dir, request, limit, api.prompt_limit())?;
+        let mut prepared = image_api::prepare(
+            &state.data_dir,
+            request,
+            limit,
+            api.prompt_limit(),
+            api.aspect_ratios().as_deref(),
+        )?;
         if prepared.images.len() + samples.len() > limit {
             return Err(format!(
                 "{} images and {} samples are more than the model's {limit}",

@@ -15,6 +15,7 @@ use image::{DynamicImage, GrayImage, Luma, Rgb, RgbImage};
 use reqwest::header::HeaderMap;
 use serde_json::{Value, json};
 
+use super::hosted::ratio_value;
 use super::prompt::{self, Role};
 use super::usage::TokenUsage;
 use super::{
@@ -83,34 +84,46 @@ enum Finish {
     },
 }
 
+/// A rectangle on the base image, in pixels. A local revision's may reach
+/// past the image's edges, where the cut-out is padded.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct Crop {
-    left: u32,
-    top: u32,
-    right: u32,
-    bottom: u32,
+    left: i64,
+    top: i64,
+    right: i64,
+    bottom: i64,
 }
 
 impl Crop {
     fn width(self) -> u32 {
-        self.right - self.left
+        u32::try_from(self.right - self.left).unwrap_or(0)
     }
 
     fn height(self) -> u32 {
-        self.bottom - self.top
+        u32::try_from(self.bottom - self.top).unwrap_or(0)
+    }
+
+    fn contains(self, other: Self) -> bool {
+        self.left <= other.left
+            && self.top <= other.top
+            && self.right >= other.right
+            && self.bottom >= other.bottom
     }
 }
 
 /// The references, images and prompt for a job. `max_images` is how many
-/// images the API takes; `max_prompt_chars` its prompt limit, if any.
+/// images the API takes; `max_prompt_chars` its prompt limit, if any;
+/// `aspect_ratios` the width:height ratios it asks for the answer's shape
+/// from, if it asks for one.
 pub fn prepare(
     data_dir: &Path,
     request: &GenerationRequest,
     max_images: usize,
     max_prompt_chars: Option<usize>,
+    aspect_ratios: Option<&[String]>,
 ) -> Result<Prepared, String> {
     match &request.local_edit {
-        Some(edit) => prepare_local_revision(data_dir, request, edit),
+        Some(edit) => prepare_local_revision(data_dir, request, edit, aspect_ratios),
         None => prepare_generation(data_dir, request, max_images.max(1), max_prompt_chars),
     }
 }
@@ -209,6 +222,7 @@ fn prepare_local_revision(
     data_dir: &Path,
     request: &GenerationRequest,
     edit: &LocalEdit,
+    aspect_ratios: Option<&[String]>,
 ) -> Result<Prepared, String> {
     if !edit.base_image_path.is_file() || !edit.mask_image_path.is_file() {
         return Err("Local revision base or mask image is missing".to_owned());
@@ -219,13 +233,14 @@ fn prepare_local_revision(
         return Err("Local revision mask does not match the base image".to_owned());
     }
     let crop = local_edit_crop(&mask)?;
+    let crop = aspect_ratios.map_or(crop, |ratios| {
+        fit_crop_to_ratio(crop, base.dimensions(), ratios)
+    });
     let supplemental: Vec<RgbImage> = user_references(data_dir, &request.reference_keys)
         .iter()
         .map(|reference| load_rgb(&reference.path))
         .collect::<Result<_, _>>()?;
-    let mut images = vec![
-        imageops::crop_imm(&base, crop.left, crop.top, crop.width(), crop.height()).to_image(),
-    ];
+    let mut images = vec![cut_out(&base, crop)];
     match supplemental.len() {
         0 => {}
         1 => images.extend(supplemental),
@@ -272,14 +287,11 @@ impl Prepared {
                 crop,
                 feather,
             } => {
+                // When the crop has the ratio the API asked for, this only
+                // scales the answer.
                 let edited = fit_cover(raw, (crop.width(), crop.height()));
                 let mut pasted = base.clone();
-                imageops::replace(
-                    &mut pasted,
-                    &edited,
-                    i64::from(crop.left),
-                    i64::from(crop.top),
-                );
+                imageops::replace(&mut pasted, &edited, crop.left, crop.top);
                 Ok(composite_local_edit(base, mask, &pasted, *feather))
             }
         }
@@ -527,7 +539,7 @@ fn local_edit_crop(mask: &GrayImage) -> Result<Crop, String> {
     })
 }
 
-fn grow_span(mut start: i64, mut end: i64, limit: u32) -> (u32, u32) {
+fn grow_span(mut start: i64, mut end: i64, limit: u32) -> (i64, i64) {
     let (min_length, limit) = (i64::from(LOCAL_EDIT_MIN_SIDE), i64::from(limit));
     let length = end - start;
     if length < min_length {
@@ -543,8 +555,92 @@ fn grow_span(mut start: i64, mut end: i64, limit: u32) -> (u32, u32) {
         start -= end - limit;
         end = limit;
     }
-    let clamp = |value: i64| u32::try_from(value.clamp(0, limit)).unwrap_or(0);
-    (clamp(start), clamp(end))
+    (start.clamp(0, limit), end.clamp(0, limit))
+}
+
+/// `crop` widened to the one of `ratios` the API will ask for, so that its
+/// answer scales back onto the crop. Cutting an answer of another ratio
+/// down to the crop shifts what the model drew by whatever it added on one
+/// side only (GPT Image 2.6 kept a 624x384 crop at the top of its 3:2
+/// answer and drew more below, so it came back 16 px too high).
+///
+/// The crop only grows, around its centre, and moves to stay on the image.
+/// The ratio is the nearest (by the area added) of those that fit on the
+/// image; when none does, the nearest of all, and the crop then reaches
+/// past the image's edges on the side that is too short, centred on it.
+/// Without a usable ratio the crop is kept.
+fn fit_crop_to_ratio(crop: Crop, (width, height): (u32, u32), ratios: &[String]) -> Crop {
+    let (crop_width, crop_height) = (i64::from(crop.width()), i64::from(crop.height()));
+    if crop_width == 0 || crop_height == 0 {
+        return crop;
+    }
+    let current = f64::from(crop.width()) / f64::from(crop.height());
+    let fits = |(grown_width, grown_height): (i64, i64)| {
+        grown_width <= i64::from(width) && grown_height <= i64::from(height)
+    };
+    // The crop grown to each ratio, and how far that ratio is from its own.
+    let best = ratios
+        .iter()
+        .filter_map(|ratio| ratio_value(ratio))
+        .map(|ratio| {
+            let grown = if ratio >= current {
+                let grown_width = round_u32(f64::from(crop.height()) * ratio);
+                (crop_width.max(i64::from(grown_width)), crop_height)
+            } else {
+                let grown_height = round_u32(f64::from(crop.width()) / ratio);
+                (crop_width, crop_height.max(i64::from(grown_height)))
+            };
+            (grown, (ratio / current).ln().abs())
+        })
+        .min_by(|(a, a_distance), (b, b_distance)| {
+            fits(*b)
+                .cmp(&fits(*a))
+                .then(a_distance.total_cmp(b_distance))
+        });
+    let Some(((grown_width, grown_height), _)) = best else {
+        return crop;
+    };
+    let (left, right) = place_span(crop.left, crop.right, grown_width, width);
+    let (top, bottom) = place_span(crop.top, crop.bottom, grown_height, height);
+    Crop {
+        left,
+        top,
+        right,
+        bottom,
+    }
+}
+
+/// `start..end` grown to `length` around its centre and moved onto
+/// `0..limit`, or, when longer than `limit`, centred on it.
+fn place_span(start: i64, end: i64, length: i64, limit: u32) -> (i64, i64) {
+    let limit = i64::from(limit);
+    let start = if length <= limit {
+        (start - (length - (end - start)) / 2).clamp(0, limit - length)
+    } else {
+        -(length - limit) / 2
+    };
+    (start, start + length)
+}
+
+/// The base under `crop`; where the crop reaches past the base, its border
+/// colour.
+fn cut_out(base: &RgbImage, crop: Crop) -> RgbImage {
+    let (width, height) = base.dimensions();
+    let on_image = Crop {
+        left: 0,
+        top: 0,
+        right: i64::from(width),
+        bottom: i64::from(height),
+    }
+    .contains(crop);
+    let fill = if on_image {
+        Rgb([0, 0, 0])
+    } else {
+        edge_colour(base)
+    };
+    let mut canvas = RgbImage::from_pixel(crop.width(), crop.height(), fill);
+    imageops::replace(&mut canvas, base, -crop.left, -crop.top);
+    canvas
 }
 
 /// The edited pixels inside the mask, the base outside. The mask's edge is
@@ -822,8 +918,9 @@ pub fn store_output(
     })
 }
 
-/// A short description of the job's request, for the job record.
-pub fn request_summary(api: &ApiRequest) -> Value {
+/// A short description of the job's request, for the job record, with the
+/// size of each prepared image (a local revision's crop is the first).
+pub fn request_summary(api: &ApiRequest, images: &[RgbImage]) -> Value {
     let mut payload = api.payload.clone();
     for key in ["input_references", "image", "image2", "image3"] {
         if let Some(value) = payload.get_mut(key) {
@@ -832,11 +929,16 @@ pub fn request_summary(api: &ApiRequest) -> Value {
         }
     }
     payload.remove("prompt");
-    json!({"url": api.url, "payload": payload})
+    let sizes: Vec<String> = images
+        .iter()
+        .map(|image| format!("{}x{}", image.width(), image.height()))
+        .collect();
+    json!({"url": api.url, "payload": payload, "image_sizes": sizes})
 }
 
 #[cfg(test)]
 mod tests {
+    use super::super::hosted::{ASPECT_RATIOS, nearest_aspect_ratio};
     use super::*;
 
     #[test]
@@ -881,6 +983,250 @@ mod tests {
         assert_eq!((crop.left, crop.width(), crop.height()), (0, 384, 384));
         assert!(crop.top <= 484 && crop.bottom >= 536);
         assert!(local_edit_crop(&GrayImage::new(10, 10)).is_err());
+    }
+
+    fn ratios(values: &[&str]) -> Vec<String> {
+        values.iter().map(|value| (*value).to_owned()).collect()
+    }
+
+    fn crop(left: i64, top: i64, right: i64, bottom: i64) -> Crop {
+        Crop {
+            left,
+            top,
+            right,
+            bottom,
+        }
+    }
+
+    /// An 800x1100 front view's mask painted over `left..right`,
+    /// `top..bottom`.
+    fn box_mask(left: u32, top: u32, right: u32, bottom: u32) -> GrayImage {
+        GrayImage::from_fn(800, 1100, |x, y| {
+            Luma([
+                if (left..right).contains(&x) && (top..bottom).contains(&y) {
+                    255
+                } else {
+                    0
+                },
+            ])
+        })
+    }
+
+    /// The ratios OpenRouter lists for GPT Image 2.6 and Nano Banana 2.1.
+    const GPT_RATIOS: [&str; 15] = [
+        "1:1", "3:2", "2:3", "4:3", "3:4", "16:9", "9:16", "21:9", "auto", "4:5", "5:4", "2:1",
+        "1:2", "3:1", "1:3",
+    ];
+    const NANO_BANANA_RATIOS: [&str; 14] = [
+        "1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16",
+        "16:9", "21:9",
+    ];
+
+    fn on_front_view(crop: Crop) -> bool {
+        self::crop(0, 0, 800, 1100).contains(crop)
+    }
+
+    #[test]
+    fn the_local_crop_is_widened_to_the_ratio_the_api_asks_for() {
+        // Both eyes: the box with its margins is 624x384 (1.625), which went
+        // out as 3:2 and came back 1536x1024, cut by 16 px at the top and
+        // bottom to fit.
+        let natural = local_edit_crop(&box_mask(168, 474, 648, 638)).unwrap();
+        assert_eq!(natural, crop(96, 364, 720, 748));
+        for list in [ratios(&ASPECT_RATIOS), ratios(&GPT_RATIOS)] {
+            let fitted = fit_crop_to_ratio(natural, (800, 1100), &list);
+            assert_eq!(fitted, crop(96, 348, 720, 764));
+            assert_eq!(
+                nearest_aspect_ratio(fitted.width(), fitted.height(), &list).as_deref(),
+                Some("3:2")
+            );
+        }
+        // Nano Banana's 5:4 for the cat-eared character's eyes: 456x384
+        // grows sideways.
+        let natural = local_edit_crop(&box_mask(230, 365, 580, 501)).unwrap();
+        assert_eq!(natural, crop(177, 241, 633, 625));
+        assert_eq!(
+            fit_crop_to_ratio(natural, (800, 1100), &ratios(&NANO_BANANA_RATIOS)),
+            crop(165, 241, 645, 625)
+        );
+    }
+
+    #[test]
+    fn the_widened_crop_stays_on_the_image_at_its_edges() {
+        let all = ratios(&ASPECT_RATIOS);
+        // At the bottom edge the extra height goes above.
+        let natural = local_edit_crop(&box_mask(168, 1000, 648, 1100)).unwrap();
+        assert_eq!(natural, crop(96, 716, 720, 1100));
+        assert_eq!(
+            fit_crop_to_ratio(natural, (800, 1100), &all),
+            crop(96, 684, 720, 1100)
+        );
+        // In the top left corner it stays at the corner.
+        let natural = local_edit_crop(&box_mask(0, 0, 300, 60)).unwrap();
+        assert_eq!(natural, crop(0, 0, 390, 384));
+        assert_eq!(
+            fit_crop_to_ratio(natural, (800, 1100), &all),
+            crop(0, 0, 390, 390)
+        );
+    }
+
+    #[test]
+    fn a_crop_no_ratio_fits_reaches_past_the_image() {
+        // The whole front view (8:11) fits none of the ratios: it takes the
+        // nearest, 3:4, 25 px wider than the image, half on each side.
+        let natural = local_edit_crop(&box_mask(0, 0, 800, 1100)).unwrap();
+        assert_eq!(natural, crop(0, 0, 800, 1100));
+        let fitted = fit_crop_to_ratio(natural, (800, 1100), &ratios(&ASPECT_RATIOS));
+        assert_eq!(fitted, crop(-12, 0, 813, 1100));
+        // A model with only 1:1 and a stroke down the whole height.
+        let natural = local_edit_crop(&box_mask(300, 0, 500, 1100)).unwrap();
+        assert_eq!(natural, crop(208, 0, 592, 1100));
+        assert_eq!(
+            fit_crop_to_ratio(natural, (800, 1100), &ratios(&["1:1"])),
+            crop(-150, 0, 950, 1100)
+        );
+    }
+
+    #[test]
+    fn every_widened_crop_asks_for_its_own_ratio() {
+        for list in [
+            ratios(&ASPECT_RATIOS),
+            ratios(&GPT_RATIOS),
+            ratios(&NANO_BANANA_RATIOS),
+            ratios(&["1:1", "2:3", "16:9"]),
+        ] {
+            for width in (384..=800).step_by(8) {
+                for height in (384..=1100).step_by(8) {
+                    let (left, top) = (i64::from(800 - width) / 3, i64::from(1100 - height) / 2);
+                    let natural = crop(left, top, left + i64::from(width), top + i64::from(height));
+                    let fitted = fit_crop_to_ratio(natural, (800, 1100), &list);
+                    assert!(fitted.contains(natural), "{natural:?} -> {fitted:?}");
+                    let asked = nearest_aspect_ratio(fitted.width(), fitted.height(), &list)
+                        .and_then(|ratio| ratio_value(&ratio))
+                        .unwrap();
+                    let ratio = f64::from(fitted.width()) / f64::from(fitted.height());
+                    assert!(
+                        (ratio / asked - 1.0).abs() < 0.005,
+                        "{natural:?} -> {fitted:?} asks for {asked}"
+                    );
+                    // Up to 1000 px high, 3:4 always fits.
+                    if height <= 1000 && list.iter().any(|ratio| ratio == "3:4") {
+                        assert!(on_front_view(fitted), "{natural:?} -> {fitted:?}");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn without_a_usable_ratio_the_crop_is_kept() {
+        let natural = crop(96, 364, 720, 748);
+        assert_eq!(
+            fit_crop_to_ratio(natural, (800, 1100), &ratios(&["auto"])),
+            natural
+        );
+        assert_eq!(fit_crop_to_ratio(natural, (800, 1100), &[]), natural);
+    }
+
+    /// The middle of the dark pixels inside `area`.
+    fn dark_centre(image: &RgbImage, area: Crop) -> (f64, f64) {
+        let (mut sum_x, mut sum_y, mut count) = (0.0, 0.0, 0.0);
+        for (x, y, pixel) in image.enumerate_pixels() {
+            let inside = (area.left..area.right).contains(&i64::from(x))
+                && (area.top..area.bottom).contains(&i64::from(y));
+            if inside && pixel.0[0] < 128 {
+                sum_x += f64::from(x);
+                sum_y += f64::from(y);
+                count += 1.0;
+            }
+        }
+        (sum_x / count, sum_y / count)
+    }
+
+    #[test]
+    fn an_answer_at_the_asked_ratio_lands_where_it_was_cut_out() {
+        // A dark square between the eyes; the model gives back the cut-out
+        // as it is, at GPT's 3:2 size.
+        let mut base = RgbImage::from_pixel(800, 1100, Rgb([220, 220, 220]));
+        for y in 540..580 {
+            for x in 380..420 {
+                base.put_pixel(x, y, Rgb([20, 20, 20]));
+            }
+        }
+        let mask = box_mask(168, 474, 648, 638);
+        let fitted = fit_crop_to_ratio(
+            local_edit_crop(&mask).unwrap(),
+            base.dimensions(),
+            &ratios(&GPT_RATIOS),
+        );
+        let sent = cut_out(&base, fitted);
+        assert_eq!(sent.dimensions(), (624, 416));
+        let answer = imageops::resize(&sent, 1536, 1024, FilterType::Lanczos3);
+        let prepared = Prepared {
+            prompt: String::new(),
+            images: vec![sent],
+            finish: Finish::Local {
+                base: base.clone(),
+                mask: mask.clone(),
+                crop: fitted,
+                feather: 16,
+            },
+        };
+        let result = prepared.finish(&answer).unwrap();
+        let area = crop(168, 474, 648, 638);
+        let (before, after) = (dark_centre(&base, area), dark_centre(&result, area));
+        assert!(
+            (before.0 - after.0).abs() < 0.5 && (before.1 - after.1).abs() < 0.5,
+            "{before:?} -> {after:?}"
+        );
+        for (x, y, pixel) in result.enumerate_pixels() {
+            if mask.get_pixel(x, y).0[0] == 0 {
+                assert_eq!(pixel, base.get_pixel(x, y), "({x}, {y})");
+            }
+        }
+    }
+
+    #[test]
+    fn a_crop_past_the_image_is_padded_and_pasted_back() {
+        let base = RgbImage::from_fn(800, 1100, |x, _| {
+            if x < 400 {
+                Rgb([200, 200, 200])
+            } else {
+                Rgb([100, 100, 100])
+            }
+        });
+        let mask = box_mask(300, 0, 500, 1100);
+        let fitted = fit_crop_to_ratio(
+            local_edit_crop(&mask).unwrap(),
+            base.dimensions(),
+            &ratios(&["1:1"]),
+        );
+        let sent = cut_out(&base, fitted);
+        assert_eq!(sent.dimensions(), (1100, 1100));
+        // The border's median colour on the left and right, the image
+        // between.
+        let border = edge_colour(&base);
+        assert_eq!(*sent.get_pixel(149, 500), border);
+        assert_eq!(sent.get_pixel(150, 500).0, [200, 200, 200]);
+        assert_eq!(sent.get_pixel(949, 500).0, [100, 100, 100]);
+        assert_eq!(*sent.get_pixel(950, 500), border);
+        let answer = RgbImage::from_pixel(1024, 1024, Rgb([250, 0, 0]));
+        let prepared = Prepared {
+            prompt: String::new(),
+            images: vec![sent],
+            finish: Finish::Local {
+                base: base.clone(),
+                mask,
+                crop: fitted,
+                feather: 0,
+            },
+        };
+        let result = prepared.finish(&answer).unwrap();
+        assert_eq!(result.dimensions(), (800, 1100));
+        assert_eq!(result.get_pixel(299, 500).0, [200, 200, 200]);
+        assert_eq!(result.get_pixel(300, 500).0, [250, 0, 0]);
+        assert_eq!(result.get_pixel(499, 0).0, [250, 0, 0]);
+        assert_eq!(result.get_pixel(500, 1099).0, [100, 100, 100]);
     }
 
     #[test]

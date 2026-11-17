@@ -113,6 +113,17 @@ impl HostedApi {
             _ => None,
         }
     }
+
+    /// The width:height ratios the request picks from (the nearest to the
+    /// first image's), or `None` when it asks for no shape. Ark sends a size
+    /// class (`1K`) and SiliconFlow no size, so their models shape the
+    /// answer themselves.
+    pub fn aspect_ratios(&self) -> Option<Vec<String>> {
+        match self {
+            Self::OpenRouter(api) => api.aspect_ratios(),
+            Self::Ark(_) | Self::SiliconFlow(_) => None,
+        }
+    }
 }
 
 fn base(url: &str) -> String {
@@ -175,6 +186,30 @@ impl OpenRouter {
         self.parameters =
             model_parameters(client, cache, &self.base_url, &self.api_key, &self.model).await;
     }
+
+    /// The ratios `aspect_ratio` is picked from (see
+    /// [`HostedApi::aspect_ratios`]); an `aspect_ratio` in the extra fields
+    /// replaces the pick, and a null one removes it.
+    pub fn aspect_ratios(&self) -> Option<Vec<String>> {
+        match self.extra_body.get("aspect_ratio") {
+            None => self.model_aspect_ratios(),
+            Some(Value::String(ratio)) => Some(vec![ratio.clone()]),
+            Some(_) => None,
+        }
+    }
+
+    /// The model's own ratios, the documented ones when the model is
+    /// unknown, or `None` when it takes no ratio.
+    fn model_aspect_ratios(&self) -> Option<Vec<String>> {
+        let all = || ASPECT_RATIOS.map(str::to_owned).to_vec();
+        match &self.parameters {
+            None => Some(all()),
+            Some(parameters) if parameters.contains_key("aspect_ratio") => {
+                Some(enum_values(parameters, "aspect_ratio").unwrap_or_else(all))
+            }
+            Some(_) => None,
+        }
+    }
 }
 
 pub fn prompt_limit_for_model(model: &str) -> Option<usize> {
@@ -185,7 +220,8 @@ pub fn prompt_limit_for_model(model: &str) -> Option<usize> {
         .map(|(_, limit)| *limit)
 }
 
-fn ratio_value(ratio: &str) -> Option<f64> {
+/// `"3:2"` as 1.5; `None` for anything else (`"auto"`).
+pub fn ratio_value(ratio: &str) -> Option<f64> {
     let (width, height) = ratio.split_once(':')?;
     let (width, height): (f64, f64) = (width.parse().ok()?, height.parse().ok()?);
     (width > 0.0 && height > 0.0).then(|| width / height)
@@ -345,7 +381,6 @@ impl ImageApi for OpenRouter {
     ) -> ApiRequest {
         let parameters = self.parameters.as_ref();
         let takes = |name: &str| parameters.is_none_or(|parameters| parameters.contains_key(name));
-        let all_ratios = || ASPECT_RATIOS.map(str::to_owned).to_vec();
         let mut payload = JsonObject::new();
         payload.insert("model".to_owned(), json!(self.model));
         payload.insert("prompt".to_owned(), json!(prompt));
@@ -360,14 +395,8 @@ impl ImageApi for OpenRouter {
                 })
                 .collect();
             payload.insert("input_references".to_owned(), Value::Array(references));
-            let allowed = match parameters {
-                None => Some(all_ratios()),
-                Some(parameters) if parameters.contains_key("aspect_ratio") => {
-                    Some(enum_values(parameters, "aspect_ratio").unwrap_or_else(all_ratios))
-                }
-                Some(_) => None,
-            };
-            if let Some(ratio) = allowed
+            if let Some(ratio) = self
+                .model_aspect_ratios()
                 .and_then(|allowed| nearest_aspect_ratio(first.width(), first.height(), &allowed))
             {
                 payload.insert("aspect_ratio".to_owned(), json!(ratio));
@@ -721,6 +750,46 @@ mod tests {
         let turnaround = known.build_request("p", &[], "t", Mode::Turnaround);
         assert!(!turnaround.payload.contains_key("resolution"));
         assert!(!turnaround.payload.contains_key("input_references"));
+    }
+
+    #[test]
+    fn the_ratios_to_crop_to_are_the_ones_the_request_picks_from() {
+        let all = Some(ratios(&ASPECT_RATIOS));
+        assert_eq!(openrouter(None, json!({})).aspect_ratios(), all);
+        let listed = json!({"aspect_ratio": {"values": ["1:1", "3:2", "auto"]}});
+        assert_eq!(
+            openrouter(Some(listed.clone()), json!({})).aspect_ratios(),
+            Some(ratios(&["1:1", "3:2", "auto"]))
+        );
+        assert_eq!(
+            openrouter(Some(json!({"aspect_ratio": {}})), json!({})).aspect_ratios(),
+            all
+        );
+        assert_eq!(
+            openrouter(Some(json!({"resolution": {}})), json!({})).aspect_ratios(),
+            None
+        );
+        // The extra fields win: one ratio, or none at all.
+        let fixed = openrouter(Some(listed.clone()), json!({"aspect_ratio": "16:9"}));
+        assert_eq!(fixed.aspect_ratios(), Some(ratios(&["16:9"])));
+        let image = RgbImage::new(624, 416);
+        let sent = fixed.build_request("p", &[image], "t", Mode::FrontLocalRevision);
+        assert_eq!(sent.payload["aspect_ratio"], "16:9");
+        let removed = openrouter(Some(listed), json!({"aspect_ratio": null}));
+        assert_eq!(removed.aspect_ratios(), None);
+        assert_eq!(HostedApi::OpenRouter(removed).aspect_ratios(), None);
+        let ark = Ark {
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        };
+        assert_eq!(HostedApi::Ark(ark).aspect_ratios(), None);
+        let silicon = SiliconFlow {
+            base_url: String::new(),
+            api_key: String::new(),
+            model: String::new(),
+        };
+        assert_eq!(HostedApi::SiliconFlow(silicon).aspect_ratios(), None);
     }
 
     #[test]

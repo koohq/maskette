@@ -461,6 +461,60 @@ async fn a_local_revision_only_changes_the_masked_area() {
     assert_eq!(sent["aspect_ratio"], "1:1");
 }
 
+/// Both eyes of a front view: the box with its margins is 624x384, which
+/// goes out widened to 624x416 for the 3:2 the model answers in.
+#[tokio::test]
+async fn a_local_revision_sends_its_crop_at_the_ratio_it_asks_for() {
+    let fake = fake(models(), vec![b64_image(1536, 1024)]).await;
+    let (backend, _) = openrouter_backend(&fake);
+    let folder = backend.dir.path().join("local");
+    std::fs::create_dir_all(&folder).unwrap();
+    RgbImage::from_pixel(800, 1100, Rgb([30, 30, 30]))
+        .save(folder.join("base.png"))
+        .unwrap();
+    image::GrayImage::from_fn(800, 1100, |x, y| {
+        image::Luma([if (168..648).contains(&x) && (474..638).contains(&y) {
+            255
+        } else {
+            0
+        }])
+    })
+    .save(folder.join("mask.png"))
+    .unwrap();
+    let mut request = GenerationRequest::new("session-1", "ja", Mode::FrontLocalRevision);
+    request.local_edit = Some(LocalEdit {
+        base_image_path: folder.join("base.png"),
+        mask_image_path: folder.join("mask.png"),
+        edit_note: "redraw the irises".to_owned(),
+        base_width: 800,
+        base_height: 1100,
+        feather_radius_px: 16,
+        subject: "head_shell",
+    });
+    let output = generate(&backend, &request).await.unwrap();
+    let clean = image::open(&output.clean_path).unwrap().to_rgb8();
+    assert_eq!(clean.dimensions(), (800, 1100));
+    assert_eq!(clean.get_pixel(400, 473).0, [30, 30, 30]);
+    assert_ne!(clean.get_pixel(400, 556).0, [30, 30, 30]);
+
+    let recorded = fake.recorded.lock().unwrap();
+    let sent = &recorded.images[0];
+    assert_eq!(sent["aspect_ratio"], "3:2");
+    let url = sent["input_references"][0]["image_url"]["url"]
+        .as_str()
+        .unwrap();
+    let data = url.strip_prefix("data:image/png;base64,").unwrap();
+    let crop = image::load_from_memory(
+        &base64::engine::general_purpose::STANDARD
+            .decode(data)
+            .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(crop.dimensions(), (624, 416));
+    let job = backend.state.generation.jobs.list().pop().unwrap();
+    assert_eq!(job.request["image_sizes"], json!(["624x416"]));
+}
+
 #[tokio::test]
 async fn a_cancelled_job_stops_waiting() {
     let fake = fake(models(), vec![Answer::Hang]).await;

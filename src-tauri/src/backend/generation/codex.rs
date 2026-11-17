@@ -40,7 +40,7 @@ pub async fn generate(
     let (prepared, prompt, images) = {
         let (data_dir, request, workspace) = (data_dir.clone(), request.clone(), workspace.clone());
         blocking(move || -> Result<_, String> {
-            let prepared = image_api::prepare(&data_dir, &request, MAX_IMAGES, None)?;
+            let prepared = image_api::prepare(&data_dir, &request, MAX_IMAGES, None, None)?;
             let prompt = cli::codex::image_prompt(
                 &Overrides::load(&data_dir),
                 &prepared.prompt,
