@@ -12,8 +12,17 @@ export type KnownOverflow = {
   box: RegExp;
 };
 
-// Empty: every screen fits. Add an entry only for overflow that is accepted for now, saying why.
-export const KNOWN_OVERFLOW: KnownOverflow[] = [];
+// Add an entry only for overflow that is accepted, saying why.
+export const KNOWN_OVERFLOW: KnownOverflow[] = [
+  {
+    issue:
+      "A project name can be 80 characters long; while it is being renamed it scrolls with the caret inside the " +
+      "field, as typed text does, rather than the dialog growing to fit it.",
+    screens: /^projects-rename-/,
+    kind: "clipped",
+    box: /form\.ide-dialog > input/,
+  },
+];
 
 function matches(known: KnownOverflow, finding: OverflowFinding): boolean {
   return known.kind === finding.kind && known.box.test(finding.box);
