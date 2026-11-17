@@ -733,7 +733,7 @@ async fn extra_references_follow_the_character_with_their_tags() {
     assert_eq!(keys, vec!["expression:references/compare/extra1.png"]);
     let request = run.front_request(&character, "character.png", &keys);
     let prepared =
-        image_api::prepare(backend.dir.path(), &request, 4, None).expect("images prepared");
+        image_api::prepare(backend.dir.path(), &request, 4, None, None).expect("images prepared");
     assert_eq!(prepared.images.len(), 2);
     assert_eq!(prepared.images[1].dimensions(), (96, 40));
     assert!(
@@ -788,7 +788,7 @@ async fn the_local_step_sends_what_the_editor_sends() {
     assert_eq!(request.free_text, "Redraw only the eyes.");
 
     let prepared =
-        image_api::prepare(backend.dir.path(), &request, 4, None).expect("images prepared");
+        image_api::prepare(backend.dir.path(), &request, 4, None, None).expect("images prepared");
     assert_eq!(prepared.images.len(), 2);
     assert_eq!(prepared.images[1].dimensions(), (96, 40));
     assert!(
