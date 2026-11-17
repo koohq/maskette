@@ -37,6 +37,13 @@ it("a detector failure cannot enable the centered-crop editor fallback", async (
   await expect(detectAnimeLandmarks(image, new AbortController().signal, true)).resolves.toBeNull();
   expect(mock.run).not.toHaveBeenCalled();
 });
+it("the face detector gets a plain canvas, not MediaPipe's default OffscreenCanvas", async () => {
+  // WebKitGTK cannot make WebGL on an OffscreenCanvas, and MediaPipe needs WebGL even on the CPU.
+  const { image, detectAnimeLandmarks } = await prepare([]);
+  await detectAnimeLandmarks(image, new AbortController().signal, true);
+  expect(mock.face).toHaveBeenCalledTimes(1);
+  expect(mock.face.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ canvas: expect.any(HTMLCanvasElement) }));
+});
 it("a single detected face reaches landmark inference", async () => {
   const { image, detectAnimeLandmarks } = await prepare([face]);
   // getContext is overloaded and spyOn types it by its last (webgpu) signature, so the 2D stub is cast through never.

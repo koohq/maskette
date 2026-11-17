@@ -168,6 +168,9 @@ async function getFaceDetector() {
         delegate: "CPU",
         modelAssetPath: mediaPipeFaceModelUrl,
       },
+      // MediaPipe needs a WebGL context even on the CPU, and by default makes it on an OffscreenCanvas. WebKitGTK
+      // (the Linux webview) has no WebGL there, so the detector failed to start; a plain canvas works everywhere.
+      canvas: document.createElement("canvas"),
       minDetectionConfidence: 0.15,
       runningMode: "IMAGE",
     });

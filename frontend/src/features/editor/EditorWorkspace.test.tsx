@@ -317,6 +317,9 @@ describe("EditorWorkspace", () => {
       ),
     );
     expect(pixiMocks.exportImage).toHaveBeenCalled();
+    await waitFor(() => expect(HTMLAnchorElement.prototype.click).toHaveBeenCalled());
+    // WebKitGTK starts the download after the click returns, so the blob URL must outlive it.
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith("blob:editor-export");
   });
 
   it("edits notes for numbered annotation pins from the side panel", async () => {

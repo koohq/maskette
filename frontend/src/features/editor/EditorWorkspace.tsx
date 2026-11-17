@@ -390,6 +390,9 @@ function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   });
 }
 
+/** How long a download's `blob:` URL stays alive after the click. */
+const DOWNLOAD_URL_LIFETIME_MS = 60_000;
+
 function downloadBlob(blob: Blob, fileName: string) {
   const objectUrl = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -399,7 +402,9 @@ function downloadBlob(blob: Blob, fileName: string) {
   document.body.appendChild(link);
   link.click();
   link.remove();
-  URL.revokeObjectURL(objectUrl);
+  // WebKit webviews (WebKitGTK on Linux) start the download after the click returns; revoking the URL right away
+  // left them nothing to save.
+  window.setTimeout(() => URL.revokeObjectURL(objectUrl), DOWNLOAD_URL_LIFETIME_MS);
 }
 
 /** `blob:` and `data:` images never taint a canvas, so they load without CORS. */
