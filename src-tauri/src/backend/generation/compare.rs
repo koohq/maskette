@@ -16,7 +16,8 @@
 //! `front` makes a front view per model. Look at them, then run `follow`
 //! with `MASKETTE_COMPARE_MASKS=vendor/model-a=x0,y0,x1,y1;...` (an ellipse
 //! on the 800x1100 front view) to make the turnaround from each front view
-//! and a local revision inside that ellipse. `MASKETTE_COMPARE_EDIT_NOTE`
+//! (sent alone, as the chat sends the approved one) and a local revision
+//! inside that ellipse. `MASKETTE_COMPARE_EDIT_NOTE`
 //! replaces the default edit (the star hairpin becomes a heart).
 //!
 //! `back` checks a user back view tagged "back"
@@ -300,6 +301,18 @@ impl Run<'_> {
             description: APPROVED_DESIGN_NOTE.to_owned(),
         }];
         request.reference_keys = vec![key];
+        request
+    }
+
+    /// The chat's head shell turnaround (`generate_turnaround`): the
+    /// approved front view alone, tagged "front". The app adds no character
+    /// (and the four-view design only when the approved design is one,
+    /// which no step here makes); runs before 2026-11-19 sent the character
+    /// as a supplemental reference too.
+    fn turnaround_request(&self, front: &Path, model: &str) -> GenerationRequest {
+        let mut request = GenerationRequest::new("compare", "ja", Mode::Turnaround);
+        request.reference_keys =
+            vec![self.reference("front", front, &format!("{}-front.png", slug(model)))];
         request
     }
 
@@ -690,11 +703,7 @@ async fn compare_image_models() {
                 );
                 let character = run.reference("supplemental", &reference, &reference_name);
 
-                let mut request = GenerationRequest::new("compare", "ja", Mode::Turnaround);
-                request.reference_keys = vec![
-                    run.reference("front", &front, &format!("{}-front.png", slug(model))),
-                    character.clone(),
-                ];
+                let request = run.turnaround_request(&front, model);
                 run.job(model, "turnaround", &request).await;
 
                 let Some(&ellipse) = masks.get(model) else {
@@ -757,11 +766,7 @@ async fn compare_image_models() {
                     front.is_file(),
                     "no front view for {model}; run the front step first"
                 );
-                let mut request = GenerationRequest::new("compare", "ja", Mode::Turnaround);
-                request.reference_keys = vec![
-                    run.reference("front", &front, &format!("{}-front.png", slug(model))),
-                    run.reference("supplemental", &reference, &reference_name),
-                ];
+                let request = run.turnaround_request(&front, model);
                 run.job(model, "turnaround", &request).await;
             }
         }
@@ -1140,4 +1145,18 @@ async fn the_chain_steps_send_what_the_chat_sends() {
             .is_some()
     );
     assert_eq!(lock_of("front_revision"), Value::Null);
+
+    let turnaround = run.turnaround_request(&picture, "vendor/model");
+    assert_eq!(turnaround.generation_mode, Mode::Turnaround);
+    assert_eq!(
+        turnaround.reference_keys,
+        ["front:references/compare/vendor_model-front.png"]
+    );
+    assert_eq!(sent(&turnaround).images.len(), 1);
+    assert!(
+        run.job("vendor/model", "turnaround", &turnaround)
+            .await
+            .is_some()
+    );
+    assert_eq!(lock_of("turnaround"), Value::Null);
 }
