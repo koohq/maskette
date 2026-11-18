@@ -54,25 +54,69 @@ export function analysisBackend(values: Record<string, string>): string | undefi
 }
 
 /**
+ * The two sites of a service that runs a mainland China one and an international one. They keep separate accounts and
+ * API keys, and a key works only on the site that issued it.
+ */
+export const URL_REGIONS = ["mainland", "international"] as const;
+
+export type UrlRegion = (typeof URL_REGIONS)[number];
+
+export interface UrlPreset {
+  id: "openrouter" | "openai" | "gemini" | "ark" | "siliconflow";
+  /** The URL the preset fills in: the mainland China site's for a service with two sites. */
+  url: string;
+  /** The international site's URL, for a service with two sites. */
+  international?: string;
+}
+
+/**
  * API URLs the chat assistant and analysis can start from. Volcengine Ark's is the default Ark URL in `store.rs` (also
  * the old VSK default for the chat assistant), so an empty chat key reuses the Ark image key; SiliconFlow's is its
- * default too. `settingsApi.test.ts` checks them against `store.rs`.
+ * default too. `settingsApi.test.ts` checks them against `store.rs`. Ark and SiliconFlow also run international sites
+ * (BytePlus ModelArk for Ark), which this app has not been tried on.
  */
-export const URL_PRESETS = [
+export const URL_PRESETS: readonly UrlPreset[] = [
   { id: "openrouter", url: "https://openrouter.ai/api/v1" },
   { id: "openai", url: "https://api.openai.com/v1" },
   { id: "gemini", url: "https://generativelanguage.googleapis.com/v1beta/openai" },
-  { id: "ark", url: "https://ark.cn-beijing.volces.com/api/plan/v3" },
-  { id: "siliconflow", url: "https://api.siliconflow.cn/v1" },
-] as const;
+  {
+    id: "ark",
+    url: "https://ark.cn-beijing.volces.com/api/plan/v3",
+    international: "https://ark.ap-southeast.bytepluses.com/api/v3",
+  },
+  { id: "siliconflow", url: "https://api.siliconflow.cn/v1", international: "https://api.siliconflow.com/v1" },
+];
 
-export type UrlPreset = (typeof URL_PRESETS)[number];
+export function urlPreset(id: UrlPreset["id"]): UrlPreset {
+  const preset = URL_PRESETS.find((candidate) => candidate.id === id);
+  if (!preset) throw new Error(`No URL preset ${id}`);
+  return preset;
+}
+
+/** The URL of a preset's site in `region`; a service with one site has the same URL in both. */
+export function regionUrl(preset: UrlPreset, region: UrlRegion): string {
+  return region === "international" && preset.international ? preset.international : preset.url;
+}
+
+export interface PresetMatch {
+  preset: UrlPreset;
+  /** Which site the URL is, for a service with two sites. */
+  region?: UrlRegion | undefined;
+}
 
 export const normalizeUrl = (url = "") => url.trim().replace(/\/+$/, "");
 
-export function matchingPreset(url: string | undefined): UrlPreset | undefined {
+/** The preset, and for a service with two sites the site, whose URL `url` is. */
+export function matchingPreset(
+  url: string | undefined,
+  presets: readonly UrlPreset[] = URL_PRESETS,
+): PresetMatch | undefined {
   const normalized = normalizeUrl(url);
-  return URL_PRESETS.find((preset) => preset.url === normalized);
+  for (const preset of presets) {
+    if (preset.url === normalized) return preset.international ? { preset, region: "mainland" } : { preset };
+    if (preset.international === normalized) return { preset, region: "international" };
+  }
+  return undefined;
 }
 
 const priceSchema = z.object({

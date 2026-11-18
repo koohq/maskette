@@ -421,6 +421,53 @@ describe("SettingsPage", () => {
     expect(within(chat).getByDisplayValue("https://ark.cn-beijing.volces.com/api/plan/v3")).toBeTruthy();
   });
 
+  it("offers the international site of a service that has one", async () => {
+    vi.stubGlobal("fetch", backend(initial));
+    renderPage();
+
+    const chat = (await screen.findByRole("radiogroup", { name: "对话助手 LLM" })).closest("section") as HTMLElement;
+    const presets = within(chat).getByRole("group", { name: "预设" });
+    // A service with one site has no region row.
+    fireEvent.click(within(presets).getByRole("button", { name: "OpenAI" }));
+    expect(within(chat).queryByRole("group", { name: "地区" })).toBeNull();
+
+    fireEvent.click(within(presets).getByRole("button", { name: "火山方舟" }));
+    const regions = within(chat).getByRole("group", { name: "地区" });
+    expect(within(regions).getByRole("button", { name: "中国大陆版" }).getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(within(regions).getByRole("button", { name: "国际版" }));
+    expect(within(chat).getByDisplayValue("https://ark.ap-southeast.bytepluses.com/api/v3")).toBeTruthy();
+    expect(within(presets).getByRole("button", { name: "火山方舟" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(chat).getByText(/^国际版 BytePlus ModelArk 的地址。/)).toBeTruthy();
+
+    // Moving to the other two-site service keeps the international site.
+    fireEvent.click(within(presets).getByRole("button", { name: "硅基流动" }));
+    expect(within(chat).getByDisplayValue("https://api.siliconflow.com/v1")).toBeTruthy();
+    expect(within(chat).getByText(/^国际版的地址。/)).toBeTruthy();
+  });
+
+  it("offers only the image service's own sites on its URL", async () => {
+    const fetchMock = backend({ ...initial, values: { ...initial.values, image_provider: "ark" } });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const image = (await screen.findByRole("radiogroup", { name: "生图后端" })).closest("section") as HTMLElement;
+    expect(within(image).queryByRole("group", { name: "预设" })).toBeNull();
+    const regions = within(image).getByRole("group", { name: "地区" });
+    // An empty or own URL matches neither site.
+    for (const button of within(regions).getAllByRole("button")) {
+      expect(button.getAttribute("aria-pressed")).toBe("false");
+    }
+    fireEvent.click(within(regions).getByRole("button", { name: "国际版" }));
+    expect(within(image).getByDisplayValue("https://ark.ap-southeast.bytepluses.com/api/v3")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      values: { ark_base_url: "https://ark.ap-southeast.bytepluses.com/api/v3" },
+    });
+  });
+
   it("offers OpenRouter's models with their prices and still takes a typed name", async () => {
     const fetchMock = backend(initial, (url) =>
       url.startsWith("/api/settings/models/agent?") && url.includes(encodeURIComponent("https://openrouter.ai/api/v1"))

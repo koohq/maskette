@@ -391,11 +391,25 @@ const en: TranslationResource = {
       ark: "Volcengine Ark",
       siliconflow: "SiliconFlow",
     },
+    urlRegions: {
+      label: "Region",
+      mainland: "Mainland China",
+      international: "International",
+    },
     urlNotes: {
       gemini: "For Google Gemini, enter the model name without models/.",
-      ark: "The default URL is the mainland China service. The international BytePlus ModelArk (https://ark.ap-southeast.bytepluses.com/api/v3) has its own API keys and model names (e.g. dola-seedream-… instead of doubao-seedream-…). It has not been tried with this app.",
-      siliconflow:
-        "The default URL is the mainland China service. The international one (https://api.siliconflow.com/v1) has separate accounts and API keys; a key works only with the URL of the service that issued it.",
+      ark: {
+        mainland:
+          "The mainland China service. The international BytePlus ModelArk has its own API keys and model names (e.g. dola-seedream-… there instead of doubao-seedream-…).",
+        international:
+          "The international BytePlus ModelArk. Its API keys and model names differ from the mainland China service's (e.g. dola-seedream-… instead of doubao-seedream-…). It has not been tried with this app.",
+      },
+      siliconflow: {
+        mainland:
+          "The mainland China service. The international one has separate accounts and API keys; a key works only with the URL of the service that issued it.",
+        international:
+          "The international service. Its accounts and API keys are separate from the mainland China one's; a key works only with the URL of the service that issued it. It has not been tried with this app.",
+      },
     },
     analysisSameAsAgent: "Use the chat assistant's settings for analysis too",
     analysisFollows: "Analysis runs on the chat assistant's {{backend}}.",

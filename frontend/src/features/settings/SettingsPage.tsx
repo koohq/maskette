@@ -18,15 +18,23 @@ import {
   isRecommendedBackend,
   matchingPreset,
   normalizeUrl,
+  type PresetMatch,
   type ProbeResult,
   type ProbeRole,
   probeBackend,
+  regionUrl,
   resetBackendSettings,
   SAME_AS_AGENT,
   URL_PRESETS,
+  URL_REGIONS,
+  type UrlPreset,
   updateBackendSettings,
+  urlPreset,
   usesSubscriptionCli,
 } from "./settingsApi";
+
+const ARK = urlPreset("ark");
+const SILICONFLOW = urlPreset("siliconflow");
 
 const settingsQueryKey = ["backend-settings"];
 
@@ -304,11 +312,11 @@ export function SettingsPage() {
               ) : null}
               {form["image_provider"] === "siliconflow" ? (
                 <>
-                  <TextField
+                  <UrlField
                     disabled={disabled}
-                    hint={t("settings.urlNotes.siliconflow")}
                     label={t("settings.baseUrl")}
                     onChange={set("siliconflow_base_url")}
+                    service={SILICONFLOW}
                     value={form["siliconflow_base_url"]}
                   />
                   <TextField
@@ -322,11 +330,11 @@ export function SettingsPage() {
               ) : null}
               {form["image_provider"] === "ark" ? (
                 <>
-                  <TextField
+                  <UrlField
                     disabled={disabled}
-                    hint={t("settings.urlNotes.ark")}
                     label={t("settings.baseUrl")}
                     onChange={set("ark_base_url")}
+                    service={ARK}
                     value={form["ark_base_url"]}
                   />
                   <TextField
@@ -541,23 +549,35 @@ function TextField({
   );
 }
 
-/** The API URL of an OpenAI-compatible role, typed in or filled from a preset; the matching preset is shown pressed. */
+/** The `settings.urlNotes` text for a matched URL: one per site for a service with two sites. */
+function urlNoteKey({ preset, region }: PresetMatch) {
+  return region ? `settings.urlNotes.${preset.id}.${region}` : `settings.urlNotes.${preset.id}`;
+}
+
+/**
+ * An API URL, typed in or filled from the presets; the matching preset is shown pressed. A service with a mainland
+ * China and an international site also gets a row to pick the site. `service` keeps the field to one service (the
+ * image backends' URLs): then only that service's sites are offered.
+ */
 function UrlField({
   label,
   value,
   placeholder,
   disabled,
   onChange,
+  service,
 }: {
   label: string;
   value: string | undefined;
   placeholder?: string | undefined;
   disabled: boolean;
   onChange: (value: string) => void;
+  service?: UrlPreset | undefined;
 }) {
   const { t } = useTranslation();
-  const matched = matchingPreset(value);
-  const note = matched ? t(`settings.urlNotes.${matched.id}`, { defaultValue: "" }) : "";
+  const matched = matchingPreset(value, service ? [service] : URL_PRESETS);
+  const twoSites = service ?? matched?.preset;
+  const note = matched ? t(urlNoteKey(matched), { defaultValue: "" }) : "";
   return (
     <div className="flex flex-col gap-1 text-xs text-(--ide-text-muted)">
       <label className="flex flex-col gap-1">
@@ -571,22 +591,49 @@ function UrlField({
           value={value ?? ""}
         />
       </label>
-      <fieldset aria-label={t("settings.urlPresets.label")} className="flex flex-wrap items-center gap-1.5">
-        <span aria-hidden="true">{t("settings.urlPresets.label")}</span>
-        {URL_PRESETS.map((preset) => (
-          <button
-            aria-pressed={matched?.id === preset.id}
-            className="ide-preset"
-            disabled={disabled}
-            key={preset.id}
-            onClick={() => onChange(preset.url)}
-            title={preset.url}
-            type="button"
-          >
-            {t(`settings.urlPresets.${preset.id}`)}
-          </button>
-        ))}
-      </fieldset>
+      {service ? null : (
+        <fieldset aria-label={t("settings.urlPresets.label")} className="flex flex-wrap items-center gap-1.5">
+          <span aria-hidden="true">{t("settings.urlPresets.label")}</span>
+          {URL_PRESETS.map((preset) => {
+            // Moving between two-site services keeps the site picked.
+            const url = regionUrl(preset, matched?.region ?? "mainland");
+            return (
+              <button
+                aria-pressed={matched?.preset.id === preset.id}
+                className="ide-preset"
+                disabled={disabled}
+                key={preset.id}
+                onClick={() => onChange(url)}
+                title={url}
+                type="button"
+              >
+                {t(`settings.urlPresets.${preset.id}`)}
+              </button>
+            );
+          })}
+        </fieldset>
+      )}
+      {twoSites?.international ? (
+        <fieldset aria-label={t("settings.urlRegions.label")} className="flex flex-wrap items-center gap-1.5">
+          <span aria-hidden="true">{t("settings.urlRegions.label")}</span>
+          {URL_REGIONS.map((region) => {
+            const url = regionUrl(twoSites, region);
+            return (
+              <button
+                aria-pressed={matched?.region === region}
+                className="ide-preset"
+                disabled={disabled}
+                key={region}
+                onClick={() => onChange(url)}
+                title={url}
+                type="button"
+              >
+                {t(`settings.urlRegions.${region}`)}
+              </button>
+            );
+          })}
+        </fieldset>
+      ) : null}
       {note ? <span>{note}</span> : null}
     </div>
   );

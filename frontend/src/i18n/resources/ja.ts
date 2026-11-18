@@ -391,11 +391,25 @@ const ja: TranslationResource = {
       ark: "火山方舟",
       siliconflow: "SiliconFlow",
     },
+    urlRegions: {
+      label: "地域",
+      mainland: "中国本土版",
+      international: "国際版",
+    },
     urlNotes: {
       gemini: "Google Gemini では、モデル名に models/ を付けずに入力します。",
-      ark: "既定の URL は中国本土版です。国際版の BytePlus ModelArk（https://ark.ap-southeast.bytepluses.com/api/v3）は、API キーもモデル名も別です（例：doubao-seedream-… ではなく dola-seedream-…）。国際版での動作は確認していません。",
-      siliconflow:
-        "既定の URL は中国本土版です。国際版（https://api.siliconflow.com/v1）は、アカウントも API キーも別です。キーは、発行した側の URL でしか使えません。",
+      ark: {
+        mainland:
+          "中国本土版の URL です。国際版の BytePlus ModelArk とは、API キーもモデル名も別です（例：国際版では doubao-seedream-… ではなく dola-seedream-…）。",
+        international:
+          "国際版の BytePlus ModelArk の URL です。中国本土版とは、API キーもモデル名も別です（例：doubao-seedream-… ではなく dola-seedream-…）。国際版での動作は確認していません。",
+      },
+      siliconflow: {
+        mainland:
+          "中国本土版の URL です。国際版とは、アカウントも API キーも別です。キーは、発行した側の URL でしか使えません。",
+        international:
+          "国際版の URL です。中国本土版とは、アカウントも API キーも別です。キーは、発行した側の URL でしか使えません。国際版での動作は確認していません。",
+      },
     },
     analysisSameAsAgent: "分析にもチャットアシスタントと同じ設定を使う",
     analysisFollows: "チャットアシスタントと同じ「{{backend}}」で分析します。",

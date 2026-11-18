@@ -224,6 +224,33 @@ const SCENES: Scene[] = [
     },
   },
   {
+    // The chat assistant on Ark's international site: the region row and that site's note.
+    name: "settings-region",
+    screen: SETTINGS,
+    act: async (page, text) => {
+      const presets = page.getByRole("group", { name: text.settings.urlPresets.label }).first();
+      await presets.getByRole("button", { name: text.settings.urlPresets.ark, exact: true }).click();
+      const regions = page.getByRole("group", { name: text.settings.urlRegions.label }).first();
+      await regions.getByRole("button", { name: text.settings.urlRegions.international, exact: true }).click();
+      const note = page.getByText(text.settings.urlNotes.ark.international, { exact: true });
+      await note.evaluate((element) => element.scrollIntoView({ block: "center" }));
+      await expect(note).toBeVisible();
+    },
+  },
+  {
+    // An image backend's URL: only that service's two sites, no presets of other services.
+    name: "settings-region-image",
+    screen: SETTINGS,
+    act: async (page, text) => {
+      await page.getByRole("radio", { name: text.settings.providers.siliconflow }).click();
+      const regions = page.getByRole("group", { name: text.settings.urlRegions.label }).last();
+      await regions.getByRole("button", { name: text.settings.urlRegions.international, exact: true }).click();
+      const note = page.getByText(text.settings.urlNotes.siliconflow.international, { exact: true });
+      await note.evaluate((element) => element.scrollIntoView({ block: "center" }));
+      await expect(note).toBeVisible();
+    },
+  },
+  {
     // The chat assistant's model list: OpenRouter's models with their prices.
     name: "settings-models",
     screen: SETTINGS,

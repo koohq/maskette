@@ -369,11 +369,24 @@ const zhCN = {
       ark: "火山方舟",
       siliconflow: "硅基流动",
     },
+    urlRegions: {
+      label: "地区",
+      mainland: "中国大陆版",
+      international: "国际版",
+    },
     urlNotes: {
       gemini: "Google Gemini 的模型名不要加 models/。",
-      ark: "默认地址为中国大陆版。国际版 BytePlus ModelArk（https://ark.ap-southeast.bytepluses.com/api/v3）的 API Key 和模型名都不同（例如 dola-seedream-…，而不是 doubao-seedream-…），尚未在本应用中验证。",
-      siliconflow:
-        "默认地址为中国大陆版。国际版（https://api.siliconflow.com/v1）的账号和 API Key 是分开的，Key 只能用于签发它的那一版的地址。",
+      ark: {
+        mainland:
+          "中国大陆版的地址。国际版 BytePlus ModelArk 的 API Key 和模型名都不同（例如国际版是 dola-seedream-…，而不是 doubao-seedream-…）。",
+        international:
+          "国际版 BytePlus ModelArk 的地址。与中国大陆版的 API Key 和模型名都不同（例如 dola-seedream-…，而不是 doubao-seedream-…），尚未在本应用中验证。",
+      },
+      siliconflow: {
+        mainland: "中国大陆版的地址。国际版的账号和 API Key 是分开的，Key 只能用于签发它的那一版的地址。",
+        international:
+          "国际版的地址。与中国大陆版的账号和 API Key 是分开的，Key 只能用于签发它的那一版的地址，尚未在本应用中验证。",
+      },
     },
     analysisSameAsAgent: "分析也使用对话助手的设置",
     analysisFollows: "分析使用与对话助手相同的“{{backend}}”。",
