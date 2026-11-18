@@ -71,6 +71,7 @@ impl TestBackend {
             ),
             audit: super::audit::Audit::default(),
             cli,
+            model_lists: Default::default(),
             generation_log: Default::default(),
         })
     }

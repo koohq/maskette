@@ -330,7 +330,8 @@ const ja: TranslationResource = {
       },
     },
     sameAsAgent: "空欄でチャットアシスタントと同じ：{{value}}",
-    analysisKeyHint: "空欄の場合、URL がチャットアシスタントと同じならそのキー、Ark と同じなら Ark のキーを使います。",
+    analysisKeyHint:
+      "空欄の場合、URL がチャットアシスタントと同じならそのキー、火山方舟と同じなら火山方舟のキーを使います。",
     analysisExtraBodyHint:
       '毎回の分析リクエストに付けます（例：OpenRouter の推論の量 {"reasoning": {"effort": "medium"}}）。空欄の場合、URL がチャットアシスタントと同じときだけ、その値を使います。何も付けないときは {} と入力します。',
     visionRequired: "モデルは画像入力（マルチモーダル）に対応している必要があります。",
@@ -357,7 +358,7 @@ const ja: TranslationResource = {
     keyReplace: "空欄なら変更なし。新しいキーを入力すると置き換えます",
     keyClear: "この画面で保存したキーを削除",
     keyUndoClear: "元に戻す",
-    agentKeyHint: "空欄で API URL が Ark と同じ場合、画像生成用の Ark キーを再利用します。",
+    agentKeyHint: "空欄の場合、API URL が画像生成の火山方舟と同じなら、そのキーを使います。",
     keyStorageNote:
       "API キーはファイルではなく OS の資格情報の保管場所（Windows の資格情報マネージャー、macOS のキーチェーン）に保存されます。画面には表示されません。",
     providers: {
@@ -366,16 +367,61 @@ const ja: TranslationResource = {
       codex: "Codex CLI",
       siliconflow: "SiliconFlow",
       openrouter: "OpenRouter",
-      ark: "Volcengine Ark Seedream",
+      ark: "火山方舟（Volcengine Ark）",
       fixture: "テスト用サンプル",
     },
+    providerNotes: {
+      openai_compatible: "OpenRouter・OpenAI・Google Gemini など、OpenAI 互換 API のサービスを API キーで使います。",
+      claude_code: "この PC の Claude Code を、Claude の有料プランのログインで使います。",
+      codex: "この PC の Codex CLI を、ChatGPT の有料プランのログインで使います。",
+      openrouter: "1 つの API キーで、各社の画像モデルを選んで使えます。",
+      siliconflow: "SiliconFlow（硅基流动）の画像モデルを、API キーで使います。",
+      ark: "Volcengine（火山引擎）の火山方舟で、画像モデル Seedream を API キーで使います。",
+      fixture: "開発用です。AI を使わず、決まったサンプルの結果を返します。",
+      image_provider: {
+        codex: "この PC の Codex CLI で画像を生成します。ChatGPT の有料プランのログインで使います。",
+        fixture: "開発用です。AI を使わず、決まったサンプル画像を返します。",
+      },
+    },
+    urlPresets: {
+      label: "プリセット",
+      openrouter: "OpenRouter",
+      openai: "OpenAI",
+      gemini: "Google Gemini",
+      ark: "火山方舟",
+      siliconflow: "SiliconFlow",
+    },
+    urlNotes: {
+      gemini: "Google Gemini では、モデル名に models/ を付けずに入力します。",
+      ark: "既定の URL は中国本土版です。国際版の BytePlus ModelArk（https://ark.ap-southeast.bytepluses.com/api/v3）は、API キーもモデル名も別です（例：doubao-seedream-… ではなく dola-seedream-…）。国際版での動作は確認していません。",
+      siliconflow:
+        "既定の URL は中国本土版です。国際版（https://api.siliconflow.com/v1）は、アカウントも API キーも別です。キーは、発行した側の URL でしか使えません。",
+    },
+    analysisSameAsAgent: "分析にもチャットアシスタントと同じ設定を使う",
+    analysisFollows: "チャットアシスタントと同じ「{{backend}}」で分析します。",
+    analysisFollowsModel:
+      "チャットアシスタントと同じ「{{backend}}」の {{model}} で分析します。モデルは画像入力に対応している必要があります。",
+    modelListShow: "モデルの一覧を開く",
+    modelListNote: {
+      agent:
+        "OpenRouter のモデルのうち、ツール呼び出しに対応したもの。料金（米ドル）は 100 万トークンあたりの入力 / 出力です。",
+      analysis:
+        "OpenRouter のモデルのうち、画像入力に対応したもの。料金（米ドル）は 100 万トークンあたりの入力 / 出力です。",
+      image: "OpenRouter の画像モデルのうち、参考画像を受け付けるもの。料金（米ドル）は生成する画像の分です。",
+    },
+    modelPrice: {
+      perImage: "{{price}} / 枚",
+      perMillionTokens: "{{price}} / 100 万トークン",
+      free: "無料",
+    },
+    modelNoMatch: "一致するモデルはありません。入力したモデル名のままでも使えます。",
     status: {
       agent_llm_key: "API キーの入力が必要",
       analysis_llm_key: "API キーの入力が必要（またはチャットアシスタントのキー）",
       claude_cli: "この PC に Claude Code（claude コマンド）が必要",
       codex_cli: "この PC に Codex CLI（codex コマンド）が必要",
       siliconflow_key: "SiliconFlow API キーの入力が必要",
-      ark_key: "Ark API キーの入力が必要",
+      ark_key: "火山方舟の API キーの入力が必要",
       openrouter_key: "OpenRouter API キーの入力が必要（または OpenRouter を使う分析・チャットのキー）",
     },
   },

@@ -71,6 +71,8 @@ pub struct AppState {
     pub audit: audit::Audit,
     /// The subscription CLIs (Codex, Claude Code).
     pub cli: cli::Cli,
+    /// The model lists the settings page offers candidates from.
+    pub model_lists: settings::models::ModelLists,
     /// Every generation request, by job id, for the tests to inspect.
     #[cfg(test)]
     pub generation_log: std::sync::Mutex<Vec<(String, generation::GenerationRequest)>>,
@@ -101,6 +103,7 @@ impl Backend {
             generation: generation::Services::new(&config.data_dir),
             audit: audit::Audit::default(),
             cli: cli::Cli::new(),
+            model_lists: Default::default(),
             data_dir: config.data_dir,
             settings: Arc::new(settings),
             chat: ChatApi::new(),

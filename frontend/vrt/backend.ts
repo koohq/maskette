@@ -216,11 +216,13 @@ const emptyConversation = {
 const settings = {
   values: {
     agent_llm_provider: "openai_compatible",
-    agent_llm_base_url: "https://llm.example.test/v1",
-    agent_llm_model: "chat-model",
-    agent_llm_extra_body: "",
+    // The built-in defaults: OpenRouter for the chat, which analysis follows.
+    agent_llm_base_url: "https://openrouter.ai/api/v1",
+    agent_llm_model: "google/gemini-3.8-flash",
+    agent_llm_extra_body: '{"reasoning": {"effort": "low"}}',
+    agent_codex_model: "",
     agent_claude_code_model: "",
-    llm_provider: "openai_compatible",
+    llm_provider: "same_as_agent",
     analysis_llm_base_url: "",
     analysis_llm_model: "",
     analysis_llm_extra_body: "",
@@ -233,9 +235,9 @@ const settings = {
   },
   overridden: ["image_provider"],
   options: {
-    agent_llm_provider: ["openai_compatible", "claude_code"],
-    llm_provider: ["openai_compatible", "codex", "claude_code"],
-    image_provider: ["codex", "openrouter", "siliconflow", "ark"],
+    agent_llm_provider: ["openai_compatible", "codex", "claude_code"],
+    llm_provider: ["same_as_agent", "openai_compatible", "codex", "claude_code"],
+    image_provider: ["openrouter", "codex", "siliconflow", "ark"],
   },
   secrets: {
     agent_llm_api_key: { set: true, source: "override", hint: "…1234" },
@@ -255,6 +257,40 @@ const settings = {
   },
 };
 
+/** OpenRouter's candidates for the model fields (`GET /api/settings/models/{role}`), long ids and every kind of price. */
+const MODEL_CANDIDATES = {
+  agent: [
+    {
+      id: "google/gemini-3.8-flash",
+      name: "Google: Gemini 3.8 Flash",
+      price: { unit: "token", input: 0.3, output: 2.5 },
+    },
+    { id: "openai/gpt-6.2-astra", name: "OpenAI: GPT-6.2 Astra", price: { unit: "token", input: 4, output: 20 } },
+    {
+      id: "vendor/a-model-with-a-very-long-identifier-that-does-not-fit-in-the-list-preview-2026-11",
+      name: "Vendor: Long",
+      price: { unit: "token", input: 0.075, output: 0.3 },
+    },
+    { id: "vendor/free-model:free", name: "Vendor: Free", price: { unit: "token", input: 0, output: 0 } },
+    { id: "openrouter/auto", name: "Auto Router", price: null },
+  ],
+  analysis: [
+    {
+      id: "google/gemini-3.8-flash",
+      name: "Google: Gemini 3.8 Flash",
+      price: { unit: "token", input: 0.3, output: 2.5 },
+    },
+  ],
+  image: [
+    {
+      id: "openai/gpt-image-2.6-sunburst",
+      name: "OpenAI: GPT Image 2.6 Sunburst",
+      price: { unit: "token", input: null, output: 30 },
+    },
+    { id: "recraft/recraft-v4", name: "Recraft V4", price: { unit: "image", input: null, output: 0.04 } },
+  ],
+};
+
 type Answer = { json: unknown } | { body: Buffer; contentType: string } | { sse: true };
 
 function answer(method: string, path: string): Answer | null {
@@ -262,6 +298,8 @@ function answer(method: string, path: string): Answer | null {
   if (path.startsWith("/api/files/")) return { body: IMAGE, contentType: "image/png" };
   if (path === "/api/agent/conversations") return { json: projects };
   if (path === "/api/settings") return { json: settings };
+  const models = /^\/api\/settings\/models\/(agent|analysis|image)$/.exec(path);
+  if (models) return { json: { models: MODEL_CANDIDATES[models[1] as keyof typeof MODEL_CANDIDATES] } };
 
   const match = /^\/api\/agent\/conversations\/([^/]+)(\/.*)?$/.exec(path);
   if (!match) return null;

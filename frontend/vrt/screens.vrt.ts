@@ -214,6 +214,25 @@ const SCENES: Scene[] = [
     },
   },
   {
+    // Below the chat assistant: analysis folded onto the chat's settings, and the image backends.
+    name: "settings-analysis",
+    screen: SETTINGS,
+    act: async (page, text) => {
+      const heading = page.getByRole("heading", { name: text.settings.analysisSection, exact: true });
+      await heading.evaluate((element) => element.scrollIntoView({ block: "start" }));
+      await expect(page.getByRole("checkbox", { name: text.settings.analysisSameAsAgent })).toBeChecked();
+    },
+  },
+  {
+    // The chat assistant's model list: OpenRouter's models with their prices.
+    name: "settings-models",
+    screen: SETTINGS,
+    act: async (page, text) => {
+      await page.getByRole("button", { name: text.settings.modelListShow }).first().click();
+      await expect(page.getByRole("listbox")).toBeVisible();
+    },
+  },
+  {
     name: "workspace-delete-message",
     screen: WORKSPACE,
     act: async (page, text) => {

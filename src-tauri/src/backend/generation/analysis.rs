@@ -356,21 +356,24 @@ pub enum AnalysisBackend {
 
 /// The analysis backend the settings choose, or why there is none.
 pub fn analysis_backend(settings: &Settings) -> Result<AnalysisBackend, Failure> {
-    match settings.llm_provider() {
+    match settings.analysis_provider() {
         "fixture" if settings.allow_fixture => Ok(AnalysisBackend::Fixture),
         "fixture" => Err("No real analysis backend is configured (llm_provider).".into()),
         "openai_compatible" => {
             let (base_url, api_key, model) = settings.analysis_endpoint();
             if base_url.is_empty() || model.is_empty() {
-                // Each falls back to the chat assistant's setting.
-                let missing: Vec<&str> = [
-                    ("analysis_llm_base_url", &base_url),
-                    ("analysis_llm_model", &model),
-                ]
-                .into_iter()
-                .filter(|(_, value)| value.is_empty())
-                .map(|(setting, _)| setting)
-                .collect();
+                // Each falls back to the chat assistant's setting, which is
+                // the one to fill in while analysis follows the chat.
+                let (url_setting, model_setting) = if settings.analysis_follows_agent() {
+                    ("agent_llm_base_url", "agent_llm_model")
+                } else {
+                    ("analysis_llm_base_url", "analysis_llm_model")
+                };
+                let missing: Vec<&str> = [(url_setting, &base_url), (model_setting, &model)]
+                    .into_iter()
+                    .filter(|(_, value)| value.is_empty())
+                    .map(|(setting, _)| setting)
+                    .collect();
                 return Err(Failure::missing_settings(
                     &missing,
                     "Analysis LLM base URL and model must be set",

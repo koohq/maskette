@@ -8,16 +8,22 @@ import { LanguageSelector } from "../i18n/LanguageSelector";
 import { HomeLink } from "../workspace/HomeLink";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import { AutoFixSection } from "./AutoFixSection";
+import { ModelField } from "./ModelField";
 import { PaletteSection } from "./PaletteSection";
 import {
+  analysisBackend,
   type BackendSettings,
   backendRequirement,
   getBackendSettings,
   isRecommendedBackend,
+  matchingPreset,
+  normalizeUrl,
   type ProbeResult,
   type ProbeRole,
   probeBackend,
   resetBackendSettings,
+  SAME_AS_AGENT,
+  URL_PRESETS,
   updateBackendSettings,
   usesSubscriptionCli,
 } from "./settingsApi";
@@ -25,8 +31,6 @@ import {
 const settingsQueryKey = ["backend-settings"];
 
 type Notice = { tone: "success" | "error"; text: string } | null;
-
-const normalizeUrl = (url = "") => url.trim().replace(/\/+$/, "");
 
 /** Analysis reuses the chat assistant's extra fields only while it talks to the same URL (empty = same). */
 function sharesAgentUrl(analysisUrl: string | undefined, agentUrl: string | undefined) {
@@ -100,6 +104,32 @@ export function SettingsPage() {
       />
     ) : null;
 
+  const agentBackend = form["agent_llm_provider"];
+  const followsAgent = form["llm_provider"] === SAME_AS_AGENT;
+
+  /** Folds analysis onto the chat assistant's settings, or unfolds it onto a backend of its own. */
+  function followAgent(follow: boolean) {
+    if (follow) {
+      set("llm_provider")(SAME_AS_AGENT);
+      return;
+    }
+    // The choice saved before, else the backend analysis has been using.
+    const saved = data?.values["llm_provider"];
+    const offered = data?.options["llm_provider"] ?? [];
+    let own = "openai_compatible";
+    if (saved && saved !== SAME_AS_AGENT) own = saved;
+    else if (agentBackend && offered.includes(agentBackend)) own = agentBackend;
+    set("llm_provider")(own);
+  }
+
+  function followSummary() {
+    const backend = t(`settings.providers.${agentBackend}`, { defaultValue: agentBackend ?? "" });
+    const model = form["agent_llm_model"]?.trim();
+    return agentBackend === "openai_compatible" && model
+      ? t("settings.analysisFollowsModel", { backend, model })
+      : t("settings.analysisFollows", { backend });
+  }
+
   return (
     <div className="ide-home">
       <header className="ide-titlebar" style={{ height: 44 }}>
@@ -123,36 +153,22 @@ export function SettingsPage() {
               onChange={set("agent_llm_provider")}
               settingKey="agent_llm_provider"
               title={t("settings.agentSection")}
-              value={form["agent_llm_provider"]}
+              value={agentBackend}
             >
-              {form["agent_llm_provider"] === "codex" ? (
-                <TextField
-                  disabled={disabled}
-                  label={t("settings.model")}
-                  onChange={set("agent_codex_model")}
-                  placeholder={t("settings.modelDefault")}
-                  value={form["agent_codex_model"]}
-                />
-              ) : form["agent_llm_provider"] === "claude_code" ? (
-                <TextField
-                  disabled={disabled}
-                  label={t("settings.model")}
-                  onChange={set("agent_claude_code_model")}
-                  placeholder={t("settings.modelDefault")}
-                  value={form["agent_claude_code_model"]}
-                />
-              ) : (
+              {agentBackend === "openai_compatible" ? (
                 <>
-                  <TextField
+                  <UrlField
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("agent_llm_base_url")}
                     value={form["agent_llm_base_url"]}
                   />
-                  <TextField
+                  <ModelField
+                    baseUrl={form["agent_llm_base_url"] ?? ""}
                     disabled={disabled}
                     label={t("settings.model")}
                     onChange={set("agent_llm_model")}
+                    modelRole="agent"
                     value={form["agent_llm_model"]}
                   />
                   {secretField("agent_llm_api_key", t("settings.agentKeyHint"))}
@@ -168,31 +184,60 @@ export function SettingsPage() {
                     <ProbePanel probeRole="agent" unsaved={unsaved} />
                   ) : null}
                 </>
-              )}
+              ) : null}
+              {agentBackend === "codex" ? (
+                <TextField
+                  disabled={disabled}
+                  label={t("settings.model")}
+                  onChange={set("agent_codex_model")}
+                  placeholder={t("settings.modelDefault")}
+                  value={form["agent_codex_model"]}
+                />
+              ) : null}
+              {agentBackend === "claude_code" ? (
+                <TextField
+                  disabled={disabled}
+                  label={t("settings.model")}
+                  onChange={set("agent_claude_code_model")}
+                  placeholder={t("settings.modelDefault")}
+                  value={form["agent_claude_code_model"]}
+                />
+              ) : null}
             </BackendSection>
             <BackendSection
               data={data}
               disabled={disabled}
+              follow={{ checked: followsAgent, label: t("settings.analysisSameAsAgent"), onChange: followAgent }}
               hint={t("settings.analysisHint")}
               onChange={set("llm_provider")}
               settingKey="llm_provider"
               title={t("settings.analysisSection")}
               value={form["llm_provider"]}
             >
+              {followsAgent ? (
+                <>
+                  <p className="text-xs text-(--ide-text-muted)">{followSummary()}</p>
+                  {agentBackend === "openai_compatible" && analysisBackend(data.values) === "openai_compatible" ? (
+                    <ProbePanel probeRole="analysis" unsaved={unsaved} />
+                  ) : null}
+                </>
+              ) : null}
               {form["llm_provider"] === "openai_compatible" ? (
                 <>
-                  <TextField
+                  <UrlField
                     disabled={disabled}
                     label={t("settings.baseUrl")}
                     onChange={set("analysis_llm_base_url")}
                     placeholder={t("settings.sameAsAgent", { value: form["agent_llm_base_url"] })}
                     value={form["analysis_llm_base_url"]}
                   />
-                  <TextField
+                  <ModelField
+                    baseUrl={form["analysis_llm_base_url"]?.trim() || (form["agent_llm_base_url"] ?? "")}
                     disabled={disabled}
                     label={t("settings.model")}
                     onChange={set("analysis_llm_model")}
                     placeholder={t("settings.sameAsAgent", { value: form["agent_llm_model"] })}
+                    modelRole="analysis"
                     value={form["analysis_llm_model"]}
                   />
                   {secretField("analysis_llm_api_key", t("settings.analysisKeyHint"))}
@@ -209,7 +254,7 @@ export function SettingsPage() {
                     value={form["analysis_llm_extra_body"]}
                   />
                   <p className="text-xs text-(--ide-text-muted)">{t("settings.visionRequired")}</p>
-                  {data.values["llm_provider"] === "openai_compatible" ? (
+                  {analysisBackend(data.values) === "openai_compatible" ? (
                     <ProbePanel probeRole="analysis" unsaved={unsaved} />
                   ) : null}
                 </>
@@ -237,11 +282,13 @@ export function SettingsPage() {
                     onChange={set("openrouter_base_url")}
                     value={form["openrouter_base_url"]}
                   />
-                  <TextField
+                  <ModelField
+                    baseUrl={form["openrouter_base_url"] ?? ""}
                     disabled={disabled}
                     hint={t("settings.openrouterModelHint")}
                     label={t("settings.model")}
                     onChange={set("openrouter_image_model")}
+                    modelRole="image"
                     value={form["openrouter_image_model"]}
                   />
                   {secretField("openrouter_api_key", t("settings.openrouterKeyHint"))}
@@ -259,6 +306,7 @@ export function SettingsPage() {
                 <>
                   <TextField
                     disabled={disabled}
+                    hint={t("settings.urlNotes.siliconflow")}
                     label={t("settings.baseUrl")}
                     onChange={set("siliconflow_base_url")}
                     value={form["siliconflow_base_url"]}
@@ -276,6 +324,7 @@ export function SettingsPage() {
                 <>
                   <TextField
                     disabled={disabled}
+                    hint={t("settings.urlNotes.ark")}
                     label={t("settings.baseUrl")}
                     onChange={set("ark_base_url")}
                     value={form["ark_base_url"]}
@@ -339,6 +388,13 @@ export function SettingsPage() {
   );
 }
 
+/** A choice's one-line note: the role's own when it has one (`settings.providerNotes.<setting>.<choice>`), else the shared one. */
+function optionNote(t: ReturnType<typeof useTranslation>["t"], settingKey: string, option: string): string {
+  return t([`settings.providerNotes.${settingKey}.${option}`, `settings.providerNotes.${option}`], {
+    defaultValue: "",
+  });
+}
+
 function BackendSection({
   title,
   hint,
@@ -347,6 +403,7 @@ function BackendSection({
   data,
   disabled,
   onChange,
+  follow,
   children,
 }: {
   title: string;
@@ -356,11 +413,14 @@ function BackendSection({
   data: BackendSettings;
   disabled: boolean;
   onChange: (value: string) => void;
+  /** A checkbox that folds the choices away and uses another section's settings instead. */
+  follow?: { checked: boolean; label: string; onChange: (checked: boolean) => void };
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const options = data.options[settingKey] ?? [];
-  const selectedRequirement = value ? backendRequirement(settingKey, value) : undefined;
+  const options = (data.options[settingKey] ?? []).filter((option) => option !== SAME_AS_AGENT);
+  const folded = follow?.checked === true;
+  const selectedRequirement = value && !folded ? backendRequirement(settingKey, value) : undefined;
   return (
     <section className="rounded-md border border-(--ide-border) bg-(--ide-panel) p-4">
       <div className="flex items-center gap-2">
@@ -372,48 +432,75 @@ function BackendSection({
         ) : null}
       </div>
       <p className="mb-3 mt-1 text-xs text-(--ide-text-muted)">{hint}</p>
-      <div className="flex flex-col gap-1" role="radiogroup" aria-label={title}>
-        {options.map((option) => {
-          const requirement = backendRequirement(settingKey, option);
-          const ready = !requirement || data.status[requirement] !== false;
-          const label = t(`settings.providers.${option}`, { defaultValue: option });
-          return (
-            <label
-              className="flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-(--ide-hover)"
-              key={option}
-            >
-              <input
-                aria-label={label}
-                checked={value === option}
-                disabled={disabled}
-                name={settingKey}
-                onChange={() => onChange(option)}
-                type="radio"
-                value={option}
-              />
-              <span className="flex-1">{label}</span>
-              {isRecommendedBackend(settingKey, option) ? (
-                <span className="ide-badge" data-tone="accent">
-                  {t("settings.recommended")}
+      {follow ? (
+        <label className="mb-2 flex cursor-pointer items-center gap-2 text-sm">
+          <input
+            checked={follow.checked}
+            disabled={disabled}
+            onChange={(event) => follow.onChange(event.target.checked)}
+            type="checkbox"
+          />
+          {follow.label}
+        </label>
+      ) : null}
+      {folded ? null : (
+        <div className="flex flex-col gap-1" role="radiogroup" aria-label={title}>
+          {options.map((option) => {
+            const requirement = backendRequirement(settingKey, option);
+            const ready = !requirement || data.status[requirement] !== false;
+            const label = t(`settings.providers.${option}`, { defaultValue: option });
+            const note = optionNote(t, settingKey, option);
+            const noteId = `${settingKey}-${option}-note`;
+            return (
+              <label
+                className="flex cursor-pointer items-start gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-(--ide-hover)"
+                key={option}
+              >
+                <input
+                  aria-describedby={note ? noteId : undefined}
+                  aria-label={label}
+                  checked={value === option}
+                  className="mt-1"
+                  disabled={disabled}
+                  name={settingKey}
+                  onChange={() => onChange(option)}
+                  type="radio"
+                  value={option}
+                />
+                {/* The badges sit beside the name, so the note below has the whole width. */}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2">
+                    <span className="flex-1">{label}</span>
+                    {isRecommendedBackend(settingKey, option) ? (
+                      <span className="ide-badge" data-tone="accent">
+                        {t("settings.recommended")}
+                      </span>
+                    ) : null}
+                    {requirement ? (
+                      <span
+                        className="ide-badge"
+                        data-tone={ready ? "success" : undefined}
+                        title={ready ? undefined : t(`settings.status.${requirement}`)}
+                      >
+                        {ready ? t("settings.ready") : t("settings.missing")}
+                      </span>
+                    ) : null}
+                  </span>
+                  {note ? (
+                    <span className="block text-xs text-(--ide-text-muted)" id={noteId}>
+                      {note}
+                    </span>
+                  ) : null}
                 </span>
-              ) : null}
-              {requirement ? (
-                <span
-                  className="ide-badge"
-                  data-tone={ready ? "success" : undefined}
-                  title={ready ? undefined : t(`settings.status.${requirement}`)}
-                >
-                  {ready ? t("settings.ready") : t("settings.missing")}
-                </span>
-              ) : null}
-            </label>
-          );
-        })}
-      </div>
+              </label>
+            );
+          })}
+        </div>
+      )}
       {selectedRequirement && data.status[selectedRequirement] === false ? (
         <p className="mt-2 text-xs text-(--ide-danger)">{t(`settings.status.${selectedRequirement}`)}</p>
       ) : null}
-      {value && usesSubscriptionCli(value) ? (
+      {value && !folded && usesSubscriptionCli(value) ? (
         <p className="mt-2 flex items-start gap-1.5 text-xs text-(--ide-warning)" role="note">
           <IconAlertTriangle className="mt-px shrink-0" size={14} />
           <span>{t("settings.subscriptionCliNote")}</span>
@@ -451,6 +538,57 @@ function TextField({
       />
       {hint ? <span>{hint}</span> : null}
     </label>
+  );
+}
+
+/** The API URL of an OpenAI-compatible role, typed in or filled from a preset; the matching preset is shown pressed. */
+function UrlField({
+  label,
+  value,
+  placeholder,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  value: string | undefined;
+  placeholder?: string | undefined;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const { t } = useTranslation();
+  const matched = matchingPreset(value);
+  const note = matched ? t(`settings.urlNotes.${matched.id}`, { defaultValue: "" }) : "";
+  return (
+    <div className="flex flex-col gap-1 text-xs text-(--ide-text-muted)">
+      <label className="flex flex-col gap-1">
+        {label}
+        <input
+          className="ide-input text-sm"
+          disabled={disabled}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder={placeholder}
+          spellCheck={false}
+          value={value ?? ""}
+        />
+      </label>
+      <fieldset aria-label={t("settings.urlPresets.label")} className="flex flex-wrap items-center gap-1.5">
+        <span aria-hidden="true">{t("settings.urlPresets.label")}</span>
+        {URL_PRESETS.map((preset) => (
+          <button
+            aria-pressed={matched?.id === preset.id}
+            className="ide-preset"
+            disabled={disabled}
+            key={preset.id}
+            onClick={() => onChange(preset.url)}
+            title={preset.url}
+            type="button"
+          >
+            {t(`settings.urlPresets.${preset.id}`)}
+          </button>
+        ))}
+      </fieldset>
+      {note ? <span>{note}</span> : null}
+    </div>
   );
 }
 

@@ -70,9 +70,20 @@ async fn settings_report_effective_backends() {
         "openai/gpt-image-2.6-sunburst"
     );
     assert_eq!(body["overridden"], json!([]));
+    // The recommended choice first in every role.
     assert_eq!(
         body["options"]["image_provider"],
-        json!(["codex", "openrouter", "siliconflow", "ark", "fixture"])
+        json!(["openrouter", "codex", "siliconflow", "ark", "fixture"])
+    );
+    assert_eq!(
+        body["options"]["llm_provider"],
+        json!([
+            "same_as_agent",
+            "openai_compatible",
+            "codex",
+            "claude_code",
+            "fixture"
+        ])
     );
     assert_eq!(
         body["options"]["agent_llm_provider"],
@@ -233,8 +244,9 @@ async fn fixtures_are_hidden_and_refused_when_not_allowed() {
     // Release builds: the old backend's production / no-fixture setup.
     let app = TestBackend::new(false).app();
     let body = read(&app).await;
-    // Unset, analysis and images go to OpenRouter.
-    assert_eq!(body["values"]["llm_provider"], "openai_compatible");
+    // Unset, analysis follows the chat assistant (on OpenRouter) and images
+    // go to OpenRouter.
+    assert_eq!(body["values"]["llm_provider"], "same_as_agent");
     assert_eq!(body["values"]["image_provider"], "openrouter");
     assert!(
         !body["options"]["image_provider"]
@@ -473,6 +485,410 @@ fn every_secret_is_an_editable_field() {
     assert_eq!(store::secret_keys().count(), 5);
     assert!(store::valid_setting("ark_api_key", "sk-1"));
     assert!(!store::valid_setting("ark_api_key", ""));
+}
+
+// --- Analysis that follows the chat assistant --------------------------------
+
+/// Saves changes the way the settings page does.
+fn save(backend: &TestBackend, changes: &[(&str, &str)]) {
+    let changes: Vec<(String, Option<String>)> = changes
+        .iter()
+        .map(|(key, value)| ((*key).to_owned(), Some((*value).to_owned())))
+        .collect();
+    backend.state.settings.update(&changes).unwrap();
+}
+
+/// Which saved settings count as "the same as the chat assistant" (the
+/// folded analysis section): the explicit choice, or in release builds an
+/// unset `llm_provider` with no analysis setting changed. Whoever changed an
+/// analysis setting keeps the OpenAI-compatible API an unset `llm_provider`
+/// meant before, and the page shows them that choice, unfolded.
+#[test]
+fn which_saved_settings_follow_the_chat_assistant() {
+    let medium = r#"{"reasoning": {"effort": "medium"}}"#;
+    // (debug build, saved changes, llm_provider)
+    let cases: [(bool, &[(&str, &str)], &str); 12] = [
+        (false, &[], "same_as_agent"),
+        (
+            false,
+            &[
+                ("agent_llm_provider", "claude_code"),
+                ("agent_llm_model", "m"),
+            ],
+            "same_as_agent",
+        ),
+        // A built-in value saved again changes nothing.
+        (
+            false,
+            &[
+                ("analysis_llm_base_url", " "),
+                ("analysis_llm_extra_body", medium),
+            ],
+            "same_as_agent",
+        ),
+        (
+            false,
+            &[("analysis_llm_base_url", "https://analysis.test/v1")],
+            "openai_compatible",
+        ),
+        (
+            false,
+            &[("analysis_llm_model", "vision-model")],
+            "openai_compatible",
+        ),
+        (
+            false,
+            &[("analysis_llm_api_key", "analysis-key")],
+            "openai_compatible",
+        ),
+        (
+            false,
+            &[("analysis_llm_extra_body", "")],
+            "openai_compatible",
+        ),
+        // A saved choice stays, whatever else is saved.
+        (
+            false,
+            &[("llm_provider", "openai_compatible")],
+            "openai_compatible",
+        ),
+        (false, &[("llm_provider", "codex")], "codex"),
+        (
+            false,
+            &[
+                ("llm_provider", "same_as_agent"),
+                ("analysis_llm_model", "vision-model"),
+            ],
+            "same_as_agent",
+        ),
+        // Debug builds analyse with the fixture until something is chosen.
+        (true, &[], "fixture"),
+        (true, &[("llm_provider", "same_as_agent")], "same_as_agent"),
+    ];
+    for (debug, changes, expected) in cases {
+        let backend = TestBackend::new(debug);
+        save(&backend, changes);
+        let settings = backend.state.settings.settings();
+        assert_eq!(
+            settings.llm_provider(),
+            expected,
+            "{changes:?} (debug build: {debug})"
+        );
+        assert_eq!(
+            settings.analysis_follows_agent(),
+            expected == "same_as_agent"
+        );
+    }
+}
+
+#[test]
+fn following_analysis_uses_the_chat_backend_and_endpoint() {
+    use crate::backend::generation::analysis::{AnalysisBackend, analysis_backend};
+    let medium = json!({"reasoning": {"effort": "medium"}});
+    let backend = TestBackend::new(false);
+    save(
+        &backend,
+        &[
+            ("agent_llm_base_url", "https://chat.test/v1/"),
+            ("agent_llm_model", "chat-model"),
+            ("agent_llm_api_key", "chat-key"),
+            (
+                "agent_llm_extra_body",
+                r#"{"thinking": {"type": "disabled"}}"#,
+            ),
+        ],
+    );
+    let settings = backend.state.settings.settings();
+    assert_eq!(settings.analysis_provider(), "openai_compatible");
+    let chat = (
+        "https://chat.test/v1".to_owned(),
+        "chat-key".to_owned(),
+        "chat-model".to_owned(),
+    );
+    assert_eq!(settings.analysis_endpoint(), chat);
+    // Its own deeper reasoning, not the chat's vendor fields.
+    assert_eq!(Value::Object(settings.analysis_extra_body()), medium);
+
+    // Chosen explicitly, it ignores the analysis settings of its own...
+    save(
+        &backend,
+        &[
+            ("llm_provider", "same_as_agent"),
+            ("analysis_llm_base_url", "https://analysis.test/v1"),
+            ("analysis_llm_model", "vision-model"),
+            ("analysis_llm_extra_body", "{}"),
+        ],
+    );
+    let settings = backend.state.settings.settings();
+    assert_eq!(settings.analysis_endpoint(), chat);
+    assert_eq!(Value::Object(settings.analysis_extra_body()), medium);
+    // ...which apply again once analysis has a backend of its own.
+    save(&backend, &[("llm_provider", "openai_compatible")]);
+    let settings = backend.state.settings.settings();
+    assert_eq!(settings.analysis_endpoint().2, "vision-model");
+    assert!(settings.analysis_extra_body().is_empty());
+
+    // A chat on a subscription CLI analyses on the same CLI.
+    save(
+        &backend,
+        &[
+            ("llm_provider", "same_as_agent"),
+            ("agent_llm_provider", "claude_code"),
+        ],
+    );
+    let settings = backend.state.settings.settings();
+    assert_eq!(settings.analysis_provider(), "claude_code");
+    assert!(matches!(
+        analysis_backend(&settings),
+        Ok(AnalysisBackend::ClaudeCode)
+    ));
+}
+
+/// Analysis can follow any chat backend because it offers each of them
+/// under the same name (Codex too, once the chat offers it).
+#[test]
+fn every_chat_backend_can_also_analyse() {
+    let analysis = store::field("llm_provider").unwrap().allowed.unwrap();
+    let chat = store::field("agent_llm_provider").unwrap().allowed.unwrap();
+    for backend in chat {
+        assert!(analysis.contains(backend), "{backend}");
+    }
+}
+
+#[test]
+fn following_analysis_names_the_chat_settings_it_lacks() {
+    let backend = TestBackend::new(false);
+    save(&backend, &[("agent_llm_model", "")]);
+    let error =
+        crate::backend::generation::analysis::analysis_backend(&backend.state.settings.settings())
+            .unwrap_err();
+    assert_eq!(error.code, Some("setting_missing"));
+    assert_eq!(error.params["settings"], "agent_llm_model");
+}
+
+#[tokio::test]
+async fn the_analysis_probe_follows_the_chat_assistant() {
+    let llm = fake_llm(|_| reply(json!({"content": "Red."}))).await;
+    let backend = TestBackend::new(false);
+    save(
+        &backend,
+        &[
+            ("agent_llm_base_url", &llm.base_url),
+            ("agent_llm_api_key", "key"),
+            ("agent_llm_model", "glm-5"),
+            (
+                "agent_llm_extra_body",
+                r#"{"thinking": {"type": "disabled"}}"#,
+            ),
+        ],
+    );
+
+    let (status, body) = probe(&backend, "analysis").await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body["ok"], true, "{body}");
+    assert_eq!(body["model"], "glm-5");
+    let bodies = llm.bodies.lock().unwrap();
+    assert_eq!(bodies[0]["reasoning"], json!({"effort": "medium"}));
+    assert!(bodies[0].get("thinking").is_none());
+    assert_eq!(
+        llm.authorization.lock().unwrap()[0].as_deref(),
+        Some("Bearer key")
+    );
+}
+
+// --- Model candidates ---------------------------------------------------------
+
+/// A stand-in for OpenRouter's model lists; records the paths read.
+async fn fake_openrouter() -> (String, Arc<Mutex<Vec<String>>>) {
+    use axum::extract::Path;
+    use axum::response::IntoResponse;
+    use axum::routing::get;
+    let reads = Arc::new(Mutex::new(Vec::new()));
+    let record = |reads: &Arc<Mutex<Vec<String>>>, path: String| {
+        reads.lock().unwrap().push(path);
+    };
+    let chat = json!({"data": [
+        {
+            "id": "vendor/sees-and-calls",
+            "name": "Vendor: Sees and calls",
+            "architecture": {"input_modalities": ["text", "image"]},
+            "pricing": {"prompt": "0.0000003", "completion": "0.0000025"},
+            "supported_parameters": ["tools"],
+            "endpoints": ["/api/v1/chat/completions"],
+        },
+        {
+            "id": "vendor/calls",
+            "architecture": {"input_modalities": ["text"]},
+            "pricing": {"prompt": "0", "completion": "0"},
+            "supported_parameters": ["tools"],
+        },
+        {
+            "id": "vendor/sees",
+            "architecture": {"input_modalities": ["image", "text"]},
+            "supported_parameters": [],
+        },
+        {
+            "id": "vendor/sees-and-calls:batch",
+            "architecture": {"input_modalities": ["text", "image"]},
+            "supported_parameters": ["tools"],
+            "endpoints": ["/api/v1/responses"],
+        },
+    ]});
+    let images = json!({"data": [
+        {"id": "vendor/per-image", "name": "Per image", "supported_parameters": {"input_references": {"max": 4}}},
+        {"id": "vendor/per-token", "supported_parameters": {"input_references": {}, "n": {}}},
+        {"id": "vendor/text-only", "supported_parameters": {"n": {}}},
+    ]});
+    let app = Router::new()
+        .route(
+            "/api/v1/models",
+            get({
+                let reads = reads.clone();
+                move || async move {
+                    record(&reads, "models".to_owned());
+                    axum::Json(chat)
+                }
+            }),
+        )
+        .route(
+            "/api/v1/images/models",
+            get({
+                let reads = reads.clone();
+                move || async move {
+                    record(&reads, "images/models".to_owned());
+                    axum::Json(images)
+                }
+            }),
+        )
+        .route(
+            "/api/v1/images/models/{*rest}",
+            get({
+                let reads = reads.clone();
+                move |Path(rest): Path<String>| async move {
+                    record(&reads, rest.clone());
+                    let pricing = match rest.as_str() {
+                        "vendor/per-image/endpoints" => {
+                            json!([{"billable": "output_image", "unit": "image", "cost_usd": 0.04}])
+                        }
+                        "vendor/per-token/endpoints" => json!([
+                            {"billable": "input_text", "unit": "token", "cost_usd": 0.000005},
+                            {"billable": "output_image", "unit": "token", "cost_usd": 0.00003},
+                        ]),
+                        _ => return StatusCode::NOT_FOUND.into_response(),
+                    };
+                    axum::Json(json!({"endpoints": [{"pricing": pricing}]})).into_response()
+                }
+            }),
+        );
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let base_url = format!("http://{}/api/v1", listener.local_addr().unwrap());
+    tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
+    (base_url, reads)
+}
+
+async fn candidates(app: &Router, role: &str, base_url: &str) -> (StatusCode, Value) {
+    let response = call(
+        app,
+        Method::GET,
+        &format!("/api/settings/models/{role}?base_url={base_url}"),
+        None,
+    )
+    .await;
+    let status = response.status();
+    (status, json_body(response).await)
+}
+
+fn ids(body: &Value) -> Vec<&str> {
+    body["models"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|model| model["id"].as_str().unwrap())
+        .collect()
+}
+
+#[tokio::test]
+async fn model_candidates_suit_each_role_and_carry_prices() {
+    let (base_url, reads) = fake_openrouter().await;
+    let backend = TestBackend::new(false);
+    // The saved OpenRouter URL counts as OpenRouter, so the stand-in does.
+    save(&backend, &[("openrouter_base_url", &base_url)]);
+    let app = backend.app();
+
+    let (status, agent) = candidates(&app, "agent", &format!("{base_url}/")).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(ids(&agent), ["vendor/sees-and-calls", "vendor/calls"]);
+    assert_eq!(
+        agent["models"][0],
+        json!({
+            "id": "vendor/sees-and-calls",
+            "name": "Vendor: Sees and calls",
+            "price": {"unit": "token", "input": 0.3, "output": 2.5},
+        })
+    );
+    assert_eq!(
+        agent["models"][1]["price"],
+        json!({"unit": "token", "input": 0.0, "output": 0.0})
+    );
+    let (_, analysis) = candidates(&app, "analysis", &base_url).await;
+    assert_eq!(ids(&analysis), ["vendor/sees-and-calls", "vendor/sees"]);
+    assert_eq!(analysis["models"][1]["price"], Value::Null);
+
+    let (_, image) = candidates(&app, "image", &base_url).await;
+    assert_eq!(
+        image["models"],
+        json!([
+            {"id": "vendor/per-image", "name": "Per image", "price": {"unit": "image", "input": null, "output": 0.04}},
+            {"id": "vendor/per-token", "name": "", "price": {"unit": "token", "input": null, "output": 30.0}},
+        ])
+    );
+
+    // Each list is read once, then kept.
+    candidates(&app, "agent", &base_url).await;
+    candidates(&app, "image", &base_url).await;
+    let mut read = reads.lock().unwrap().clone();
+    read.sort();
+    assert_eq!(
+        read,
+        [
+            "images/models",
+            "models",
+            "vendor/per-image/endpoints",
+            "vendor/per-token/endpoints",
+        ]
+    );
+}
+
+#[tokio::test]
+async fn other_services_and_unreadable_lists_offer_no_candidates() {
+    let backend = TestBackend::new(false);
+    let app = backend.app();
+    // Not OpenRouter: nothing is read.
+    for base_url in [
+        "https://api.openai.com/v1",
+        "http://openrouter.ai/api/v1",
+        "",
+    ] {
+        let (status, body) = candidates(&app, "agent", base_url).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, json!({"models": []}), "{base_url}");
+    }
+    // OpenRouter that does not answer.
+    let port = std::net::TcpListener::bind("127.0.0.1:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let unreachable = format!("http://127.0.0.1:{port}/api/v1");
+    save(&backend, &[("openrouter_base_url", &unreachable)]);
+    for role in ["agent", "analysis", "image"] {
+        let (status, body) = candidates(&app, role, &unreachable).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(body, json!({"models": []}), "{role}");
+    }
+    let (status, _) = candidates(&app, "other", &unreachable).await;
+    assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
 // --- Connection test -------------------------------------------------------

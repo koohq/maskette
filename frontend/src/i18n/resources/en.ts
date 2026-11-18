@@ -329,7 +329,8 @@ const en: TranslationResource = {
       },
     },
     sameAsAgent: "Empty uses the chat assistant's: {{value}}",
-    analysisKeyHint: "If empty, the chat assistant's key is reused for the same URL, or the Ark key for the Ark URL.",
+    analysisKeyHint:
+      "If empty, the chat assistant's key is reused for the same URL, or the Volcengine Ark key for Ark's URL.",
     analysisExtraBodyHint:
       'Sent with every analysis request (e.g. OpenRouter\'s reasoning effort: {"reasoning": {"effort": "medium"}}). If empty, the chat assistant\'s fields are reused only when the URL is the same. Enter {} to send none.',
     visionRequired: "The model must accept image input (multimodal), otherwise analysis fails.",
@@ -357,7 +358,7 @@ const en: TranslationResource = {
     keyReplace: "Leave empty to keep it, type a new key to replace it",
     keyClear: "Clear the key saved here",
     keyUndoClear: "Undo",
-    agentKeyHint: "If empty and the base URL is the Ark endpoint, the Ark image key is reused.",
+    agentKeyHint: "If empty and the base URL is Volcengine Ark's, the Ark image key is reused.",
     keyStorageNote:
       "API keys are kept in the credential store of your OS (Windows Credential Manager, macOS Keychain), not in a file. They are never shown on this page.",
     providers: {
@@ -366,16 +367,59 @@ const en: TranslationResource = {
       codex: "Codex CLI",
       siliconflow: "SiliconFlow",
       openrouter: "OpenRouter",
-      ark: "Volcengine Ark Seedream",
+      ark: "Volcengine Ark",
       fixture: "Test fixtures",
     },
+    providerNotes: {
+      openai_compatible: "An OpenAI-compatible API, such as OpenRouter, OpenAI or Google Gemini, with an API key.",
+      claude_code: "Claude Code on this computer, signed in with a paid Claude plan.",
+      codex: "Codex CLI on this computer, signed in with a paid ChatGPT plan.",
+      openrouter: "One API key for the image models of many vendors.",
+      siliconflow: "SiliconFlow's image models, with an API key.",
+      ark: "Seedream, the image model on Volcengine Ark, with an API key.",
+      fixture: "For development: returns fixed sample results without any AI.",
+      image_provider: {
+        codex: "Generates images with Codex CLI on this computer, signed in with a paid ChatGPT plan.",
+        fixture: "For development: returns fixed sample images without any AI.",
+      },
+    },
+    urlPresets: {
+      label: "Presets",
+      openrouter: "OpenRouter",
+      openai: "OpenAI",
+      gemini: "Google Gemini",
+      ark: "Volcengine Ark",
+      siliconflow: "SiliconFlow",
+    },
+    urlNotes: {
+      gemini: "For Google Gemini, enter the model name without models/.",
+      ark: "The default URL is the mainland China service. The international BytePlus ModelArk (https://ark.ap-southeast.bytepluses.com/api/v3) has its own API keys and model names (e.g. dola-seedream-… instead of doubao-seedream-…). It has not been tried with this app.",
+      siliconflow:
+        "The default URL is the mainland China service. The international one (https://api.siliconflow.com/v1) has separate accounts and API keys; a key works only with the URL of the service that issued it.",
+    },
+    analysisSameAsAgent: "Use the chat assistant's settings for analysis too",
+    analysisFollows: "Analysis runs on the chat assistant's {{backend}}.",
+    analysisFollowsModel:
+      "Analysis uses {{model}} on the chat assistant's {{backend}}. The model must accept image input.",
+    modelListShow: "Show the model list",
+    modelListNote: {
+      agent: "OpenRouter models that support tool calling. Prices in US dollars per million input / output tokens.",
+      analysis: "OpenRouter models that accept images. Prices in US dollars per million input / output tokens.",
+      image: "OpenRouter image models that accept reference images. Prices in US dollars for the generated image.",
+    },
+    modelPrice: {
+      perImage: "{{price}} / image",
+      perMillionTokens: "{{price}} / 1M tokens",
+      free: "Free",
+    },
+    modelNoMatch: "No model matches. The name you typed can still be used.",
     status: {
       agent_llm_key: "Needs an API key",
       analysis_llm_key: "Needs an API key (or the chat assistant's key)",
       claude_cli: "Needs the claude command on this machine",
       codex_cli: "Needs the codex command on this machine",
       siliconflow_key: "Needs a SiliconFlow API key",
-      ark_key: "Needs an Ark API key",
+      ark_key: "Needs a Volcengine Ark API key",
       openrouter_key: "Needs an OpenRouter API key (or the analysis / chat key for OpenRouter)",
     },
   },

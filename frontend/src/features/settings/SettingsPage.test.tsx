@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
 import { SettingsPage } from "./SettingsPage";
-import type { BackendSettings } from "./settingsApi";
+import type { BackendSettings, ModelCandidate } from "./settingsApi";
 
 const initial: BackendSettings = {
   values: {
@@ -28,8 +28,8 @@ const initial: BackendSettings = {
   overridden: [],
   options: {
     agent_llm_provider: ["openai_compatible", "codex", "claude_code"],
-    llm_provider: ["openai_compatible", "codex", "claude_code"],
-    image_provider: ["codex", "openrouter", "siliconflow", "ark"],
+    llm_provider: ["same_as_agent", "openai_compatible", "codex", "claude_code"],
+    image_provider: ["openrouter", "codex", "siliconflow", "ark"],
   },
   secrets: {
     agent_llm_api_key: { set: false, source: "", hint: "" },
@@ -48,6 +48,15 @@ const initial: BackendSettings = {
     openrouter_key: true,
   },
 };
+
+/** Answers the settings API: the model lists with `models` (none by default), everything else with `settings`. */
+function backend(settings: BackendSettings, models: (url: string) => ModelCandidate[] = () => []) {
+  return vi.fn(async (url: string, _init?: RequestInit) =>
+    url.startsWith("/api/settings/models/")
+      ? new Response(JSON.stringify({ models: models(url) }))
+      : new Response(JSON.stringify(settings)),
+  );
+}
 
 function renderPage() {
   return render(
@@ -84,7 +93,7 @@ describe("SettingsPage", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage();
 
-    const siliconflow = await screen.findByRole("radio", { name: "SiliconFlow" });
+    const siliconflow = await screen.findByRole("radio", { name: "硅基流动 SiliconFlow" });
     expect(screen.getByRole("button", { name: "保存" })).toHaveProperty("disabled", true);
     fireEvent.click(siliconflow);
     expect(screen.getByDisplayValue("sf-model")).toBeTruthy();
@@ -114,10 +123,7 @@ describe("SettingsPage", () => {
     fireEvent.click(await screen.findByRole("radio", { name: "OpenRouter" }));
     expect(screen.getByDisplayValue("https://openrouter.ai/api/v1")).toBeTruthy();
     // The model field is the one whose hint points at the image model list.
-    const modelInput = screen
-      .getByText(/images\/models/)
-      .closest("label")
-      ?.querySelector("input");
+    const modelInput = screen.getByText(/images\/models/).parentElement?.querySelector("input");
     expect(modelInput).toBeTruthy();
     fireEvent.change(modelInput as HTMLInputElement, { target: { value: "vendor/image-model" } });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
@@ -146,7 +152,7 @@ describe("SettingsPage", () => {
     vi.stubGlobal("fetch", fetchMock);
     renderPage();
 
-    fireEvent.click(await screen.findByRole("radio", { name: "火山方舟 Seedream" }));
+    fireEvent.click(await screen.findByRole("radio", { name: "火山方舟" }));
     expect(screen.getByText("需要填写方舟 API Key")).toBeTruthy();
     fireEvent.change(screen.getAllByPlaceholderText("粘贴 API Key").at(-1)!, {
       target: { value: " ark-new-key-9999 " },
@@ -168,7 +174,7 @@ describe("SettingsPage", () => {
   });
 
   it("lets the analysis LLM use an OpenAI-compatible API that defaults to the chat assistant", async () => {
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify(initial)));
+    const fetchMock = backend(initial);
     vi.stubGlobal("fetch", fetchMock);
     renderPage();
 
@@ -183,10 +189,7 @@ describe("SettingsPage", () => {
   });
 
   it("reuses the chat assistant's extra fields only while analysis shares its URL", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify(initial))),
-    );
+    vi.stubGlobal("fetch", backend(initial));
     renderPage();
 
     const analysis = await screen.findByRole("radiogroup", { name: "参考图分析 LLM" });
@@ -261,10 +264,7 @@ describe("SettingsPage", () => {
   });
 
   it("recommends the API-key backends and notes the subscription CLIs are for personal use", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify(initial))),
-    );
+    vi.stubGlobal("fetch", backend(initial));
     renderPage();
 
     await screen.findAllByText("推荐");
@@ -313,10 +313,7 @@ describe("SettingsPage", () => {
 
   it("says a saved Codex Bridge is gone and offers no Bridge fields", async () => {
     const saved = { ...initial, values: { ...initial.values, image_provider: "codex_bridge" } };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify(saved))),
-    );
+    vi.stubGlobal("fetch", backend(saved));
     renderPage();
 
     expect((await screen.findByRole("alert")).textContent).toBe("Codex Bridge 已不再提供，请选择 Codex 或其他后端。");
@@ -327,12 +324,145 @@ describe("SettingsPage", () => {
 
   it("warns when the selected backend is not configured", async () => {
     const unconfigured = { ...initial, values: { ...initial.values, image_provider: "ark" } };
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(JSON.stringify(unconfigured))),
-    );
+    vi.stubGlobal("fetch", backend(unconfigured));
     renderPage();
 
     expect(await screen.findByText("需要填写方舟 API Key")).toBeTruthy();
+  });
+
+  it("describes every choice in one line", async () => {
+    vi.stubGlobal("fetch", backend(initial));
+    renderPage();
+
+    await screen.findByRole("radiogroup", { name: "生图后端" });
+    const radios = ["对话助手 LLM", "参考图分析 LLM", "生图后端"].flatMap((name) =>
+      within(screen.getByRole("radiogroup", { name })).getAllByRole("radio"),
+    );
+    // Chat 2, analysis 3 (unfolded: it is on Codex), images 4.
+    expect(radios).toHaveLength(9);
+    for (const radio of radios) {
+      const note = document.getElementById(radio.getAttribute("aria-describedby") ?? "");
+      expect(note?.textContent, radio.getAttribute("value") ?? "").toBeTruthy();
+    }
+    expect(screen.getByText("通过 API Key 使用硅基流动的图像模型。")).toBeTruthy();
+    expect(screen.getByText("用本机的 Codex CLI 生成图片，以 ChatGPT 付费订阅登录。")).toBeTruthy();
+    // The image backends list the recommended one first, as the other roles do.
+    const images = screen.getByRole("radiogroup", { name: "生图后端" });
+    expect([...images.querySelectorAll("input")].map((input) => input.value)).toEqual([
+      "openrouter",
+      "codex",
+      "siliconflow",
+      "ark",
+    ]);
+  });
+
+  it("folds analysis onto the chat assistant's settings and unfolds it to a backend of its own", async () => {
+    const following = { ...initial, values: { ...initial.values, llm_provider: "same_as_agent" } };
+    const fetchMock = backend(following);
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const same = await screen.findByRole("checkbox", { name: "分析也使用对话助手的设置" });
+    expect(same).toHaveProperty("checked", true);
+    expect(screen.queryByRole("radiogroup", { name: "参考图分析 LLM" })).toBeNull();
+    expect(
+      screen.getByText("分析使用与对话助手相同的“OpenAI 兼容 API”中的 chat-model。该模型需要支持图片输入。"),
+    ).toBeTruthy();
+    // The shared model can be tested for image input without unfolding.
+    expect(screen.getByTestId("probe-analysis")).toBeTruthy();
+
+    fireEvent.click(screen.getAllByRole("radio", { name: "Claude Code CLI" })[0] as HTMLElement);
+    expect(screen.getByText("分析使用与对话助手相同的“Claude Code CLI”。")).toBeTruthy();
+    expect(screen.queryByTestId("probe-analysis")).toBeNull();
+
+    // Unfolded, analysis keeps the backend it was using.
+    fireEvent.click(same);
+    const analysis = screen.getByRole("radiogroup", { name: "参考图分析 LLM" });
+    expect(analysis.querySelector<HTMLInputElement>('input[value="claude_code"]')?.checked).toBe(true);
+    expect(analysis.querySelector('input[value="same_as_agent"]')).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      values: { agent_llm_provider: "claude_code", llm_provider: "claude_code" },
+    });
+  });
+
+  it("shows analysis settings of its own unfolded, and folds them back", async () => {
+    const fetchMock = backend(initial);
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const same = await screen.findByRole("checkbox", { name: "分析也使用对话助手的设置" });
+    expect(same).toHaveProperty("checked", false);
+    fireEvent.click(same);
+    expect(screen.queryByRole("radiogroup", { name: "参考图分析 LLM" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ values: { llm_provider: "same_as_agent" } });
+  });
+
+  it("fills the API URL from a preset", async () => {
+    vi.stubGlobal("fetch", backend(initial));
+    renderPage();
+
+    const chat = (await screen.findByRole("radiogroup", { name: "对话助手 LLM" })).closest("section") as HTMLElement;
+    const presets = within(chat).getByRole("group", { name: "预设" });
+    fireEvent.click(within(presets).getByRole("button", { name: "Google Gemini" }));
+
+    expect(within(chat).getByDisplayValue("https://generativelanguage.googleapis.com/v1beta/openai")).toBeTruthy();
+    expect(within(presets).getByRole("button", { name: "Google Gemini" }).getAttribute("aria-pressed")).toBe("true");
+    expect(within(chat).getByText("Google Gemini 的模型名不要加 models/。")).toBeTruthy();
+    // Volcengine Ark's is the URL of the Ark image settings, so the chat can reuse the Ark key.
+    fireEvent.click(within(presets).getByRole("button", { name: "火山方舟" }));
+    expect(within(chat).getByDisplayValue("https://ark.cn-beijing.volces.com/api/plan/v3")).toBeTruthy();
+  });
+
+  it("offers OpenRouter's models with their prices and still takes a typed name", async () => {
+    const fetchMock = backend(initial, (url) =>
+      url.startsWith("/api/settings/models/agent?") && url.includes(encodeURIComponent("https://openrouter.ai/api/v1"))
+        ? [
+            {
+              id: "google/gemini-3.8-flash",
+              name: "Google: Gemini 3.8 Flash",
+              price: { unit: "token", input: 0.3, output: 2.5 },
+            },
+            { id: "vendor/free-model", name: "", price: { unit: "token", input: 0, output: 0 } },
+          ]
+        : [],
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const model = await screen.findByDisplayValue("chat-model");
+    // Not OpenRouter: a plain field.
+    expect(model.getAttribute("role")).toBeNull();
+    const chat = screen.getByRole("radiogroup", { name: "对话助手 LLM" }).closest("section") as HTMLElement;
+    fireEvent.click(within(chat).getByRole("button", { name: "OpenRouter" }));
+
+    const combobox = await within(chat).findByRole("combobox");
+    fireEvent.click(within(chat).getByRole("button", { name: "展开模型列表" }));
+    const list = within(chat).getByRole("listbox");
+    expect(within(list).getByRole("option", { name: /^google\/gemini-3\.8-flash ?\$0\.3 \/ \$2\.5$/ })).toBeTruthy();
+    expect(within(list).getByRole("option", { name: /^vendor\/free-model ?免费$/ })).toBeTruthy();
+    expect(within(chat).getByText(/支持工具调用的模型/)).toBeTruthy();
+    fireEvent.click(within(list).getByRole("option", { name: /gemini/ }));
+    expect((combobox as HTMLInputElement).value).toBe("google/gemini-3.8-flash");
+    expect(within(chat).queryByRole("listbox")).toBeNull();
+
+    // Typing filters the list, and a name it does not have stays as typed.
+    fireEvent.change(combobox, { target: { value: "FREE" } });
+    expect(
+      within(chat)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toEqual(["vendor/free-model免费"]);
+    fireEvent.change(combobox, { target: { value: "vendor/unlisted" } });
+    expect(within(chat).getByText("没有匹配的模型。输入的模型名也可以直接使用。")).toBeTruthy();
+    fireEvent.keyDown(combobox, { key: "Escape" });
+    expect((combobox as HTMLInputElement).value).toBe("vendor/unlisted");
   });
 });

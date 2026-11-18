@@ -6,6 +6,7 @@
 //! four characters. `GET /api/settings/prompts` (the prompt inventory) is
 //! served by [`crate::backend::prompts`].
 
+pub mod models;
 pub mod probe;
 pub mod secrets;
 pub mod store;
@@ -13,13 +14,15 @@ pub mod store;
 use std::collections::BTreeMap;
 
 use axum::extract::rejection::JsonRejection;
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
+use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
 use super::SharedState;
 use super::error::ApiError;
+use models::CandidatesOut;
 use probe::ProbeOut;
 use store::{FIELDS, Settings, SettingsStore, UpdateError};
 
@@ -32,6 +35,7 @@ pub fn routes() -> Router<SharedState> {
                 .delete(reset_settings),
         )
         .route("/api/settings/probe/{role}", post(probe_backend))
+        .route("/api/settings/models/{role}", get(model_candidates))
 }
 
 #[derive(Serialize, Debug, PartialEq, Eq)]
@@ -189,11 +193,41 @@ async fn probe_backend(
         "agent" if settings.get("agent_llm_provider") == "openai_compatible" => {
             Ok(Json(probe::probe_agent(&settings, &state.chat).await))
         }
-        "analysis" if settings.llm_provider() == "openai_compatible" => {
+        "analysis" if settings.analysis_provider() == "openai_compatible" => {
             Ok(Json(probe::probe_analysis(&settings, &state.chat).await))
         }
         _ => Err(ApiError::bad_request("probe_unsupported")),
     }
+}
+
+#[derive(Deserialize)]
+struct ModelsQuery {
+    /// The URL in the form, which may not be saved yet.
+    #[serde(default)]
+    base_url: String,
+}
+
+/// The models a role's model field offers for `base_url` (none unless it is
+/// OpenRouter). Free: the lists need no key.
+async fn model_candidates(
+    State(state): State<SharedState>,
+    Path(role): Path<String>,
+    Query(query): Query<ModelsQuery>,
+) -> Result<Json<CandidatesOut>, ApiError> {
+    let role = models::Role::parse(&role)
+        .ok_or_else(|| ApiError::new(StatusCode::NOT_FOUND, "Not Found"))?;
+    let settings = state.settings.settings();
+    Ok(Json(
+        models::candidates(
+            &state.generation.client,
+            &state.model_lists,
+            &state.generation.models,
+            &settings,
+            role,
+            &query.base_url,
+        )
+        .await,
+    ))
 }
 
 #[cfg(test)]

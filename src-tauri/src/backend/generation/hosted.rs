@@ -15,7 +15,7 @@
 //! fixed. Neither was tried against the real service in the old fork.
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use image::RgbImage;
@@ -59,9 +59,10 @@ const SILICONFLOW_RETRIES: usize = 3;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
 const MAX_INPUT_SIDE: u32 = 2048;
 
-/// The `supported_parameters` of every model, by base URL, with when they
-/// were read. Cleared on restart.
-pub type ModelCache = Mutex<HashMap<String, (Instant, HashMap<String, JsonObject>)>>;
+/// The image models as listed, by base URL, with when they were read. Both
+/// generation (for a model's `supported_parameters`) and the settings page
+/// (for the model candidates) read it. Cleared on restart.
+pub type ModelCache = Mutex<HashMap<String, (Instant, Arc<Vec<JsonObject>>)>>;
 
 #[derive(Debug, Clone)]
 pub enum HostedApi {
@@ -252,35 +253,19 @@ async fn model_parameters(
     api_key: &str,
     model: &str,
 ) -> Option<JsonObject> {
-    let fresh = |cache: &ModelCache| {
-        let cache = cache
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        cache
-            .get(base_url)
-            .filter(|(read_at, _)| read_at.elapsed() <= MODELS_TTL)
-            .map(|(_, models)| models.get(model).cloned())
-    };
-    let parameters = match fresh(cache) {
-        Some(parameters) => parameters,
-        None => {
-            let models = match fetch_models(client, base_url, api_key).await {
-                Ok(models) => models,
-                Err(error) => {
-                    log::warn!(
-                        "OpenRouter image model list unavailable ({error}); using default parameters"
-                    );
-                    return None;
-                }
-            };
-            let parameters = models.get(model).cloned();
-            cache
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .insert(base_url.to_owned(), (Instant::now(), models));
-            parameters
+    let models = match image_models(client, cache, base_url, api_key).await {
+        Ok(models) => models,
+        Err(error) => {
+            log::warn!(
+                "OpenRouter image model list unavailable ({error}); using default parameters"
+            );
+            return None;
         }
     };
+    let parameters = models
+        .iter()
+        .find(|item| model_id(item).as_deref() == Some(model))
+        .map(supported_parameters);
     if parameters.is_none() {
         log::warn!(
             "OpenRouter image model {model} is not in the model list; using default parameters"
@@ -289,11 +274,53 @@ async fn model_parameters(
     parameters
 }
 
+/// The image models listed at `GET {base}/images/models`, from the cache
+/// while it is fresh. Each has an [`model_id`].
+pub async fn image_models(
+    client: &reqwest::Client,
+    cache: &ModelCache,
+    base_url: &str,
+    api_key: &str,
+) -> Result<Arc<Vec<JsonObject>>, String> {
+    let fresh = cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .get(base_url)
+        .filter(|(read_at, _)| read_at.elapsed() <= MODELS_TTL)
+        .map(|(_, models)| models.clone());
+    if let Some(models) = fresh {
+        return Ok(models);
+    }
+    let models = Arc::new(fetch_models(client, base_url, api_key).await?);
+    cache
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(base_url.to_owned(), (Instant::now(), models.clone()));
+    Ok(models)
+}
+
+/// A listed model's id; `None` when it has none.
+pub fn model_id(item: &JsonObject) -> Option<String> {
+    match item.get("id")? {
+        Value::String(id) if !id.is_empty() => Some(id.clone()),
+        Value::String(_) | Value::Null => None,
+        other => Some(other.to_string()),
+    }
+}
+
+/// A listed model's `supported_parameters`; empty when it lists none.
+pub fn supported_parameters(item: &JsonObject) -> JsonObject {
+    match item.get("supported_parameters") {
+        Some(Value::Object(parameters)) => parameters.clone(),
+        _ => JsonObject::new(),
+    }
+}
+
 async fn fetch_models(
     client: &reqwest::Client,
     base_url: &str,
     api_key: &str,
-) -> Result<HashMap<String, JsonObject>, String> {
+) -> Result<Vec<JsonObject>, String> {
     let mut request = client
         .get(format!("{base_url}/images/models"))
         .timeout(MODELS_TIMEOUT);
@@ -313,17 +340,9 @@ async fn fetch_models(
     .ok_or("unexpected model list")?;
     Ok(items
         .iter()
-        .filter_map(|item| {
-            let id = match item.get("id")? {
-                Value::String(id) if !id.is_empty() => id.clone(),
-                Value::String(_) | Value::Null => return None,
-                other => other.to_string(),
-            };
-            let parameters = match item.get("supported_parameters") {
-                Some(Value::Object(parameters)) => parameters.clone(),
-                _ => JsonObject::new(),
-            };
-            Some((id, parameters))
+        .filter_map(|item| match item {
+            Value::Object(item) if model_id(item).is_some() => Some(item.clone()),
+            _ => None,
         })
         .collect())
 }

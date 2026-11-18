@@ -58,6 +58,20 @@ const fn secret(key: &'static str) -> Field {
 const ARK_BASE_URL: &str = "https://ark.cn-beijing.volces.com/api/plan/v3";
 const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 
+/// The `llm_provider` that runs analysis on the chat assistant's backend,
+/// with the chat's URL, key and model when that is the OpenAI-compatible API.
+pub const SAME_AS_AGENT: &str = "same_as_agent";
+
+/// The analysis settings of its own OpenAI-compatible endpoint. While all of
+/// them keep their defaults, an unset `llm_provider` follows the chat
+/// assistant; see [`Settings::llm_provider`].
+const ANALYSIS_FIELDS: [&str; 4] = [
+    "analysis_llm_base_url",
+    "analysis_llm_model",
+    "analysis_llm_api_key",
+    "analysis_llm_extra_body",
+];
+
 /// The settings the settings page may change, in the old backend's order.
 ///
 /// The defaults put all three roles on OpenRouter, so one key is enough to
@@ -87,11 +101,18 @@ pub const FIELDS: &[Field] = &[
     // Empty for the CLIs means their own default model.
     text("agent_codex_model", ""),
     text("agent_claude_code_model", ""),
-    // Empty for the two backend choices means the fixtures in debug builds
-    // and OpenRouter (through the chat's endpoint for analysis) otherwise.
+    // Empty for the two backend choices means the fixtures in debug builds.
+    // Otherwise analysis follows the chat assistant (see `llm_provider()`)
+    // and images go to OpenRouter.
     choice(
         "llm_provider",
-        &["openai_compatible", "codex", "claude_code", "fixture"],
+        &[
+            SAME_AS_AGENT,
+            "openai_compatible",
+            "codex",
+            "claude_code",
+            "fixture",
+        ],
     ),
     text("analysis_llm_base_url", ""),
     text("analysis_llm_model", ""),
@@ -99,9 +120,10 @@ pub const FIELDS: &[Field] = &[
         "analysis_llm_extra_body",
         r#"{"reasoning": {"effort": "medium"}}"#,
     ),
+    // The recommended one first, as for the other two roles.
     choice(
         "image_provider",
-        &["codex", "openrouter", "siliconflow", "ark", "fixture"],
+        &["openrouter", "codex", "siliconflow", "ark", "fixture"],
     ),
     text("siliconflow_base_url", "https://api.siliconflow.cn/v1"),
     text("siliconflow_image_model", "Qwen/Qwen-Image-Edit-2509"),
@@ -205,15 +227,44 @@ impl Settings {
         self.values.get(key).map_or("", String::as_str)
     }
 
-    /// The backend for reference analysis: when unset, the fixture in
-    /// debug builds and the chat API otherwise.
+    /// How reference analysis is set up: [`SAME_AS_AGENT`] or a backend of
+    /// its own. Unset, it is the fixture in debug builds. Otherwise it
+    /// follows the chat assistant, unless an analysis setting was changed:
+    /// before analysis could follow the chat, an unset `llm_provider` meant
+    /// the OpenAI-compatible API, and those settings keep meaning that.
     pub fn llm_provider(&self) -> &str {
-        let fallback = if self.allow_fixture {
+        let saved = self.get("llm_provider").trim();
+        if !saved.is_empty() {
+            saved
+        } else if self.allow_fixture {
             "fixture"
-        } else {
+        } else if self.analysis_fields_changed() {
             "openai_compatible"
-        };
-        non_empty_or(self.get("llm_provider").trim(), fallback)
+        } else {
+            SAME_AS_AGENT
+        }
+    }
+
+    fn analysis_fields_changed(&self) -> bool {
+        ANALYSIS_FIELDS
+            .iter()
+            .any(|key| self.get(key).trim() != field(key).map_or("", |field| field.default))
+    }
+
+    /// Whether analysis uses the chat assistant's backend and endpoint.
+    pub fn analysis_follows_agent(&self) -> bool {
+        self.llm_provider() == SAME_AS_AGENT
+    }
+
+    /// The backend analysis runs on. Following the chat assistant, it is the
+    /// chat's backend: both settings name a backend the same way, so any
+    /// chat backend that can also analyse works without a list of its own.
+    pub fn analysis_provider(&self) -> &str {
+        if self.analysis_follows_agent() {
+            self.get("agent_llm_provider").trim()
+        } else {
+            self.llm_provider()
+        }
     }
 
     /// The backend for image generation: when unset, the fixture in debug
@@ -239,10 +290,18 @@ impl Settings {
         String::new()
     }
 
-    /// Base URL, API key and model for analysis; empty values fall back to
-    /// the chat assistant's endpoint.
+    /// Base URL, API key and model for analysis: the chat assistant's while
+    /// analysis follows it. Otherwise empty values fall back to the chat
+    /// assistant's.
     pub fn analysis_endpoint(&self) -> (String, String, String) {
         let agent_base = base(self.get("agent_llm_base_url"));
+        if self.analysis_follows_agent() {
+            return (
+                agent_base.to_owned(),
+                self.agent_api_key(),
+                self.get("agent_llm_model").trim().to_owned(),
+            );
+        }
         let base_url = non_empty_or(base(self.get("analysis_llm_base_url")), agent_base);
         let model = non_empty_or(
             self.get("analysis_llm_model").trim(),
@@ -281,13 +340,17 @@ impl Settings {
         chat_api::parse_extra_body(self.get("agent_llm_extra_body")).unwrap_or_default()
     }
 
-    /// Extra request fields for analysis. Empty reuses the chat assistant's
-    /// fields only while analysis shares its URL: they are vendor specific
-    /// (e.g. Doubao's `thinking`) and must not leak to another service.
-    /// `{}` sends none even on a shared URL.
+    /// Extra request fields for analysis. Following the chat assistant, the
+    /// built-in ones (more reasoning than the chat's). Otherwise empty reuses
+    /// the chat assistant's fields only while analysis shares its URL: they
+    /// are vendor specific (e.g. Doubao's `thinking`) and must not leak to
+    /// another service. `{}` sends none even on a shared URL.
     pub fn analysis_extra_body(&self) -> JsonObject {
         let mut raw = self.get("analysis_llm_extra_body");
         let mut name = "analysis_llm_extra_body";
+        if self.analysis_follows_agent() {
+            raw = field(name).map_or("", |field| field.default);
+        }
         if raw.trim().is_empty() {
             let agent_base = base(self.get("agent_llm_base_url"));
             if non_empty_or(base(self.get("analysis_llm_base_url")), agent_base) != agent_base {

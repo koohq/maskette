@@ -693,6 +693,113 @@
   outline: none;
 }
 
+/* A text field with a list of candidates (the model fields on the settings page). */
+.ide-combobox-toggle {
+  align-items: center;
+  border-radius: 4px;
+  color: var(--ide-text-muted);
+  display: flex;
+  height: 24px;
+  justify-content: center;
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+}
+
+.ide-combobox-toggle:hover {
+  background: var(--ide-hover);
+  color: var(--ide-text);
+}
+
+.ide-combobox-popup {
+  background: var(--ide-panel);
+  border: 1px solid var(--ide-border-strong);
+  border-radius: 6px;
+  box-shadow: var(--ide-shadow);
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+}
+
+.ide-combobox-note {
+  border-bottom: 1px solid var(--ide-border);
+  color: var(--ide-text-muted);
+  font-size: 11px;
+  padding: 6px 10px;
+}
+
+.ide-combobox-list {
+  list-style: none;
+  margin: 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.ide-combobox-option {
+  align-items: baseline;
+  border-radius: 4px;
+  color: var(--ide-text);
+  cursor: pointer;
+  display: flex;
+  font-size: 13px;
+  gap: 12px;
+  padding: 4px 8px;
+}
+
+.ide-combobox-option:hover,
+.ide-combobox-option[aria-selected="true"] {
+  background: var(--ide-hover);
+}
+
+/* A long model id is cut with "…"; the option's title has the model's name. */
+.ide-combobox-id {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ide-combobox-price {
+  color: var(--ide-text-faint);
+  flex: none;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Buttons that fill a field with a ready-made value (the API URL presets). */
+.ide-preset {
+  border: 1px solid var(--ide-border);
+  border-radius: 999px;
+  color: var(--ide-text-muted);
+  font-size: 11px;
+  line-height: 16px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+
+.ide-preset:hover:not(:disabled) {
+  border-color: var(--ide-border-strong);
+  color: var(--ide-text);
+}
+
+.ide-preset[aria-pressed="true"] {
+  background: var(--ide-accent-soft);
+  border-color: transparent;
+  color: var(--ide-accent);
+}
+
+.ide-preset:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* Agent panel */
 .ide-agent-resizer {
   cursor: col-resize;
