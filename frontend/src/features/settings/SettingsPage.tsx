@@ -125,7 +125,15 @@ export function SettingsPage() {
               title={t("settings.agentSection")}
               value={form["agent_llm_provider"]}
             >
-              {form["agent_llm_provider"] === "claude_code" ? (
+              {form["agent_llm_provider"] === "codex" ? (
+                <TextField
+                  disabled={disabled}
+                  label={t("settings.model")}
+                  onChange={set("agent_codex_model")}
+                  placeholder={t("settings.modelDefault")}
+                  value={form["agent_codex_model"]}
+                />
+              ) : form["agent_llm_provider"] === "claude_code" ? (
                 <TextField
                   disabled={disabled}
                   label={t("settings.model")}

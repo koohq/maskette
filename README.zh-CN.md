@@ -29,7 +29,7 @@ Maskette 是一款根据角色立绘设计 Kigurumi 头壳的桌面应用。
 
 - 最简单的方式是填写一个 [OpenRouter](https://openrouter.ai/) 的 API Key。对话、参考图分析、生图这三项都能用它完成，按用量向 OpenRouter 付费。
 - API Key 保存在 Windows 凭据管理器中，不会写入文件。
-- 也可以调用已用 ChatGPT 或 Claude 个人订阅登录的 CLI（Codex CLI、Claude Code）。请仅在自己的电脑上自己使用。
+- 也可以调用已用 ChatGPT 或 Claude 个人订阅登录的 CLI：Codex CLI 可用于对话、参考图分析和生图，Claude Code 可用于对话和参考图分析。只有 ChatGPT 订阅时，把设置里的“对话助手 LLM”“参考图分析 LLM”“生图后端”都选为 Codex CLI 即可，不需要 API Key。请仅在自己的电脑上自己使用。
 
 ## 眼睛和立绘不一样时
 

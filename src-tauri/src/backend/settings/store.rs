@@ -73,7 +73,10 @@ const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 pub const FIELDS: &[Field] = &[
     Field {
         default: "openai_compatible",
-        ..choice("agent_llm_provider", &["openai_compatible", "claude_code"])
+        ..choice(
+            "agent_llm_provider",
+            &["openai_compatible", "codex", "claude_code"],
+        )
     },
     text("agent_llm_base_url", OPENROUTER_BASE_URL),
     text("agent_llm_model", "google/gemini-3.8-flash"),
@@ -81,6 +84,8 @@ pub const FIELDS: &[Field] = &[
         "agent_llm_extra_body",
         r#"{"reasoning": {"effort": "low"}}"#,
     ),
+    // Empty for the CLIs means their own default model.
+    text("agent_codex_model", ""),
     text("agent_claude_code_model", ""),
     // Empty for the two backend choices means the fixtures in debug builds
     // and OpenRouter (through the chat's endpoint for analysis) otherwise.

@@ -146,6 +146,7 @@ pub struct Cli {
     pub codex_home: Option<PathBuf>,
     pub codex_image_timeout: Duration,
     pub codex_analysis_timeout: Duration,
+    pub codex_chat_timeout: Duration,
     pub claude_timeout: Duration,
 }
 
@@ -167,6 +168,8 @@ impl Cli {
             // 1 to 2 minutes.
             codex_image_timeout: Duration::from_secs(900),
             codex_analysis_timeout: Duration::from_secs(240),
+            // One chat step, like Claude Code's.
+            codex_chat_timeout: Duration::from_secs(240),
             claude_timeout: Duration::from_secs(240),
         }
     }
@@ -191,7 +194,9 @@ impl Default for Cli {
 }
 
 /// The data folder's working folders for CLI runs (the old
-/// `runtime/codex` and `runtime/claude-code`).
+/// `runtime/codex` and `runtime/claude-code`). The chat assistant keeps its
+/// steps in the conversation's own folder instead (`agent/<id>/codex/`,
+/// `agent/<id>/claude-code/`).
 pub fn codex_root(data_dir: &Path) -> PathBuf {
     data_dir.join("codex")
 }

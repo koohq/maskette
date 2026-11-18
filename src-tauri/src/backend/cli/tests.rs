@@ -269,16 +269,12 @@ async fn the_chat_assistant_can_run_on_claude_code() {
             ),
         ])
         .unwrap();
-    let workspace = backend
-        .dir
-        .path()
-        .join("agent")
-        .join("c1")
-        .join("claude-code");
+    let conversation = backend.dir.path().join("agent").join("c1");
+    let workspace = conversation.join("claude-code");
     let backends = llm::Backends {
         chat: &backend.state.chat,
         cli: &backend.state.cli,
-        workspace: &workspace,
+        workspace: &conversation,
     };
     let tools = [ToolSpec {
         name: "analyze_references",
@@ -325,6 +321,192 @@ async fn the_chat_assistant_can_run_on_claude_code() {
     assert!(workspace.join("agent-turn-0001-prompt.md").is_file());
     assert!(workspace.join("agent-turn-0002-prompt.md").is_file());
     assert!(workspace.join("agent-turn-0002-output.json").is_file());
+}
+
+/// Codex's events for a run whose last message is `text`.
+fn codex_said(text: &str) -> Vec<u8> {
+    let message = json!({"type": "item.completed", "item": {"id": "item_0", "type": "agent_message", "text": text}});
+    let usage = json!({"type": "turn.completed", "usage": {"input_tokens": 10, "cached_input_tokens": 0, "output_tokens": 5}});
+    format!(
+        "{{\"type\":\"thread.started\",\"thread_id\":\"t-1\"}}\n{{\"type\":\"turn.started\"}}\n{message}\n{usage}\n"
+    )
+    .into_bytes()
+}
+
+fn codex_chat_backend(runner: &Arc<FakeRunner>, model: &str) -> TestBackend {
+    let backend = backend_with(runner);
+    backend
+        .state
+        .settings
+        .update(&[
+            ("agent_llm_provider".to_owned(), Some("codex".to_owned())),
+            ("agent_codex_model".to_owned(), Some(model.to_owned())),
+        ])
+        .unwrap();
+    backend
+}
+
+#[tokio::test]
+async fn the_chat_assistant_can_run_on_codex() {
+    let runner = fake(|invocation| {
+        // The answer comes from the -o file, like analysis.
+        std::fs::write(
+            arg_after(invocation, "-o"),
+            r#"{"reply": "参考画像を見ます", "tool_calls": [{"name": "analyze_references", "arguments": {}}]}"#,
+        )
+        .unwrap();
+        ok(codex_said("(the same answer)"))
+    });
+    let backend = codex_chat_backend(&runner, "gpt-test");
+    let conversation = backend.dir.path().join("agent").join("c1");
+    let workspace = conversation.join("codex");
+    let backends = llm::Backends {
+        chat: &backend.state.chat,
+        cli: &backend.state.cli,
+        workspace: &conversation,
+    };
+    let tools = [ToolSpec {
+        name: "analyze_references",
+        description: "Analyze.",
+        parameters: json!({"type": "object"}),
+    }];
+    let turn = llm::complete(
+        &backend.state.settings.settings(),
+        &backends,
+        "SYSTEM",
+        &[json!({"role": "user", "content": "<script>見て</script>"})],
+        &tools,
+    )
+    .await
+    .unwrap();
+    assert_eq!(turn.text, "参考画像を見ます");
+    assert_eq!(turn.tool_calls.len(), 1);
+    assert_eq!(turn.tool_calls[0].name, "analyze_references");
+
+    {
+        let calls = runner.calls.lock().unwrap();
+        let call = &calls[0];
+        assert_eq!(call.program, "codex");
+        assert_eq!(call.cwd, workspace);
+        assert_eq!(arg_after(call, "-C"), workspace);
+        assert_eq!(
+            arg_after(call, "-o"),
+            workspace.join("agent-turn-0001-last-message.txt")
+        );
+        assert!(
+            args(call)
+                .windows(2)
+                .any(|pair| pair == ["--sandbox", "read-only"])
+        );
+        assert!(args(call).windows(2).any(|pair| pair == ["-m", "gpt-test"]));
+        assert!(!args(call).contains(&"--image".to_owned()));
+        assert_eq!(call.timeout, Duration::from_secs(240));
+        let prompt = stdin(call);
+        assert!(prompt.starts_with("SYSTEM\n\n## Tools\n- analyze_references: Analyze."));
+        assert!(prompt.contains("[user] <script>見て</script>"));
+        assert!(prompt.ends_with(llm::CLI_REPLY_FORMAT));
+        for file in [
+            "prompt.md",
+            "events.jsonl",
+            "stderr.log",
+            "last-message.txt",
+        ] {
+            assert!(
+                workspace.join(format!("agent-turn-0001-{file}")).is_file(),
+                "{file}"
+            );
+        }
+    }
+
+    // The tool's result goes back in the next step, which keeps its own files.
+    let next = llm::complete(
+        &backend.state.settings.settings(),
+        &backends,
+        "SYSTEM",
+        &[
+            json!({"role": "user", "content": "見て"}),
+            turn.to_message(),
+            json!({"role": "tool", "tool_call_id": turn.tool_calls[0].id, "name": "analyze_references", "content": "{\"ok\":true}"}),
+        ],
+        &tools,
+    )
+    .await
+    .unwrap();
+    assert_eq!(next.tool_calls[0].name, "analyze_references");
+    let calls = runner.calls.lock().unwrap();
+    assert!(stdin(&calls[1]).contains(
+        "[assistant] 参考画像を見ます\n[assistant called analyze_references] {}\n[tool result] {\"ok\":true}\n"
+    ));
+    assert!(workspace.join("agent-turn-0001-prompt.md").is_file());
+    assert!(workspace.join("agent-turn-0002-prompt.md").is_file());
+    assert!(workspace.join("agent-turn-0002-events.jsonl").is_file());
+    // Nothing in Claude Code's folder.
+    assert!(!conversation.join("claude-code").exists());
+}
+
+#[tokio::test]
+async fn the_codex_chat_fails_with_the_cli_codes() {
+    async fn step(runner: Arc<FakeRunner>) -> Failure {
+        let backend = codex_chat_backend(&runner, "");
+        let conversation = backend.dir.path().join("agent").join("c1");
+        let backends = llm::Backends {
+            chat: &backend.state.chat,
+            cli: &backend.state.cli,
+            workspace: &conversation,
+        };
+        let settings = backend.state.settings.settings();
+        let messages = [json!({"role": "user", "content": "hello"})];
+        llm::complete(&settings, &backends, "S", &messages, &[])
+            .await
+            .unwrap_err()
+    }
+    let failed = |code: i32, stdout: &'static str, stderr: &'static str| {
+        fake(move |_| {
+            Ok(Output {
+                code: Some(code),
+                stdout: stdout.into(),
+                stderr: stderr.into(),
+            })
+        })
+    };
+
+    let missing = step(fake(|_| Err(RunError::NotFound))).await;
+    assert_eq!(missing.code, Some("cli_not_found"));
+    assert_eq!(
+        Value::Object(missing.params.clone()),
+        json!({"name": "Codex", "program": "codex"})
+    );
+    let slow = step(fake(|_| Err(RunError::TimedOut(Duration::from_secs(240))))).await;
+    assert_eq!(slow.code, Some("cli_timeout"));
+    assert_eq!(
+        Value::Object(slow.params.clone()),
+        json!({"name": "Codex", "seconds": 240})
+    );
+    let logged_out = step(failed(1, "", "Error: 401 Unauthorized")).await;
+    assert_eq!(logged_out.code, Some("cli_login_required"));
+    assert_eq!(
+        Value::Object(logged_out.params.clone()),
+        json!({"name": "Codex", "command": "codex login"})
+    );
+    let limited = step(failed(
+        1,
+        r#"{"type":"error","message":"You've hit your usage limit."}"#,
+        "",
+    ))
+    .await;
+    assert_eq!(limited.code, Some("cli_usage_limit"));
+    let empty = step(fake(|_| ok(codex_said("  ")))).await;
+    assert_eq!(empty.code, Some("cli_empty_reply"));
+    assert_eq!(empty.params["name"], json!("Codex"));
+    // An answer that came with a command is not used.
+    let ran = step(fake(|_| {
+        let mut events = b"{\"type\":\"item.completed\",\"item\":{\"type\":\"command_execution\",\"command\":\"type auth.json\"}}\n".to_vec();
+        events.extend(codex_said(r#"{"reply": "done", "tool_calls": []}"#));
+        ok(events)
+    }))
+    .await;
+    assert_eq!(ran.code, Some("cli_ran_command"));
+    assert_eq!(ran.params["detail"], json!("type auth.json"));
 }
 
 #[tokio::test]
@@ -426,6 +608,7 @@ fn codex_runs_read_only_without_the_shell() {
         workspace,
         &images,
         Path::new("w/last.txt"),
+        "",
     );
     let image_args: Vec<&str> = image_args.iter().map(|arg| arg.to_str().unwrap()).collect();
     assert_eq!(image_args[0], "exec");
@@ -446,9 +629,15 @@ fn codex_runs_read_only_without_the_shell() {
     assert!(image_args.ends_with(&["--", "-"]));
     assert!(!image_args.contains(&"--ephemeral"));
     assert!(!image_args.contains(&"image_generation"));
+    assert!(!image_args.contains(&"-m"));
 
-    let analysis_args =
-        codex::arguments(codex::Purpose::Analysis, workspace, &images, Path::new("l"));
+    let analysis_args = codex::arguments(
+        codex::Purpose::Analysis,
+        workspace,
+        &images,
+        Path::new("l"),
+        "",
+    );
     let analysis_args: Vec<&str> = analysis_args
         .iter()
         .map(|arg| arg.to_str().unwrap())
@@ -459,6 +648,61 @@ fn codex_runs_read_only_without_the_shell() {
             .windows(2)
             .any(|pair| pair == ["--disable", "image_generation"])
     );
+    assert!(analysis_args.contains(&"model_reasoning_effort=high"));
+}
+
+#[test]
+fn the_codex_chat_runs_read_only_without_tools_or_images() {
+    let args = codex::arguments(
+        codex::Purpose::Chat,
+        Path::new("w"),
+        &[],
+        Path::new("w/last.txt"),
+        " gpt-test ",
+    );
+    let args: Vec<&str> = args.iter().map(|arg| arg.to_str().unwrap()).collect();
+    assert_eq!(args[0], "exec");
+    // The same walls as analysis: no commands, apps, plugins, browser,
+    // computer use, sub-agents or web search, no user config or rules, no
+    // saved session, and no image tool.
+    for pair in [
+        ["--sandbox", "read-only"],
+        ["--disable", "shell_tool"],
+        ["--disable", "apps"],
+        ["--disable", "plugins"],
+        ["--disable", "browser_use"],
+        ["--disable", "computer_use"],
+        ["--disable", "multi_agent"],
+        ["--disable", "image_generation"],
+        ["-c", "web_search=disabled"],
+        ["-m", "gpt-test"],
+        ["-C", "w"],
+        ["-o", "w/last.txt"],
+    ] {
+        assert!(args.windows(2).any(|found| found == pair), "{pair:?}");
+    }
+    for flag in [
+        "--ignore-user-config",
+        "--ignore-rules",
+        "--ephemeral",
+        "--skip-git-repo-check",
+        "--json",
+    ] {
+        assert!(args.contains(&flag), "{flag}");
+    }
+    // It reads no images and keeps Codex's own reasoning default.
+    assert!(!args.contains(&"--image"));
+    assert!(!args.iter().any(|arg| arg.contains("reasoning")));
+    assert!(args.ends_with(&["--", "-"]));
+
+    let default_model = codex::arguments(
+        codex::Purpose::Chat,
+        Path::new("w"),
+        &[],
+        Path::new("l"),
+        "  ",
+    );
+    assert!(!default_model.iter().any(|arg| arg == "-m"));
 }
 
 #[test]

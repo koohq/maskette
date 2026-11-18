@@ -971,6 +971,155 @@ async fn the_claude_code_assistant_reports_a_missing_cli() {
     );
 }
 
+/// Stands in for the Codex CLI: `answer` gets the prompt and gives the last
+/// message, written where `-o` points; `None` never answers (until the run
+/// is dropped, which `dropped` records).
+struct FakeCodex {
+    prompts: Mutex<Vec<String>>,
+    dropped: Arc<AtomicUsize>,
+    answer: Box<dyn Fn(&str) -> Option<String> + Send + Sync>,
+}
+
+struct DropFlag(Arc<AtomicUsize>);
+
+impl Drop for DropFlag {
+    fn drop(&mut self) {
+        self.0.fetch_add(1, Ordering::SeqCst);
+    }
+}
+
+impl crate::backend::cli::Runner for FakeCodex {
+    fn run(
+        &self,
+        invocation: crate::backend::cli::Invocation,
+    ) -> crate::backend::cli::RunFuture<'_> {
+        let prompt = String::from_utf8(invocation.stdin.clone()).unwrap();
+        // Codex is never asked to read an image here.
+        assert!(!invocation.args.iter().any(|arg| arg == "--image"));
+        let answer = (self.answer)(&prompt);
+        self.prompts.lock().unwrap().push(prompt);
+        let Some(answer) = answer else {
+            let flag = DropFlag(self.dropped.clone());
+            return Box::pin(async move {
+                let _flag = flag;
+                std::future::pending().await
+            });
+        };
+        let at = invocation.args.iter().position(|arg| arg == "-o").unwrap();
+        std::fs::write(&invocation.args[at + 1], answer).unwrap();
+        Box::pin(async {
+            Ok(crate::backend::cli::Output {
+                code: Some(0),
+                stdout: b"{\"type\":\"thread.started\",\"thread_id\":\"t\"}\n".to_vec(),
+                stderr: Vec::new(),
+            })
+        })
+    }
+}
+
+/// A backend with the fixtures whose chat assistant runs on `codex`.
+async fn codex_setup(codex: &Arc<FakeCodex>) -> Setup {
+    let backend = TestBackend::with_cli(true, crate::backend::cli::Cli::with_runner(codex.clone()));
+    backend
+        .state
+        .settings
+        .update(&[("agent_llm_provider".to_owned(), Some("codex".to_owned()))])
+        .unwrap();
+    Setup {
+        backend,
+        llm: fake_llm(no_llm).await,
+    }
+}
+
+fn fake_codex(answer: impl Fn(&str) -> Option<String> + Send + Sync + 'static) -> Arc<FakeCodex> {
+    Arc::new(FakeCodex {
+        prompts: Mutex::new(Vec::new()),
+        dropped: Arc::new(AtomicUsize::new(0)),
+        answer: Box::new(answer),
+    })
+}
+
+#[tokio::test]
+async fn the_codex_assistant_calls_tools_and_keeps_its_steps_with_the_project() {
+    let codex = fake_codex(|prompt| {
+        Some(if prompt.contains("[tool result]") {
+            r#"{"reply": "分析しました", "tool_calls": []}"#.to_owned()
+        } else {
+            r#"{"reply": "見ます", "tool_calls": [{"name": "analyze_references", "arguments": {}}]}"#
+                .to_owned()
+        })
+    });
+    let setup = codex_setup(&codex).await;
+    let id = setup.start().await;
+    let body = setup.send(&id, "まだ生成しないで", 1, &[]).await;
+
+    assert_eq!(body["status"], "idle");
+    assert_eq!(
+        tools(&body),
+        [("analyze_references".to_owned(), "succeeded".to_owned())]
+    );
+    assert_eq!(replies(&body), ["見ます", "分析しました"]);
+    let prompts = codex.prompts.lock().unwrap().clone();
+    assert_eq!(prompts.len(), 2);
+    assert!(prompts[0].contains("[user] [uploaded reference images: "));
+    assert!(prompts[0].contains("まだ生成しないで"));
+    assert!(prompts[1].contains("[assistant called analyze_references] {}\n[tool result] {"));
+
+    // Each step keeps its prompt and output in the project's own folder.
+    let folder = setup.backend.dir.path().join("agent").join(&id);
+    for step in ["0001", "0002"] {
+        for file in ["prompt.md", "events.jsonl", "last-message.txt"] {
+            let path = folder
+                .join("codex")
+                .join(format!("agent-turn-{step}-{file}"));
+            assert!(path.is_file(), "{}", path.display());
+        }
+    }
+    let deleted = setup
+        .call(
+            authed(Method::DELETE, &format!("/api/agent/conversations/{id}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+    assert_eq!(json_body(deleted).await, json!({"deleted": true}));
+    assert!(!folder.exists());
+}
+
+#[tokio::test]
+async fn cancelling_stops_a_codex_step_under_way() {
+    let codex = fake_codex(|_| None);
+    let setup = codex_setup(&codex).await;
+    let id = setup.start().await;
+    let response = setup
+        .form(
+            &format!("/api/agent/conversations/{id}/messages"),
+            &[Part::text("text", "hello")],
+        )
+        .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    for _ in 0..200 {
+        if !codex.prompts.lock().unwrap().is_empty() {
+            break;
+        }
+        tokio::time::sleep(Duration::from_millis(10)).await;
+    }
+    assert_eq!(codex.prompts.lock().unwrap().len(), 1);
+    let cancelled = setup
+        .post(&format!("/api/agent/conversations/{id}/cancel"))
+        .await;
+    assert_eq!(json_body(cancelled).await, json!({"cancelling": true}));
+
+    let body = setup.settled(&id).await;
+    assert_eq!(body["status"], "idle");
+    let notices = events(&body, "notice");
+    assert_eq!(notices.len(), 1);
+    assert_eq!(notices[0]["code"], "cancelled");
+    assert!(events(&body, "error").is_empty());
+    // The CLI run was dropped, which stops the process.
+    assert_eq!(codex.dropped.load(Ordering::SeqCst), 1);
+}
+
 #[tokio::test]
 async fn cli_tool_failures_carry_a_code_for_the_screen() {
     let llm = fake_llm(|messages| {

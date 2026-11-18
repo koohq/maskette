@@ -12,6 +12,7 @@ const initial: BackendSettings = {
     agent_llm_base_url: "https://example.test/v1",
     agent_llm_model: "chat-model",
     agent_llm_extra_body: '{"thinking": {"type": "disabled"}}',
+    agent_codex_model: "",
     agent_claude_code_model: "",
     llm_provider: "codex",
     analysis_llm_base_url: "",
@@ -26,7 +27,7 @@ const initial: BackendSettings = {
   },
   overridden: [],
   options: {
-    agent_llm_provider: ["openai_compatible", "claude_code"],
+    agent_llm_provider: ["openai_compatible", "codex", "claude_code"],
     llm_provider: ["openai_compatible", "codex", "claude_code"],
     image_provider: ["codex", "openrouter", "siliconflow", "ark"],
   },
@@ -278,6 +279,38 @@ describe("SettingsPage", () => {
     expect(screen.getAllByRole("note")).toHaveLength(2);
   });
 
+  it("runs the chat assistant on Codex with only a model field", async () => {
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === "PUT") {
+        const saved = {
+          ...initial,
+          values: { ...initial.values, agent_llm_provider: "codex", agent_codex_model: "codex-model" },
+          overridden: ["agent_codex_model", "agent_llm_provider"],
+        };
+        return new Response(JSON.stringify(saved));
+      }
+      return new Response(JSON.stringify(initial));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const chat = await screen.findByRole("radiogroup", { name: "对话助手 LLM" });
+    fireEvent.click(chat.querySelector<HTMLInputElement>('input[value="codex"]')!);
+    // No API URL, key or extra fields: Codex runs on the user's own login.
+    expect(screen.queryByDisplayValue("https://example.test/v1")).toBeNull();
+    expect(screen.queryByDisplayValue("chat-model")).toBeNull();
+    // Analysis, image generation and now the chat all drive a subscription CLI.
+    expect(screen.getAllByRole("note")).toHaveLength(3);
+    fireEvent.change(screen.getByPlaceholderText("留空使用默认模型"), { target: { value: "codex-model" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await screen.findByText("已保存，下一次请求起生效");
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      values: { agent_llm_provider: "codex", agent_codex_model: "codex-model" },
+    });
+  });
+
   it("says a saved Codex Bridge is gone and offers no Bridge fields", async () => {
     const saved = { ...initial, values: { ...initial.values, image_provider: "codex_bridge" } };
     vi.stubGlobal(
@@ -288,7 +321,7 @@ describe("SettingsPage", () => {
 
     expect((await screen.findByRole("alert")).textContent).toBe("Codex Bridge 已不再提供，请选择 Codex 或其他后端。");
     expect(screen.queryByText(/Bridge 地址/)).toBeNull();
-    fireEvent.click(screen.getAllByRole("radio", { name: "Codex CLI" })[1] as HTMLElement);
+    fireEvent.click(screen.getAllByRole("radio", { name: "Codex CLI" })[2] as HTMLElement);
     expect(screen.queryByRole("alert")).toBeNull();
   });
 

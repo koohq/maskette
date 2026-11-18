@@ -14,6 +14,7 @@ const SETTING_PLACES: Record<string, readonly [Section, Field]> = {
   agent_llm_model: ["agentSection", "model"],
   agent_llm_extra_body: ["agentSection", "extra_body"],
   agent_llm_api_key: ["agentSection", "api_key"],
+  agent_codex_model: ["agentSection", "model"],
   agent_claude_code_model: ["agentSection", "model"],
   llm_provider: ["analysisSection", "provider"],
   analysis_llm_base_url: ["analysisSection", "base_url"],

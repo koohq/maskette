@@ -1,12 +1,20 @@
-//! Codex (`codex exec`): reference analysis and image generation (the old
-//! `app/generation/backends/codex.py`).
+//! Codex (`codex exec`): the chat assistant, reference analysis and image
+//! generation (the old `app/generation/backends/codex.py`).
 //!
 //! Each run reads the prompt from standard input, attaches the images with
 //! `--image`, prints its events as JSON lines and writes its last message
 //! to a file. It runs in the read-only sandbox with the shell tool, apps,
 //! plugins, the browser, computer use, sub-agents and web search turned off,
 //! without the user's `config.toml` (so without their MCP servers) or
-//! command rules. Analysis also has the image tool off and keeps no session.
+//! command rules. The chat and analysis also have the image tool off and
+//! keep no session; the chat gets no images (like Claude Code's chat, it
+//! answers from the transcript alone).
+//!
+//! Codex 0.169 still offers the model a JavaScript `exec` tool that drives
+//! its file tools (`apply_patch`, `view_image`) and the sub-agent tools;
+//! no switch removes them (`tools.view_image` is ignored). The read-only
+//! sandbox is what holds them: no writes and no network. A run in which
+//! the model ran a command is not used.
 //!
 //! The image comes from Codex's built-in image generation tool, which saves
 //! it under `<CODEX_HOME>/generated_images/<thread id>/`. Only the tool
@@ -21,7 +29,8 @@ use std::path::{Path, PathBuf};
 use serde_json::Value;
 
 use super::{
-    Cli, Invocation, cli_failed, keep, login_required, run_error_failure, shorten, usage_limit,
+    Cli, Invocation, cli_failed, empty_reply, keep, login_required, run_error_failure, shorten,
+    usage_limit,
 };
 use crate::backend::failure::Failure;
 use crate::backend::generation::usage::TokenUsage;
@@ -44,6 +53,8 @@ not generate a new image from scratch, and keep the same aspect ratio and framin
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Purpose {
+    /// One step of the chat assistant.
+    Chat,
     Analysis,
     Image,
 }
@@ -61,11 +72,13 @@ pub fn image_prompt(overrides: &Overrides, shared_prompt: &str, local_edit: bool
     lines.join("\n")
 }
 
+/// `model` empty means Codex's own default.
 pub fn arguments(
     purpose: Purpose,
     workspace: &Path,
     images: &[PathBuf],
     last_message: &Path,
+    model: &str,
 ) -> Vec<OsString> {
     let mut args: Vec<OsString> = [
         "exec",
@@ -94,16 +107,19 @@ pub fn arguments(
     .into_iter()
     .map(OsString::from)
     .collect();
-    if purpose == Purpose::Analysis {
-        for arg in [
-            "--ephemeral",
-            "--disable",
-            "image_generation",
-            "-c",
-            "model_reasoning_effort=high",
-        ] {
+    if matches!(purpose, Purpose::Chat | Purpose::Analysis) {
+        for arg in ["--ephemeral", "--disable", "image_generation"] {
             args.push(arg.into());
         }
+    }
+    if purpose == Purpose::Analysis {
+        args.push("-c".into());
+        args.push("model_reasoning_effort=high".into());
+    }
+    let model = model.trim();
+    if !model.is_empty() {
+        args.push("-m".into());
+        args.push(model.into());
     }
     args.push("-C".into());
     args.push(workspace.into());
@@ -133,7 +149,7 @@ pub struct Run {
 }
 
 /// Runs one prompt in `workspace` with `images` attached; `label` names the
-/// kept prompt, event and error files.
+/// kept prompt, event and error files. `model` empty means Codex's default.
 pub async fn run(
     cli: &Cli,
     workspace: &Path,
@@ -141,6 +157,7 @@ pub async fn run(
     prompt: &str,
     images: &[PathBuf],
     purpose: Purpose,
+    model: &str,
 ) -> Result<Run, Failure> {
     std::fs::create_dir_all(workspace)
         .map_err(|error| format!("cannot create the Codex working folder: {error}"))?;
@@ -149,11 +166,12 @@ pub async fn run(
     let _ = std::fs::remove_file(&last_message);
     let invocation = Invocation {
         program: cli.codex.clone(),
-        args: arguments(purpose, workspace, images, &last_message),
+        args: arguments(purpose, workspace, images, &last_message, model),
         stdin: prompt.as_bytes().to_vec(),
         cwd: workspace.to_owned(),
         remove_env: Vec::new(),
         timeout: match purpose {
+            Purpose::Chat => cli.codex_chat_timeout,
             Purpose::Analysis => cli.codex_analysis_timeout,
             Purpose::Image => cli.codex_image_timeout,
         },
@@ -185,6 +203,22 @@ pub async fn run(
         .with("detail", command));
     }
     Ok(run)
+}
+
+/// One step of the chat assistant: the transcript prompt in, the answer's
+/// text out (no images either way).
+pub async fn chat(
+    cli: &Cli,
+    workspace: &Path,
+    label: &str,
+    prompt: &str,
+    model: &str,
+) -> Result<String, Failure> {
+    let run = run(cli, workspace, label, prompt, &[], Purpose::Chat, model).await?;
+    if run.text.is_empty() {
+        return Err(empty_reply(NAME));
+    }
+    Ok(run.text)
 }
 
 fn events(stdout: &[u8]) -> impl Iterator<Item = serde_json::Map<String, Value>> + '_ {

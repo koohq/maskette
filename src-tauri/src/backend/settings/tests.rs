@@ -76,7 +76,7 @@ async fn settings_report_effective_backends() {
     );
     assert_eq!(
         body["options"]["agent_llm_provider"],
-        json!(["openai_compatible", "claude_code"])
+        json!(["openai_compatible", "codex", "claude_code"])
     );
     assert!(body["values"].get("ark_api_key").is_none());
     assert_eq!(

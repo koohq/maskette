@@ -620,6 +620,7 @@ async fn complete(
                 prompt,
                 paths,
                 cli::codex::Purpose::Analysis,
+                "",
             )
             .await
             .map_err(AnalysisError::Failed)?;

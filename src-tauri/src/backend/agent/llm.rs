@@ -2,9 +2,9 @@
 //!
 //! Messages are kept in the OpenAI chat format (role / content / tool_calls /
 //! tool_call_id). The OpenAI-compatible backend sends them as they are, with
-//! native function calling, streamed. The Claude Code CLI has no client-side
-//! tool calling, so for it the transcript is written out as text and the
-//! answer asked for as JSON (the reply and the tool calls).
+//! native function calling, streamed. The CLIs (Codex, Claude Code) have no
+//! client-side tool calling, so for them the transcript is written out as
+//! text and the answer asked for as JSON (the reply and the tool calls).
 //!
 //! Ported from the old backend's `app/agent/llm.py`.
 
@@ -71,7 +71,8 @@ pub fn tool_payload(tool: &ToolSpec) -> Value {
     })
 }
 
-/// Where a turn goes, and the conversation's Claude Code working folder.
+/// Where a turn goes, and the conversation's own folder: a CLI keeps the
+/// prompt and output of each step in its `codex/` or `claude-code/`.
 pub struct Backends<'a> {
     pub chat: &'a ChatApi,
     pub cli: &'a Cli,
@@ -88,18 +89,30 @@ pub async fn complete(
 ) -> Result<AssistantTurn, Failure> {
     match settings.get("agent_llm_provider").trim() {
         "" | "openai_compatible" => {}
+        "codex" => {
+            let workspace = backends.workspace.join("codex");
+            let text = cli::codex::chat(
+                backends.cli,
+                &workspace,
+                &next_step_label(&workspace),
+                &cli_prompt(system_prompt, messages, tools),
+                settings.get("agent_codex_model"),
+            )
+            .await?;
+            return Ok(parse_cli_reply(&text));
+        }
         "claude_code" => {
-            let prompt = claude_code_prompt(system_prompt, messages, tools);
+            let workspace = backends.workspace.join("claude-code");
             let text = cli::claude::run(
                 backends.cli,
-                backends.workspace,
-                &next_step_label(backends.workspace),
-                &prompt,
+                &workspace,
+                &next_step_label(&workspace),
+                &cli_prompt(system_prompt, messages, tools),
                 cli::claude::Tools::None,
                 settings.get("agent_claude_code_model"),
             )
             .await?;
-            return Ok(parse_claude_code_reply(&text));
+            return Ok(parse_cli_reply(&text));
         }
         other => return Err(format!("Unsupported agent_llm_provider={other:?}").into()),
     }
@@ -142,7 +155,7 @@ pub async fn complete(
     Ok(parse_openai_message(&result.message))
 }
 
-/// Names the kept prompt and output files of the next Claude Code step
+/// Names the kept prompt and output files of the next CLI step
 /// (`agent-turn-0001-prompt.md`, …). Every step of the conversation gets its
 /// own number, so a turn that calls tools keeps all its steps, not only the
 /// last.
@@ -177,13 +190,13 @@ fn wire_message(message: &Value) -> Value {
     message
 }
 
-pub const CLAUDE_CODE_REPLY_FORMAT: &str = r#"Reply with ONLY one JSON object and nothing else:
+pub const CLI_REPLY_FORMAT: &str = r#"Reply with ONLY one JSON object and nothing else:
 {"reply": "<text shown to the user; may be empty while you call tools>",
  "tool_calls": [{"name": "<tool name>", "arguments": {...}}]}
 Use an empty tool_calls list when you are done and waiting for the user. Never invent tool names."#;
 
 /// The system prompt, the tools and the transcript as one text prompt.
-pub fn claude_code_prompt(system_prompt: &str, messages: &[Value], tools: &[ToolSpec]) -> String {
+pub fn cli_prompt(system_prompt: &str, messages: &[Value], tools: &[ToolSpec]) -> String {
     let text = |message: &Value, key: &str| -> String {
         message
             .get(key)
@@ -234,16 +247,16 @@ pub fn claude_code_prompt(system_prompt: &str, messages: &[Value], tools: &[Tool
         }
     }
     prompt.push_str("\n## Your turn\n");
-    prompt.push_str(CLAUDE_CODE_REPLY_FORMAT);
+    prompt.push_str(CLI_REPLY_FORMAT);
     prompt
 }
 
 static FENCED_JSON: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?s)```(?:json)?\s*(\{.*\})\s*```").expect("fenced JSON"));
 
-/// The reply and tool calls in Claude Code's answer; an answer that is not
-/// the asked-for JSON counts as a plain reply rather than failing the turn.
-pub fn parse_claude_code_reply(text: &str) -> AssistantTurn {
+/// The reply and tool calls in a CLI's answer; an answer that is not the
+/// asked-for JSON counts as a plain reply rather than failing the turn.
+pub fn parse_cli_reply(text: &str) -> AssistantTurn {
     let stripped = text.trim();
     let mut candidates: Vec<&str> = FENCED_JSON
         .captures(stripped)
@@ -385,8 +398,8 @@ mod tests {
     }
 
     #[test]
-    fn claude_code_replies_give_text_and_tool_calls() {
-        let turn = parse_claude_code_reply(
+    fn cli_replies_give_text_and_tool_calls() {
+        let turn = parse_cli_reply(
             "Here you go:\n```json\n{\"reply\": \"見ます\", \"tool_calls\": [{\"name\": \"analyze_references\", \"arguments\": {\"x\": 1}}, {\"name\": \" \"}, \"junk\"]}\n```",
         );
         assert_eq!(turn.text, "見ます");
@@ -398,13 +411,13 @@ mod tests {
         );
         assert!(turn.tool_calls[0].id.starts_with("call_"));
 
-        let plain = parse_claude_code_reply("  ただの返事です  ");
+        let plain = parse_cli_reply("  ただの返事です  ");
         assert_eq!(plain.text, "ただの返事です");
         assert!(plain.tool_calls.is_empty());
     }
 
     #[test]
-    fn the_claude_code_prompt_writes_out_the_transcript() {
+    fn the_cli_prompt_writes_out_the_transcript() {
         let tools = [ToolSpec {
             name: "generate_front_view",
             description: "Make the front view.",
@@ -417,14 +430,14 @@ mod tests {
             ]}),
             json!({"role": "tool", "tool_call_id": "c1", "name": "generate_front_view", "content": "{\"ok\":true}"}),
         ];
-        let prompt = claude_code_prompt("SYSTEM", &messages, &tools);
+        let prompt = cli_prompt("SYSTEM", &messages, &tools);
         assert!(prompt.starts_with(
             "SYSTEM\n\n## Tools\n- generate_front_view: Make the front view.\n  arguments schema: {\"type\":\"object\"}\n"
         ));
         assert!(prompt.contains(
             "[user] 作って\n[assistant called generate_front_view] {\"instructions\":\"x\"}\n[tool result] {\"ok\":true}\n"
         ));
-        assert!(prompt.ends_with(CLAUDE_CODE_REPLY_FORMAT));
+        assert!(prompt.ends_with(CLI_REPLY_FORMAT));
     }
 
     #[test]

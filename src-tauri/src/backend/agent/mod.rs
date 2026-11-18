@@ -8,7 +8,8 @@
 //! Intended differences from the old backend:
 //! - Generation runs in the same process instead of a queue the tools poll
 //!   (see [`crate::backend::generation`]); a cancelled run stops its request.
-//! - The Claude Code chat assistant moves with the CLI paths.
+//! - The Claude Code chat assistant moves with the CLI paths, and the chat
+//!   can also run on Codex; cancelling stops a model step under way.
 //! - Deleting a project also removes its images and working files.
 //! - The system prompt calls the assistant Maskette's; it cannot be
 //!   overridden yet (prompt overrides move with the prompts router).

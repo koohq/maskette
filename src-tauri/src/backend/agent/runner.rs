@@ -5,8 +5,10 @@
 //! Ported from the old backend's `app/agent/runner.py`.
 
 use std::collections::HashMap;
+use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::time::Duration;
 
 use serde_json::{Value, json};
 
@@ -326,11 +328,7 @@ async fn run_chat(
             (
                 system_prompt(&conversation, &overrides),
                 conversation.llm_messages.clone(),
-                state
-                    .agent
-                    .store
-                    .workspace(&conversation.id)
-                    .join("claude-code"),
+                state.agent.store.workspace(&conversation.id),
             )
         };
         let settings = state.settings.settings();
@@ -339,7 +337,13 @@ async fn run_chat(
             cli: &state.cli,
             workspace: &workspace,
         };
-        let turn = llm::complete(&settings, &backends, &prompt, &messages, &specs).await?;
+        let step = llm::complete(&settings, &backends, &prompt, &messages, &specs);
+        let Some(turn) = until_cancelled(cancelled, step).await else {
+            let mut conversation = entry.lock();
+            entry.emit(&mut conversation, "notice", json!({"code": "cancelled"}));
+            return Ok(());
+        };
+        let turn = turn?;
         {
             let mut conversation = entry.lock();
             conversation.llm_messages.push(turn.to_message());
@@ -388,6 +392,23 @@ async fn run_chat(
     let mut conversation = entry.lock();
     entry.emit(&mut conversation, "notice", json!({"code": "step_limit"}));
     Ok(())
+}
+
+/// `step`'s outcome, or `None` once the run is cancelled; dropping the step
+/// stops its request or CLI process, so a slow model step does not keep
+/// going (or keep using a subscription) after the user stopped it.
+async fn until_cancelled<T>(cancelled: &AtomicBool, step: impl Future<Output = T>) -> Option<T> {
+    tokio::pin!(step);
+    loop {
+        tokio::select! {
+            outcome = &mut step => return Some(outcome),
+            () = tokio::time::sleep(Duration::from_millis(200)) => {
+                if cancelled.load(Ordering::SeqCst) {
+                    return None;
+                }
+            }
+        }
+    }
 }
 
 async fn run_direct(

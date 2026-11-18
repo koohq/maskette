@@ -74,6 +74,7 @@ pub async fn generate(
         &prompt,
         &images,
         Purpose::Image,
+        "",
     )
     .await?;
     if let Some(usage) = run.usage {
