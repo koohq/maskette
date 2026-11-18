@@ -1247,3 +1247,5 @@ async fn start_annotated_revision(
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod trial;

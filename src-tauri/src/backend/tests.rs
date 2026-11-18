@@ -107,6 +107,105 @@ pub fn authed(method: Method, uri: &str) -> axum::http::request::Builder {
         .header(header::AUTHORIZATION, format!("Bearer {TOKEN}"))
 }
 
+// --- The real OpenRouter, for the ignored side-by-side runs -------------------
+
+/// OpenRouter's API, as the settings' defaults name it.
+pub const OPENROUTER: &str = "https://openrouter.ai/api/v1";
+
+/// The OpenRouter key the app keeps in the OS credential store, for the
+/// ignored runs against the real API (`generation/compare.rs`,
+/// `agent/trial.rs`): the service's key, or one an earlier build saved for a
+/// role that the app has not moved to its service yet (assumed OpenRouter's).
+pub fn saved_openrouter_key() -> String {
+    use super::settings::secrets::{KeyringSecrets, SERVICE, SecretStore as _};
+    use super::settings::store::{KEY_FIELDS, key_entry, service_of};
+    let secrets = KeyringSecrets::new(SERVICE);
+    std::iter::once(key_entry(&service_of(OPENROUTER)))
+        .chain(KEY_FIELDS[..3].iter().map(|name| (*name).to_owned()))
+        .find_map(|name| secrets.get(&name).expect("credential store readable"))
+        .expect("an OpenRouter key saved in Maskette's settings")
+}
+
+/// What `key` has spent on OpenRouter so far, in US dollars.
+async fn openrouter_usage(client: &reqwest::Client, key: &str) -> f64 {
+    let reply: Value = client
+        .get(format!("{OPENROUTER}/key"))
+        .bearer_auth(key)
+        .send()
+        .await
+        .expect("OpenRouter reachable")
+        .json()
+        .await
+        .expect("OpenRouter's key status as JSON");
+    reply["data"]["usage"]
+        .as_f64()
+        .unwrap_or_else(|| panic!("no usage in {reply}"))
+}
+
+/// What a run billed `key`, read as the change of its spending. OpenRouter
+/// counts a call some time after it ends, sometimes in parts (four seconds
+/// was not enough on 2026-11-19: a run's cost landed in the next run's), so
+/// this waits until the spending has stayed the same for 20 seconds, for
+/// three minutes at most. Nothing else may use the key meanwhile.
+pub struct Spending {
+    client: reqwest::Client,
+    key: String,
+    before: f64,
+}
+
+impl Spending {
+    pub async fn start(key: &str) -> Self {
+        let client = reqwest::Client::new();
+        let before = openrouter_usage(&client, key).await;
+        Self {
+            client,
+            key: key.to_owned(),
+            before,
+        }
+    }
+
+    /// The dollars spent since `start`, rounded to a ten-thousandth.
+    pub async fn spent(&self) -> f64 {
+        let pause = std::time::Duration::from_secs(5);
+        tokio::time::sleep(2 * pause).await;
+        let mut last = openrouter_usage(&self.client, &self.key).await;
+        let mut unchanged = 0;
+        for _ in 0..34 {
+            tokio::time::sleep(pause).await;
+            let now = openrouter_usage(&self.client, &self.key).await;
+            if (now - last).abs() < 1e-9 {
+                unchanged += 1;
+                if unchanged >= 4 && now > self.before {
+                    break;
+                }
+            } else {
+                unchanged = 0;
+            }
+            last = now;
+        }
+        ((last - self.before) * 10_000.0).round() / 10_000.0
+    }
+}
+
+/// `vendor/model@effort` as the model and the reasoning effort (none
+/// without an `@`).
+pub fn model_and_effort(spec: &str) -> (String, Option<String>) {
+    match spec.trim().rsplit_once('@') {
+        Some((model, effort)) => (model.trim().to_owned(), Some(effort.trim().to_owned())),
+        None => (spec.trim().to_owned(), None),
+    }
+}
+
+/// The extra request fields that ask for `effort`, in the settings' format;
+/// without one, an empty object (an empty setting would fall back to
+/// another role's fields).
+pub fn effort_body(effort: Option<&str>) -> String {
+    effort.map_or_else(
+        || "{}".to_owned(),
+        |effort| serde_json::json!({"reasoning": {"effort": effort}}).to_string(),
+    )
+}
+
 pub async fn json_body(response: Response) -> Value {
     let bytes = response
         .into_body()

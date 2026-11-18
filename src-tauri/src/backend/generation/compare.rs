@@ -51,6 +51,15 @@
 //!   with `MASKETTE_COMPARE_EDIT_NOTE` (the heart hairpin by default) as the
 //!   instruction and no analysis.
 //!
+//! `analysis` tries chat models as the analysis model instead:
+//! `MASKETTE_COMPARE_MODELS=vendor/model@effort,...` (the reasoning effort
+//! after `@`, or none) on OpenRouter, each analysing the character and any
+//! `MASKETTE_COMPARE_EXTRA` as the chat's `analyze_references` does. Each
+//! keeps `<model>/analysis.json` (usable as `MASKETTE_COMPARE_ANALYSIS`) and
+//! a readable `analysis.md`, and `analyses.jsonl` gets the time, the counts
+//! and what OpenRouter billed (the change in the key's spending, so nothing
+//! else may use the key meanwhile). No image is made.
+//!
 //! `turnaround` makes only the head shell turnaround of `follow`. With
 //! `MASKETTE_COMPARE_PROMPTS=<prompts.json>`, any step uses those prompt
 //! overrides (the app's `prompts.json` format), to try a text change
@@ -112,9 +121,10 @@ use super::{GenerationRequest, LocalEdit, Mode, ReferenceDescription, image_api,
 use crate::backend::agent::store::REFERENCE_TAGS;
 use crate::backend::agent::tools::APPROVED_DESIGN_NOTE;
 use crate::backend::ids;
-use crate::backend::settings::secrets::{KeyringSecrets, SERVICE, SecretStore as _};
-use crate::backend::settings::store::{KEY_FIELDS, key_entry, service_of};
-use crate::backend::tests::TestBackend;
+use crate::backend::settings::store::service_of;
+use crate::backend::tests::{
+    OPENROUTER, Spending, TestBackend, effort_body, model_and_effort, saved_openrouter_key,
+};
 
 const DEFAULT_EDIT_NOTE: &str = "星のヘアピンを、同じ金色のハート形のヘアピンに変えてください。";
 
@@ -142,6 +152,28 @@ fn slug(model: &str) -> String {
             }
         })
         .collect()
+}
+
+/// A stored analysis as Markdown, one line per detail, for reading the
+/// models' analyses side by side.
+fn readable_analysis(spec: &str, stored: &Value) -> String {
+    let mut text = format!("# {spec}\n\n");
+    for feature in stored["features"].as_array().into_iter().flatten() {
+        text.push_str(&format!(
+            "- **{}** ({}): {}\n",
+            feature["label"].as_str().unwrap_or(""),
+            feature["kind"].as_str().unwrap_or(""),
+            feature["description"].as_str().unwrap_or(""),
+        ));
+    }
+    let warnings = stored["warnings"].as_array().into_iter().flatten();
+    for (index, warning) in warnings.enumerate() {
+        if index == 0 {
+            text.push_str("\n## warnings\n\n");
+        }
+        text.push_str(&format!("- {}\n", warning.as_str().unwrap_or("")));
+    }
+    text
 }
 
 fn ellipse_mask(path: &Path, (x0, y0, x1, y1): (f64, f64, f64, f64)) {
@@ -332,9 +364,27 @@ impl Run<'_> {
             println!("analysis read: {}", path.display());
             return serde_json::from_str(&text).expect("the analysis file is JSON");
         }
+        let stored = match self.new_analysis(character, name, extras).await {
+            Ok(stored) => stored,
+            Err(error) => panic!("the analysis failed: {error}"),
+        };
+        let text = serde_json::to_string_pretty(&stored).expect("analysis as JSON");
+        std::fs::write(path, text).expect("analysis written");
+        println!("analysis saved: {}", path.display());
+        stored
+    }
+
+    /// A new analysis of the character and the extra references, made as
+    /// the chat's `analyze_references` makes it, in the stored form.
+    async fn new_analysis(
+        &self,
+        character: &Path,
+        name: &str,
+        extras: &[String],
+    ) -> Result<Value, String> {
         let state = &self.backend.state;
-        let backend =
-            analysis::analysis_backend(&state.settings.settings()).expect("an analysis backend");
+        let backend = analysis::analysis_backend(&state.settings.settings())
+            .map_err(|failure| format!("{failure:?}"))?;
         let analysis_id = ids::uuid4();
         let request = AnalysisRequest {
             locale: "ja".to_owned(),
@@ -345,17 +395,86 @@ impl Run<'_> {
             analysis_id: analysis_id.clone(),
             ..AnalysisRequest::default()
         };
-        let result = match backend.analyze(state, &request).await {
-            Ok(result) => result,
-            Err(error) => panic!("the analysis failed: {error:?}"),
-        };
+        let result = backend
+            .analyze(state, &request)
+            .await
+            .map_err(|failure| format!("{failure:?}"))?;
         let result =
             analysis::ensure_user_requirement(analysis::filter_head_details(result), "", "ja");
-        let stored = analysis::stored_analysis(&analysis_id, "", &result);
-        let text = serde_json::to_string_pretty(&stored).expect("analysis as JSON");
-        std::fs::write(path, text).expect("analysis written");
-        println!("analysis saved: {}", path.display());
-        stored
+        Ok(analysis::stored_analysis(&analysis_id, "", &result))
+    }
+
+    /// The `analysis` step for one chat model, `vendor/model@effort` on
+    /// OpenRouter: analyses the character and the extra references as the
+    /// chat's `analyze_references` does, keeps the result as
+    /// `<spec>/analysis.json` and a readable `<spec>/analysis.md`, and
+    /// appends what happened, with what OpenRouter billed, to
+    /// `analyses.jsonl` (`results.jsonl` holds the images for the report).
+    async fn analysis_job(
+        &self,
+        spec: &str,
+        key: &str,
+        character: &Path,
+        name: &str,
+        extras: &[String],
+    ) {
+        let (model, effort) = model_and_effort(spec);
+        self.backend
+            .state
+            .settings
+            .update(&[
+                (
+                    "llm_provider".to_owned(),
+                    Some("openai_compatible".to_owned()),
+                ),
+                ("analysis_llm_model".to_owned(), Some(model.clone())),
+                (
+                    "analysis_llm_extra_body".to_owned(),
+                    Some(effort_body(effort.as_deref())),
+                ),
+            ])
+            .expect("analysis model set");
+        let folder = self.out.join(slug(spec));
+        std::fs::create_dir_all(&folder).expect("output folder");
+        let path = folder.join("analysis.json");
+        assert!(
+            !path.exists(),
+            "{} exists; give each run its own output folder",
+            path.display()
+        );
+        let spending = Spending::start(key).await;
+        let started = Instant::now();
+        let outcome = self.new_analysis(character, name, extras).await;
+        let seconds = (started.elapsed().as_secs_f64() * 10.0).round() / 10.0;
+        let cost = spending.spent().await;
+        let (features, warnings, error) = match &outcome {
+            Ok(stored) => {
+                let text = serde_json::to_string_pretty(stored).expect("analysis as JSON");
+                std::fs::write(&path, text).expect("analysis written");
+                std::fs::write(folder.join("analysis.md"), readable_analysis(spec, stored))
+                    .expect("readable analysis written");
+                let count = |name: &str| stored[name].as_array().map_or(0, Vec::len);
+                (count("features"), count("warnings"), Value::Null)
+            }
+            Err(error) => (0, 0, json!(error)),
+        };
+        let line = json!({
+            "model": model,
+            "effort": effort,
+            "ok": outcome.is_ok(),
+            "seconds": seconds,
+            "features": features,
+            "warnings": warnings,
+            "cost_usd": cost,
+            "error": error,
+        });
+        println!("{line}");
+        let mut results = std::fs::OpenOptions::new()
+            .create(true)
+            .append(true)
+            .open(self.out.join("analyses.jsonl"))
+            .expect("analyses file");
+        writeln!(results, "{line}").expect("analysis line written");
     }
 
     /// Runs one job, keeps its clean output as `<model>/<label>.png` and
@@ -441,8 +560,8 @@ async fn compare_image_models() {
         .map(|text| parse_extras(&text))
         .unwrap_or_default();
     assert!(
-        extras.is_empty() || step == "front" || step == "design",
-        "MASKETTE_COMPARE_EXTRA only goes with the front and design steps"
+        extras.is_empty() || step == "front" || step == "design" || step == "analysis",
+        "MASKETTE_COMPARE_EXTRA only goes with the front, design and analysis steps"
     );
     // An analysis would be made (and billed) for nothing.
     assert!(
@@ -450,15 +569,13 @@ async fn compare_image_models() {
             || std::env::var_os("MASKETTE_COMPARE_ANALYSIS").is_none(),
         "the {step} step takes no MASKETTE_COMPARE_ANALYSIS; the app's {step} gets none"
     );
+    assert!(
+        step != "analysis" || std::env::var_os("MASKETTE_COMPARE_ANALYSIS").is_none(),
+        "the analysis step makes its own analyses; it takes no MASKETTE_COMPARE_ANALYSIS"
+    );
 
-    // The app's OpenRouter key, or one an earlier build saved for a role
-    // that the app has not moved to its service yet (assumed OpenRouter's).
-    let secrets = KeyringSecrets::new(SERVICE);
-    let openrouter = service_of("https://openrouter.ai/api/v1");
-    let key = std::iter::once(key_entry(&openrouter))
-        .chain(KEY_FIELDS[..3].iter().map(|name| (*name).to_owned()))
-        .find_map(|name| secrets.get(&name).expect("credential store readable"))
-        .expect("an OpenRouter key saved in Maskette's settings");
+    let openrouter = service_of(OPENROUTER);
+    let key = saved_openrouter_key();
     if step == "judge" {
         let judge_model = std::env::var("MASKETTE_COMPARE_JUDGE")
             .unwrap_or_else(|_| judge::DEFAULT_MODEL.to_owned());
@@ -497,7 +614,7 @@ async fn compare_image_models() {
             &[("image_provider".to_owned(), Some("openrouter".to_owned()))],
             // Images and the analysis (on the chat assistant's OpenRouter
             // by default) share the service's key.
-            &[(openrouter, Some(key))],
+            &[(openrouter, Some(key.clone()))],
         )
         .expect("settings set");
     // Prompt text to try, in the format of the app's prompts.json.
@@ -718,8 +835,15 @@ async fn compare_image_models() {
             }
             return;
         }
+        "analysis" => {
+            for spec in &models {
+                run.analysis_job(spec, &key, &reference, &reference_name, &extra_keys)
+                    .await;
+            }
+            return;
+        }
         other => panic!(
-            "MASKETTE_COMPARE_STEP is front, design, from-design, revise, follow, local, turnaround, back, samples, judge, report or samples-report, not {other:?}"
+            "MASKETTE_COMPARE_STEP is front, design, from-design, revise, follow, local, turnaround, back, samples, analysis, judge, report or samples-report, not {other:?}"
         ),
     }
     println!("report: {}", report::write(&out).display());
