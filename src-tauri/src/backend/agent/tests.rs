@@ -1807,23 +1807,21 @@ async fn a_project_file_round_trips_as_a_copy() {
     assert_eq!(json_body(renamed).await["detail"], "unknown_format");
 }
 
-/// The bundle with its marker swapped for Visual Studio Kigurumi's, as its
-/// old backend wrote a `.vkp`.
-fn as_vkp(maskette: &[u8]) -> Vec<u8> {
+/// The bundle with its marker (`*-project.json`) changed by `change`, which
+/// may also rename it.
+fn with_marker(bundle_bytes: &[u8], change: impl Fn(&mut String, &mut Value)) -> Vec<u8> {
     use std::io::{Cursor, Read, Write};
-    let mut archive = zip::ZipArchive::new(Cursor::new(maskette)).unwrap();
+    let mut archive = zip::ZipArchive::new(Cursor::new(bundle_bytes)).unwrap();
     let mut bundle = zip::ZipWriter::new(Cursor::new(Vec::new()));
     for index in 0..archive.len() {
         let mut file = archive.by_index(index).unwrap();
         let mut name = file.name().unwrap().into_owned();
         let mut bytes = Vec::new();
         file.read_to_end(&mut bytes).unwrap();
-        if name == "maskette-project.json" {
+        if name.ends_with("-project.json") {
             let mut manifest: Value = serde_json::from_slice(&bytes).unwrap();
-            assert_eq!(manifest["format"], "maskette-project");
-            manifest["format"] = json!("vsk-project");
+            change(&mut name, &mut manifest);
             bytes = manifest.to_string().into_bytes();
-            name = "vsk-project.json".to_owned();
         }
         bundle
             .start_file(name, zip::write::SimpleFileOptions::default())
@@ -1831,6 +1829,73 @@ fn as_vkp(maskette: &[u8]) -> Vec<u8> {
         bundle.write_all(&bytes).unwrap();
     }
     bundle.finish().unwrap().into_inner()
+}
+
+/// The bundle with its marker swapped for Visual Studio Kigurumi's, as its
+/// old backend wrote a `.vkp`.
+fn as_vkp(maskette: &[u8]) -> Vec<u8> {
+    with_marker(maskette, |name, manifest| {
+        assert_eq!(name, "maskette-project.json");
+        assert_eq!(manifest["format"], "maskette-project");
+        assert_eq!(manifest["version"], 1);
+        *name = "vsk-project.json".to_owned();
+        manifest["format"] = json!("vsk-project");
+    })
+}
+
+#[tokio::test]
+async fn a_project_file_of_an_unknown_version_is_refused() {
+    let setup = setup(auto_front).await;
+    let id = setup.start().await;
+    setup.send(&id, "新版本", 1, &[]).await;
+    let payload = bytes(
+        setup
+            .get(&format!("/api/agent/conversations/{id}/export"))
+            .await,
+    )
+    .await;
+    let vkp = as_vkp(&payload);
+    let cases = [
+        ("newer.maskette", json!(2), &payload),
+        ("zero.maskette", json!(0), &payload),
+        ("text.maskette", json!("1"), &payload),
+        ("newer.vkp", json!(2), &vkp),
+    ];
+    for (file_name, version, bundle) in cases {
+        let changed = with_marker(bundle, |_, manifest| manifest["version"] = version.clone());
+        let response = setup
+            .form(
+                "/api/agent/conversations/import",
+                &[Part::file(
+                    "file",
+                    file_name,
+                    "application/octet-stream",
+                    changed,
+                )],
+            )
+            .await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{file_name}");
+        assert_eq!(
+            json_body(response).await["detail"],
+            "unknown_format",
+            "{file_name}"
+        );
+    }
+    let without = with_marker(&payload, |_, manifest| {
+        manifest.as_object_mut().unwrap().remove("version");
+    });
+    let response = setup
+        .form(
+            "/api/agent/conversations/import",
+            &[Part::file(
+                "file",
+                "none.maskette",
+                "application/octet-stream",
+                without,
+            )],
+        )
+        .await;
+    assert_eq!(json_body(response).await["detail"], "unknown_format");
 }
 
 #[tokio::test]

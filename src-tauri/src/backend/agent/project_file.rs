@@ -3,7 +3,9 @@
 //! Maskette writes `.maskette` files. It still reads `.vkp` files, the format
 //! of Visual Studio Kigurumi's old backend (`app/agent/vkp.py`), so projects
 //! made there open here. The two hold the same layout and differ only in the
-//! format marker, so the extension says which marker the file must carry:
+//! format marker, so the extension says which marker the file must carry.
+//! The marker's `version` must be one this build knows (see
+//! `Kind::newest_version`):
 //!
 //!   maskette-project.json  marker of a `.maskette` file (`vsk-project.json` in a `.vkp`),
 //!                          with the original conversation / session ids
@@ -62,9 +64,22 @@ impl Kind {
             Self::Vkp => "vsk-project.json",
         }
     }
+
+    /// The newest `version` in the marker this build can read. A newer one
+    /// may mean something else in the same fields, so it is refused rather
+    /// than read half right.
+    fn newest_version(self) -> u64 {
+        match self {
+            Self::Maskette => FORMAT_VERSION,
+            // The only version Visual Studio Kigurumi has written.
+            Self::Vkp => 1,
+        }
+    }
 }
 
 const EXTENSION: &str = "maskette";
+/// The `version` Maskette writes. Raise it when a `.maskette` changes in a
+/// way an older build would read wrongly; that build then refuses the file.
 const FORMAT_VERSION: u64 = 1;
 const PROJECT_NAME: &str = "project.json";
 const IMAGE_SUFFIXES: [&str; 4] = ["webp", "png", "jpg", "jpeg"];
@@ -216,7 +231,12 @@ pub fn import_project_file(
         .map_err(|_| "invalid_json")?;
     let document: Value = serde_json::from_slice(&read_entry(&mut archive, PROJECT_NAME)?)
         .map_err(|_| "invalid_json")?;
+    let readable_version = meta
+        .get("version")
+        .and_then(Value::as_u64)
+        .is_some_and(|version| (1..=kind.newest_version()).contains(&version));
     if meta.get("format").and_then(Value::as_str) != Some(kind.format_name())
+        || !readable_version
         || !document.is_object()
     {
         return Err("unknown_format");
