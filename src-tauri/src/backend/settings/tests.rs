@@ -509,8 +509,9 @@ fn save(backend: &TestBackend, changes: &[(&str, &str)]) {
 #[test]
 fn which_saved_settings_follow_the_chat_assistant() {
     let medium = r#"{"reasoning": {"effort": "medium"}}"#;
-    // (debug build, saved changes, llm_provider)
-    let cases: [(bool, &[(&str, &str)], &str); 12] = [
+    /// (debug build, saved changes, llm_provider)
+    type Case<'a> = (bool, &'a [(&'a str, &'a str)], &'a str);
+    let cases: [Case<'_>; 12] = [
         (false, &[], "same_as_agent"),
         (
             false,

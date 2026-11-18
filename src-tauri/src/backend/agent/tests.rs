@@ -977,8 +977,11 @@ async fn the_claude_code_assistant_reports_a_missing_cli() {
 struct FakeCodex {
     prompts: Mutex<Vec<String>>,
     dropped: Arc<AtomicUsize>,
-    answer: Box<dyn Fn(&str) -> Option<String> + Send + Sync>,
+    answer: Answer,
 }
+
+/// The last message for a prompt, or `None` to never answer.
+type Answer = Box<dyn Fn(&str) -> Option<String> + Send + Sync>;
 
 struct DropFlag(Arc<AtomicUsize>);
 

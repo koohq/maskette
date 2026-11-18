@@ -386,7 +386,11 @@ mod tests {
         ] {
             let started = Instant::now();
             let out = candidates(&client, &lists, &images, &settings, role, base_url).await;
-            let priced = out.models.iter().filter(|model| model.price.is_some()).count();
+            let priced = out
+                .models
+                .iter()
+                .filter(|model| model.price.is_some())
+                .count();
             let default = settings.get(default);
             let offered = out.models.iter().find(|model| model.id == default);
             println!(
