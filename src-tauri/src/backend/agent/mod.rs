@@ -15,10 +15,10 @@
 
 pub mod history;
 pub mod llm;
+pub mod project_file;
 pub mod runner;
 pub mod store;
 pub mod tools;
-pub mod vkp;
 
 use std::collections::{HashMap, VecDeque};
 use std::convert::Infallible;
@@ -85,7 +85,9 @@ pub fn routes() -> Router<SharedState> {
         )
         .route(
             "/api/agent/conversations/import",
-            post(import_project).layer(DefaultBodyLimit::max(vkp::MAX_IMPORT_BYTES + 1024 * 1024)),
+            post(import_project).layer(DefaultBodyLimit::max(
+                project_file::MAX_IMPORT_BYTES + 1024 * 1024,
+            )),
         )
         .route(
             "/api/agent/conversations/{id}",
@@ -905,7 +907,7 @@ async fn download_version(
         .into_response())
 }
 
-/// The whole project as a `.vkp` download.
+/// The whole project as a `.maskette` download.
 async fn export_project(
     State(state): State<SharedState>,
     UrlPath(id): UrlPath<String>,
@@ -913,9 +915,9 @@ async fn export_project(
     let entry = require(&state, &id)?;
     ensure_idle(&state, &id)?;
     let conversation = entry.lock().clone();
-    let name = vkp::download_name(&conversation);
+    let name = project_file::download_name(&conversation);
     let data_dir = state.data_dir.clone();
-    let payload = blocking(move || vkp::build_project_file(&data_dir, &conversation))
+    let payload = blocking(move || project_file::build_project_file(&data_dir, &conversation))
         .await?
         .map_err(|error| ApiError::internal(format!("project_not_exported: {error}")))?;
     let disposition = HeaderValue::from_str(&format!("attachment; filename=\"{name}\""))
@@ -930,27 +932,25 @@ async fn export_project(
         .into_response())
 }
 
-/// Restores a `.vkp` as a new project: a copy with a fresh id.
+/// Restores a `.maskette` (or a Visual Studio Kigurumi `.vkp`) as a new
+/// project: a copy with a fresh id.
 async fn import_project(
     State(state): State<SharedState>,
     form: Result<Multipart, MultipartRejection>,
 ) -> Result<Json<Value>, ApiError> {
     let mut form = Form::read(form).await?;
     let file = form.required_file("file")?;
-    let is_vkp = Path::new(&file.file_name)
-        .extension()
-        .and_then(|extension| extension.to_str())
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("vkp"));
-    if !is_vkp {
-        return Err(ApiError::bad_request("not_a_vkp_file"));
-    }
-    if file.bytes.len() > vkp::MAX_IMPORT_BYTES {
+    let Some(kind) = project_file::Kind::of_file_name(&file.file_name) else {
+        return Err(ApiError::bad_request("not_a_project_file"));
+    };
+    if file.bytes.len() > project_file::MAX_IMPORT_BYTES {
         return Err(ApiError::bad_request("project_too_large"));
     }
     let data_dir = state.data_dir.clone();
-    let conversation = blocking(move || vkp::import_project_file(&data_dir, &file.bytes))
-        .await?
-        .map_err(ApiError::bad_request)?;
+    let conversation =
+        blocking(move || project_file::import_project_file(&data_dir, kind, &file.bytes))
+            .await?
+            .map_err(ApiError::bad_request)?;
     let entry = state.agent.store.insert(conversation);
     Ok(out(&state, &entry.lock()))
 }

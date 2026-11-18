@@ -27,7 +27,7 @@ const NOT_SHOWN = new Set([
 const BACKEND = join(import.meta.dirname, "../../../../src-tauri/src/backend");
 
 /** Files whose plain `Err("...")` values become the `detail` of an HTTP error (they say so in their docs). */
-const PLAIN_ERR_FILES = new Set(["vkp.rs", "history.rs"]);
+const PLAIN_ERR_FILES = new Set(["project_file.rs", "history.rs"]);
 
 function rustFiles(dir: string): string[] {
   return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {

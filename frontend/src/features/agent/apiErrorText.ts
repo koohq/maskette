@@ -28,7 +28,7 @@ export const DETAIL_CODES = new Set([
   "edit_note_required",
   "recipe_too_large",
   "recipe_invalid",
-  "not_a_vkp_file",
+  "not_a_project_file",
   "project_too_large",
   "not_a_zip",
   "missing_manifest",

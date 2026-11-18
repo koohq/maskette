@@ -1,5 +1,5 @@
 //! Ported from the old backend's `tests/test_agent.py` and
-//! `tests/test_agent_history.py`, plus the live events, `.vkp` files and
+//! `tests/test_agent_history.py`, plus the live events, project files and
 //! what a release build (no fixtures) says.
 //!
 //! The model is a stand-in OpenAI-compatible server that streams the turns a
@@ -1726,7 +1726,7 @@ async fn a_project_file_round_trips_as_a_copy() {
         .unwrap()
         .to_owned();
     assert!(
-        disposition.ends_with(&format!("-{}.vkp\"", &id[..8])),
+        disposition.ends_with(&format!("-{}.maskette\"", &id[..8])),
         "{disposition}"
     );
     let payload = bytes(response).await;
@@ -1736,7 +1736,7 @@ async fn a_project_file_round_trips_as_a_copy() {
             "/api/agent/conversations/import",
             &[Part::file(
                 "file",
-                "copy.vkp",
+                "copy.maskette",
                 "application/octet-stream",
                 payload.clone(),
             )],
@@ -1771,22 +1771,117 @@ async fn a_project_file_round_trips_as_a_copy() {
     let wrong_name = setup
         .form(
             "/api/agent/conversations/import",
-            &[Part::file("file", "copy.zip", "application/zip", payload)],
+            &[Part::file(
+                "file",
+                "copy.zip",
+                "application/zip",
+                payload.clone(),
+            )],
         )
         .await;
-    assert_eq!(json_body(wrong_name).await["detail"], "not_a_vkp_file");
+    assert_eq!(json_body(wrong_name).await["detail"], "not_a_project_file");
     let not_zip = setup
         .form(
             "/api/agent/conversations/import",
             &[Part::file(
                 "file",
-                "x.vkp",
+                "x.maskette",
                 "application/octet-stream",
                 b"nope".to_vec(),
             )],
         )
         .await;
     assert_eq!(json_body(not_zip).await["detail"], "not_a_zip");
+    // A `.maskette` renamed to `.vkp` carries the wrong marker for its name.
+    let renamed = setup
+        .form(
+            "/api/agent/conversations/import",
+            &[Part::file(
+                "file",
+                "copy.vkp",
+                "application/octet-stream",
+                payload,
+            )],
+        )
+        .await;
+    assert_eq!(json_body(renamed).await["detail"], "unknown_format");
+}
+
+/// The bundle with its marker swapped for Visual Studio Kigurumi's, as its
+/// old backend wrote a `.vkp`.
+fn as_vkp(maskette: &[u8]) -> Vec<u8> {
+    use std::io::{Cursor, Read, Write};
+    let mut archive = zip::ZipArchive::new(Cursor::new(maskette)).unwrap();
+    let mut bundle = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    for index in 0..archive.len() {
+        let mut file = archive.by_index(index).unwrap();
+        let mut name = file.name().unwrap().into_owned();
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes).unwrap();
+        if name == "maskette-project.json" {
+            let mut manifest: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(manifest["format"], "maskette-project");
+            manifest["format"] = json!("vsk-project");
+            bytes = manifest.to_string().into_bytes();
+            name = "vsk-project.json".to_owned();
+        }
+        bundle
+            .start_file(name, zip::write::SimpleFileOptions::default())
+            .unwrap();
+        bundle.write_all(&bytes).unwrap();
+    }
+    bundle.finish().unwrap().into_inner()
+}
+
+#[tokio::test]
+async fn a_visual_studio_kigurumi_project_file_still_imports() {
+    let setup = setup(auto_front).await;
+    let id = setup.start().await;
+    setup.send(&id, "旧工程", 1, &[]).await;
+    let payload = bytes(
+        setup
+            .get(&format!("/api/agent/conversations/{id}/export"))
+            .await,
+    )
+    .await;
+    let vkp = as_vkp(&payload);
+
+    let imported = setup
+        .form(
+            "/api/agent/conversations/import",
+            &[Part::file(
+                "file",
+                "old.VKP",
+                "application/octet-stream",
+                vkp.clone(),
+            )],
+        )
+        .await;
+    assert_eq!(imported.status(), StatusCode::OK);
+    let copy = json_body(imported).await;
+    let copy_id = copy["id"].as_str().unwrap().to_owned();
+    assert_ne!(copy_id, id);
+    assert_eq!(copy["title"], "旧工程");
+    let front = images(&copy)[0].clone();
+    assert!(front["url"].as_str().unwrap().contains(&copy_id));
+    assert_eq!(
+        setup.get(front["url"].as_str().unwrap()).await.status(),
+        StatusCode::OK
+    );
+
+    // A `.vkp` renamed to `.maskette` is not taken as the new format.
+    let renamed = setup
+        .form(
+            "/api/agent/conversations/import",
+            &[Part::file(
+                "file",
+                "old.maskette",
+                "application/octet-stream",
+                vkp,
+            )],
+        )
+        .await;
+    assert_eq!(json_body(renamed).await["detail"], "unknown_format");
 }
 
 #[tokio::test]

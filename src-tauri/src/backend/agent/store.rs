@@ -1,8 +1,8 @@
 //! Conversations: one JSON file each under `agent/` in the data folder, kept
 //! in memory once read, plus a per-conversation signal for live events.
 //!
-//! The JSON shape is the old backend's (`app/agent/store.py`), so `.vkp`
-//! project files move between the two.
+//! The JSON shape is the old backend's (`app/agent/store.py`), so Visual
+//! Studio Kigurumi's `.vkp` project files open here.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

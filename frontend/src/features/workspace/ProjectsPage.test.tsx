@@ -174,7 +174,7 @@ describe("ProjectsPage", () => {
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true);
   });
 
-  it("offers the .vkp export in the project menu and an import button", async () => {
+  it("offers the .maskette export in the project menu and an import button", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json([project])),
@@ -183,12 +183,12 @@ describe("ProjectsPage", () => {
 
     expect(screen.getByRole("button", { name: "导入项目" })).toBeTruthy();
     fireEvent.click(await screen.findByRole("button", { name: "项目操作" }));
-    const exportLink = await screen.findByRole("link", { name: "导出 .vkp" });
+    const exportLink = await screen.findByRole("link", { name: "导出 .maskette" });
     expect(exportLink.getAttribute("href")).toBe("/api/agent/conversations/p1/export");
     expect(exportLink.getAttribute("download")).toBe("");
   });
 
-  it("imports a .vkp file and opens the restored project", async () => {
+  it("imports a project file and opens the restored project", async () => {
     const restored = {
       id: "p2",
       title: "导入的工程",
@@ -206,8 +206,8 @@ describe("ProjectsPage", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { container } = renderPage();
 
-    fireEvent.change(container.querySelector('input[type="file"][accept=".vkp"]')!, {
-      target: { files: [new File(["bundle"], "project.vkp", { type: "application/zip" })] },
+    fireEvent.change(container.querySelector('input[type="file"][accept=".maskette,.vkp"]')!, {
+      target: { files: [new File(["bundle"], "project.maskette", { type: "application/zip" })] },
     });
 
     await waitFor(() =>

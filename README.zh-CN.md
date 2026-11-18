@@ -52,7 +52,7 @@ Maskette 是一款根据角色立绘设计 Kigurumi 头壳的桌面应用。
 ## 数据位置
 
 - 项目和图片保存在 `%APPDATA%\app.maskette`。
-- 在项目列表的菜单中选择“导出 .vkp”，可以把项目导出为一个文件，在另一台电脑上导入。
+- 在项目列表的菜单中选择“导出 .maskette”，可以把项目导出为一个文件，在另一台电脑上导入。Visual Studio Kigurumi 导出的 .vkp 文件也可以导入。
 
 ## 卸载
 

@@ -1,12 +1,15 @@
-//! The `.vkp` project file: a zip that carries one whole project between
-//! machines, in the old backend's format (`app/agent/vkp.py`), so projects
-//! made there open here.
+//! The project file: a zip that carries one whole project between machines.
 //!
-//! Inside the bundle:
-//!   vsk-project.json  format marker with the original conversation / session ids
-//!   project.json      the whole conversation (state, references, versions, events, transcript)
-//!   assets/...        references/agent/<id>/ - uploads and the clean pixels of every version
-//!   generated/...     generated/<session>/   - the public images the version URLs point at
+//! Maskette writes `.maskette` files. It still reads `.vkp` files, the format
+//! of Visual Studio Kigurumi's old backend (`app/agent/vkp.py`), so projects
+//! made there open here. The two hold the same layout and differ only in the
+//! format marker, so the extension says which marker the file must carry:
+//!
+//!   maskette-project.json  marker of a `.maskette` file (`vsk-project.json` in a `.vkp`),
+//!                          with the original conversation / session ids
+//!   project.json           the whole conversation (state, references, versions, events, transcript)
+//!   assets/...             references/agent/<id>/ - uploads and the clean pixels of every version
+//!   generated/...          generated/<session>/   - the public images the version URLs point at
 //!
 //! Importing always makes a new conversation id (an import is a copy),
 //! rewrites the ids inside project.json (every key and URL carries them) and
@@ -24,9 +27,45 @@ use super::tools::conversation_references;
 use crate::backend::generation::{self, join_plain};
 use crate::backend::ids;
 
-const FORMAT_NAME: &str = "vsk-project";
+/// Which project file a name is, by its extension.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Kind {
+    /// `.maskette`: what Maskette writes.
+    Maskette,
+    /// `.vkp`: what Visual Studio Kigurumi wrote. Read only.
+    Vkp,
+}
+
+impl Kind {
+    /// The kind a file name's extension (any case) names, if any.
+    pub fn of_file_name(name: &str) -> Option<Self> {
+        let extension = Path::new(name).extension()?.to_str()?;
+        if extension.eq_ignore_ascii_case("maskette") {
+            Some(Self::Maskette)
+        } else if extension.eq_ignore_ascii_case("vkp") {
+            Some(Self::Vkp)
+        } else {
+            None
+        }
+    }
+
+    fn format_name(self) -> &'static str {
+        match self {
+            Self::Maskette => "maskette-project",
+            Self::Vkp => "vsk-project",
+        }
+    }
+
+    fn manifest_name(self) -> &'static str {
+        match self {
+            Self::Maskette => "maskette-project.json",
+            Self::Vkp => "vsk-project.json",
+        }
+    }
+}
+
+const EXTENSION: &str = "maskette";
 const FORMAT_VERSION: u64 = 1;
-const MANIFEST_NAME: &str = "vsk-project.json";
 const PROJECT_NAME: &str = "project.json";
 const IMAGE_SUFFIXES: [&str; 4] = ["webp", "png", "jpg", "jpeg"];
 const MAX_ENTRIES: usize = 10_000;
@@ -69,19 +108,19 @@ fn zip_error(error: impl std::fmt::Display) -> String {
 }
 
 /// The conversation, its reference and version pixels and its public images,
-/// as `.vkp` bytes. Blocks on the disk.
+/// as `.maskette` bytes. Blocks on the disk.
 pub fn build_project_file(data_dir: &Path, conversation: &Conversation) -> Result<Vec<u8>, String> {
     let mut bundle = ZipWriter::new(Cursor::new(Vec::new()));
     let options = SimpleFileOptions::default().compression_method(CompressionMethod::Deflated);
     let manifest = json!({
-        "format": FORMAT_NAME,
+        "format": Kind::Maskette.format_name(),
         "version": FORMAT_VERSION,
         "conversation_id": conversation.id,
         "session_id": conversation.state.character_session_id,
         "exported_at": conversation.created_at,
     });
     bundle
-        .start_file(MANIFEST_NAME, options)
+        .start_file(Kind::Maskette.manifest_name(), options)
         .map_err(zip_error)?;
     bundle
         .write_all(manifest.to_string().as_bytes())
@@ -117,7 +156,8 @@ fn check_entry_name(name: &str) -> Result<(), &'static str> {
     let unsafe_entry = name.starts_with('/')
         || name.contains('\\')
         || name.split('/').any(|part| part.is_empty() || part == "..")
-        || !(name == MANIFEST_NAME
+        || !(name == Kind::Maskette.manifest_name()
+            || name == Kind::Vkp.manifest_name()
             || name == PROJECT_NAME
             || name.starts_with("assets/")
             || name.starts_with("generated/"));
@@ -138,10 +178,14 @@ fn read_entry(
     Ok(bytes)
 }
 
-/// Restores a `.vkp` as a new conversation (a copy; the project it came from
-/// is never touched). `Err` is the `detail` for a 400. Blocks on the disk;
-/// the caller saves the conversation.
-pub fn import_project_file(data_dir: &Path, data: &[u8]) -> Result<Conversation, &'static str> {
+/// Restores a project file of the given kind as a new conversation (a copy;
+/// the project it came from is never touched). `Err` is the `detail` for a
+/// 400. Blocks on the disk; the caller saves the conversation.
+pub fn import_project_file(
+    data_dir: &Path,
+    kind: Kind,
+    data: &[u8],
+) -> Result<Conversation, &'static str> {
     let mut archive = ZipArchive::new(Cursor::new(data)).map_err(|_| "not_a_zip")?;
     let mut names = Vec::with_capacity(archive.len());
     let mut total: u64 = 0;
@@ -156,11 +200,25 @@ pub fn import_project_file(data_dir: &Path, data: &[u8]) -> Result<Conversation,
     for name in &names {
         check_entry_name(name)?;
     }
-    let meta: Value = serde_json::from_slice(&read_entry(&mut archive, MANIFEST_NAME)?)
+    let manifest_name = kind.manifest_name();
+    if !names.iter().any(|name| name == manifest_name) {
+        // The other kind's marker: a `.vkp` renamed to `.maskette`, or the
+        // other way round. The extension says which format to expect.
+        return Err(
+            if names.iter().any(|name| name.ends_with("-project.json")) {
+                "unknown_format"
+            } else {
+                "missing_manifest"
+            },
+        );
+    }
+    let meta: Value = serde_json::from_slice(&read_entry(&mut archive, manifest_name)?)
         .map_err(|_| "invalid_json")?;
     let document: Value = serde_json::from_slice(&read_entry(&mut archive, PROJECT_NAME)?)
         .map_err(|_| "invalid_json")?;
-    if meta.get("format").and_then(Value::as_str) != Some(FORMAT_NAME) || !document.is_object() {
+    if meta.get("format").and_then(Value::as_str) != Some(kind.format_name())
+        || !document.is_object()
+    {
         return Err("unknown_format");
     }
 
@@ -244,7 +302,7 @@ pub fn download_name(conversation: &Conversation) -> String {
     };
     let short: String = safe.chars().take(40).collect();
     format!(
-        "{short}-{}.vkp",
+        "{short}-{}.{EXTENSION}",
         &conversation.id[..8.min(conversation.id.len())]
     )
 }
@@ -256,9 +314,29 @@ mod tests {
     #[test]
     fn entry_names_must_stay_in_the_bundle_layout() {
         assert!(check_entry_name("project.json").is_ok());
+        assert!(check_entry_name("maskette-project.json").is_ok());
+        assert!(check_entry_name("vsk-project.json").is_ok());
         assert!(check_entry_name("assets/uploads/a.png").is_ok());
-        for name in ["/etc/x", "assets/../x", "assets\\x", "other/x", "assets//x"] {
+        for name in [
+            "/etc/x",
+            "assets/../x",
+            "assets\\x",
+            "other/x",
+            "assets//x",
+            "other-project.json",
+        ] {
             assert_eq!(check_entry_name(name), Err("unsafe_entry"), "{name}");
+        }
+    }
+
+    #[test]
+    fn the_extension_names_the_kind() {
+        assert_eq!(Kind::of_file_name("a.maskette"), Some(Kind::Maskette));
+        assert_eq!(Kind::of_file_name("A.MASKETTE"), Some(Kind::Maskette));
+        assert_eq!(Kind::of_file_name("a.vkp"), Some(Kind::Vkp));
+        assert_eq!(Kind::of_file_name("a.VKP"), Some(Kind::Vkp));
+        for name in ["a.zip", "a", "maskette", "a.maskette.zip"] {
+            assert_eq!(Kind::of_file_name(name), None, "{name}");
         }
     }
 }

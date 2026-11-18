@@ -47,7 +47,7 @@ export function ProjectsPage() {
     navigate(`/p/${project.id}`);
   }
 
-  async function importVkp(file: File) {
+  async function importProjectFile(file: File) {
     setImporting(true);
     setImportError(null);
     try {
@@ -107,12 +107,12 @@ export function ProjectsPage() {
             {t("workspace.newProject")}
           </button>
           <input
-            accept=".vkp"
+            accept=".maskette,.vkp"
             className="hidden"
             onChange={(event) => {
               const file = event.target.files?.[0];
               event.target.value = "";
-              if (file) void importVkp(file);
+              if (file) void importProjectFile(file);
             }}
             ref={fileInputRef}
             type="file"
