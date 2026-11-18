@@ -126,17 +126,33 @@ pub fn saved_openrouter_key() -> String {
         .expect("an OpenRouter key saved in Maskette's settings")
 }
 
-/// What `key` has spent on OpenRouter so far, in US dollars.
+/// What `key` has spent on OpenRouter so far, in US dollars. A failed read
+/// is tried again a few times: on 2026-11-19 one read lost its connection,
+/// and the panic threw away the record of a run that was already billed.
 async fn openrouter_usage(client: &reqwest::Client, key: &str) -> f64 {
-    let reply: Value = client
-        .get(format!("{OPENROUTER}/key"))
-        .bearer_auth(key)
-        .send()
-        .await
-        .expect("OpenRouter reachable")
-        .json()
-        .await
-        .expect("OpenRouter's key status as JSON");
+    const ATTEMPTS: u32 = 4;
+    let mut attempt = 1;
+    let reply = loop {
+        let read: Result<Value, reqwest::Error> = async {
+            client
+                .get(format!("{OPENROUTER}/key"))
+                .bearer_auth(key)
+                .send()
+                .await?
+                .json()
+                .await
+        }
+        .await;
+        match read {
+            Ok(reply) => break reply,
+            Err(error) if attempt < ATTEMPTS => {
+                println!("reading the key's spending failed ({error}); trying again");
+                attempt += 1;
+                tokio::time::sleep(std::time::Duration::from_secs(3)).await;
+            }
+            Err(error) => panic!("OpenRouter's key status unreadable: {error}"),
+        }
+    };
     reply["data"]["usage"]
         .as_f64()
         .unwrap_or_else(|| panic!("no usage in {reply}"))
