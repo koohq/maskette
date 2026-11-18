@@ -338,8 +338,8 @@ describe("SettingsPage", () => {
     const radios = ["对话助手 LLM", "参考图分析 LLM", "生图后端"].flatMap((name) =>
       within(screen.getByRole("radiogroup", { name })).getAllByRole("radio"),
     );
-    // Chat 2, analysis 3 (unfolded: it is on Codex), images 4.
-    expect(radios).toHaveLength(9);
+    // Chat 3, analysis 3 (unfolded: it is on Codex), images 4.
+    expect(radios).toHaveLength(10);
     for (const radio of radios) {
       const note = document.getElementById(radio.getAttribute("aria-describedby") ?? "");
       expect(note?.textContent, radio.getAttribute("value") ?? "").toBeTruthy();
