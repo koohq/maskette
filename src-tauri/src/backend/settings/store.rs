@@ -62,10 +62,14 @@ const OPENROUTER_BASE_URL: &str = "https://openrouter.ai/api/v1";
 ///
 /// The defaults put all three roles on OpenRouter, so one key is enough to
 /// start: the chat and the analysis on `google/gemini-3.8-flash` (reasoning
-/// low and medium), images on Nano Banana 2.1, the model the realism prompts
-/// were checked with (kept after a side-by-side run against newer models;
-/// `generation/compare.rs` repeats it). The old backend's
-/// defaults pointed the chat at Ark's Doubao and left the rest unset.
+/// low and medium), images on GPT Image 2.6 Sunburst. It replaced Nano Banana
+/// 2.1 after side-by-side runs (`generation/compare.rs` repeats them): it
+/// keeps closer to the drawing (the fringe, the hair's lightness), keeps the
+/// pupils round, puts the ears at the drawn height and varies less from one
+/// image to the next. Only changed settings are saved, so anyone who never
+/// set the image model moves to a new default with the update. The old
+/// backend's defaults pointed the chat at Ark's Doubao and left the rest
+/// unset.
 pub const FIELDS: &[Field] = &[
     Field {
         default: "openai_compatible",
@@ -99,7 +103,7 @@ pub const FIELDS: &[Field] = &[
     text("ark_base_url", ARK_BASE_URL),
     text("ark_image_model", "doubao-seedream-5-0-pro"),
     text("openrouter_base_url", OPENROUTER_BASE_URL),
-    text("openrouter_image_model", "google/gemini-nano-banana-2.1"),
+    text("openrouter_image_model", "openai/gpt-image-2.6-sunburst"),
     text("openrouter_extra_body", ""),
     secret("agent_llm_api_key"),
     secret("analysis_llm_api_key"),

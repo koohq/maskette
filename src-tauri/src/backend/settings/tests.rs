@@ -67,7 +67,7 @@ async fn settings_report_effective_backends() {
     );
     assert_eq!(
         body["values"]["openrouter_image_model"],
-        "google/gemini-nano-banana-2.1"
+        "openai/gpt-image-2.6-sunburst"
     );
     assert_eq!(body["overridden"], json!([]));
     assert_eq!(
@@ -138,6 +138,49 @@ async fn settings_update_saves_changes_and_resets() {
         "openai_compatible"
     );
     assert!(!backend.dir.path().join(FILE_NAME).exists());
+}
+
+/// Only what was changed is saved, so an image model nobody set follows the
+/// built-in default after an update, while a model someone chose stays.
+#[tokio::test]
+async fn an_unchanged_image_model_follows_the_default() {
+    let backend = backend();
+    let app = backend.app();
+    let response = put(
+        &app,
+        json!({"image_provider": "openrouter", "agent_llm_model": "m1"}),
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let file = backend.dir.path().join(FILE_NAME);
+    let saved: Value = serde_json::from_str(&std::fs::read_to_string(&file).unwrap()).unwrap();
+    assert_eq!(
+        saved,
+        json!({"agent_llm_model": "m1", "image_provider": "openrouter"})
+    );
+    let default = store::field("openrouter_image_model").unwrap().default;
+    assert_eq!(
+        backend
+            .restart()
+            .settings
+            .settings()
+            .get("openrouter_image_model"),
+        default
+    );
+
+    std::fs::write(
+        &file,
+        r#"{"openrouter_image_model": "vendor/chosen-model"}"#,
+    )
+    .unwrap();
+    assert_eq!(
+        backend
+            .restart()
+            .settings
+            .settings()
+            .get("openrouter_image_model"),
+        "vendor/chosen-model"
+    );
 }
 
 #[tokio::test]

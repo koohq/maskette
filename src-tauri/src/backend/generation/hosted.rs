@@ -699,6 +699,11 @@ mod tests {
             prompt_limit_for_model("google/gemini-nano-banana-2.1"),
             None
         );
+        // The default image model gets the whole prompt.
+        assert_eq!(
+            prompt_limit_for_model("openai/gpt-image-2.6-sunburst"),
+            None
+        );
     }
 
     fn openrouter(parameters: Option<Value>, extra_body: Value) -> OpenRouter {

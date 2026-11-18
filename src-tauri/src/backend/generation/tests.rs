@@ -549,7 +549,8 @@ async fn openrouter_needs_a_model_and_a_key() {
         backend.state.settings.update(&changes).unwrap();
         image_backend(&backend.state.settings.settings()).map(|_| ())
     };
-    // Release builds generate with OpenRouter and Nano Banana 2.1 unless set.
+    // Release builds generate with OpenRouter and GPT Image 2.6 Sunburst
+    // unless set.
     let error = settings(&[]).unwrap_err();
     assert!(error.message.contains("openrouter_api_key is required"));
     assert_eq!(error.code, Some("api_key_missing"));
