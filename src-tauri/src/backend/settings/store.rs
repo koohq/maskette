@@ -1,10 +1,11 @@
 //! The settings Maskette runs with, and where changes to them are kept.
 //!
 //! Every editable setting has a built-in default. Changes made on the
-//! settings page are saved on top: API keys in the OS credential store
-//! (see [`super::secrets`]), everything else in `settings.json` in the data
-//! folder. The old backend also layered a `.env` file underneath; the
-//! desktop app has none.
+//! settings page are saved on top, in `settings.json` in the data folder.
+//! API keys are kept apart, one per service (see [`service_of`]), in the OS
+//! credential store (see [`super::secrets`]): a key belongs to an account at
+//! a service, so every role that uses the service uses its key. The old
+//! backend also layered a `.env` file underneath; the desktop app has none.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -24,8 +25,6 @@ pub struct Field {
     pub default: &'static str,
     /// The values a choice may take; `None` for free text.
     pub allowed: Option<&'static [&'static str]>,
-    /// Write-only: the API says whether it is set, never its value.
-    pub secret: bool,
 }
 
 const fn text(key: &'static str, default: &'static str) -> Field {
@@ -33,7 +32,6 @@ const fn text(key: &'static str, default: &'static str) -> Field {
         key,
         default,
         allowed: None,
-        secret: false,
     }
 }
 
@@ -42,16 +40,6 @@ const fn choice(key: &'static str, allowed: &'static [&'static str]) -> Field {
         key,
         default: "",
         allowed: Some(allowed),
-        secret: false,
-    }
-}
-
-const fn secret(key: &'static str) -> Field {
-    Field {
-        key,
-        default: "",
-        allowed: None,
-        secret: true,
     }
 }
 
@@ -65,10 +53,9 @@ pub const SAME_AS_AGENT: &str = "same_as_agent";
 /// The analysis settings of its own OpenAI-compatible endpoint. While all of
 /// them keep their defaults, an unset `llm_provider` follows the chat
 /// assistant; see [`Settings::llm_provider`].
-const ANALYSIS_FIELDS: [&str; 4] = [
+const ANALYSIS_FIELDS: [&str; 3] = [
     "analysis_llm_base_url",
     "analysis_llm_model",
-    "analysis_llm_api_key",
     "analysis_llm_extra_body",
 ];
 
@@ -132,12 +119,50 @@ pub const FIELDS: &[Field] = &[
     text("openrouter_base_url", OPENROUTER_BASE_URL),
     text("openrouter_image_model", "openai/gpt-image-2.6-sunburst"),
     text("openrouter_extra_body", ""),
-    secret("agent_llm_api_key"),
-    secret("analysis_llm_api_key"),
-    secret("siliconflow_api_key"),
-    secret("ark_api_key"),
-    secret("openrouter_api_key"),
 ];
+
+/// The fields of the settings page that take an API key, one in each role
+/// that uses a service. Each shows the key of the service its role's URL
+/// belongs to (see [`Settings::key_url`]), and failures name the field when
+/// that key is missing. Earlier builds saved a key per field, under these
+/// names; [`SettingsStore::open`] moves them to their services once, in this
+/// order, so where two fields of one service held different keys the chat
+/// assistant's stays.
+pub const KEY_FIELDS: [&str; 5] = [
+    "agent_llm_api_key",
+    "analysis_llm_api_key",
+    "openrouter_api_key",
+    "ark_api_key",
+    "siliconflow_api_key",
+];
+
+/// The credential store cannot list its entries, so this one lists the
+/// services that have a key, one per line, for a reset to find them all.
+const KEY_INDEX: &str = "api_key_services";
+
+/// The credential store entry that holds the key of `service`.
+pub fn key_entry(service: &str) -> String {
+    format!("api_key:{service}")
+}
+
+/// The service an API URL belongs to, which its key is saved under: the
+/// URL's host, with the port unless it is the scheme's default. A key comes
+/// from an account at one site, so every OpenRouter URL shares one, while
+/// the mainland China and international sites of Ark or SiliconFlow keep one
+/// each. A URL that does not parse is a service of its own, and an empty one
+/// none. `serviceOf` in the frontend's `settingsApi.ts` follows the same rule.
+pub fn service_of(url: &str) -> String {
+    let url = base(url);
+    if let Ok(parsed) = reqwest::Url::parse(url)
+        && let Some(host) = parsed.host_str().filter(|host| !host.is_empty())
+    {
+        return match parsed.port() {
+            Some(port) => format!("{host}:{port}"),
+            None => host.to_owned(),
+        };
+    }
+    url.to_owned()
+}
 
 /// A saved `image_provider` that is no longer offered: the old Codex Bridge
 /// (a server for reaching Codex from inside Docker, running it without a
@@ -158,11 +183,18 @@ pub fn field(key: &str) -> Option<&'static Field> {
     FIELDS.iter().find(|field| field.key == key)
 }
 
-pub fn secret_keys() -> impl Iterator<Item = &'static str> {
-    FIELDS
-        .iter()
-        .filter(|field| field.secret)
-        .map(|field| field.key)
+/// Whether `value` is one word of at most [`MAX_SETTING_CHARS`] characters,
+/// as API keys and the services they belong to are.
+fn one_word(value: &str) -> bool {
+    let trimmed = value.trim();
+    value.chars().count() <= MAX_SETTING_CHARS
+        && !trimmed.is_empty()
+        && !trimmed.chars().any(char::is_whitespace)
+}
+
+/// Whether `value` may be saved as an API key.
+pub fn valid_api_key(value: &str) -> bool {
+    one_word(value)
 }
 
 /// Whether `value` (already trimmed by the caller where it should be) may be
@@ -175,12 +207,6 @@ pub fn valid_setting(key: &str, value: &str) -> bool {
     if value.chars().count() > MAX_SETTING_CHARS {
         return false;
     }
-    if field.secret {
-        let trimmed = value.trim();
-        if trimmed.is_empty() || trimmed.chars().any(char::is_whitespace) {
-            return false;
-        }
-    }
     if EXTRA_BODY_FIELDS.contains(&key) && chat_api::parse_extra_body(value).is_err() {
         return false;
     }
@@ -191,6 +217,8 @@ pub fn valid_setting(key: &str, value: &str) -> bool {
 #[derive(Clone)]
 pub struct Settings {
     values: BTreeMap<&'static str, String>,
+    /// API keys by service.
+    keys: BTreeMap<String, String>,
     pub allow_fixture: bool,
 }
 
@@ -209,17 +237,44 @@ impl Settings {
                 .iter()
                 .map(|field| (field.key, field.default.to_owned()))
                 .collect(),
+            keys: BTreeMap::new(),
             allow_fixture,
         }
     }
 
     fn with(mut self, saved: &Saved) -> Self {
-        for (key, value) in saved.values.iter().chain(&saved.secrets) {
+        for (key, value) in &saved.values {
             if let Some(field) = field(key) {
                 self.values.insert(field.key, value.clone());
             }
         }
+        self.keys = saved.keys.clone();
         self
+    }
+
+    /// The saved API keys, by service.
+    pub fn api_keys(&self) -> &BTreeMap<String, String> {
+        &self.keys
+    }
+
+    /// The key saved for the service `url` belongs to; empty when none is.
+    pub fn api_key_for(&self, url: &str) -> String {
+        self.keys.get(&service_of(url)).cloned().unwrap_or_default()
+    }
+
+    /// The URL whose service the key field `field` (one of [`KEY_FIELDS`])
+    /// shows the key of: its role's URL. Analysis with an empty URL of its
+    /// own uses the chat assistant's.
+    pub fn key_url(&self, field: &str) -> &str {
+        let agent = base(self.get("agent_llm_base_url"));
+        match field {
+            "agent_llm_api_key" => agent,
+            "analysis_llm_api_key" => non_empty_or(base(self.get("analysis_llm_base_url")), agent),
+            "openrouter_api_key" => base(self.get("openrouter_base_url")),
+            "ark_api_key" => base(self.get("ark_base_url")),
+            "siliconflow_api_key" => base(self.get("siliconflow_base_url")),
+            _ => "",
+        }
     }
 
     /// The value of an editable setting; empty for unknown keys.
@@ -278,21 +333,14 @@ impl Settings {
         non_empty_or(self.get("image_provider").trim(), fallback)
     }
 
-    /// The chat assistant's key; on the Ark endpoint it may reuse the Ark key.
+    /// The chat assistant's key: its service's.
     pub fn agent_api_key(&self) -> String {
-        let key = self.get("agent_llm_api_key").trim();
-        if !key.is_empty() {
-            return key.to_owned();
-        }
-        if base(self.get("agent_llm_base_url")) == base(self.get("ark_base_url")) {
-            return self.get("ark_api_key").trim().to_owned();
-        }
-        String::new()
+        self.api_key_for(self.key_url("agent_llm_api_key"))
     }
 
     /// Base URL, API key and model for analysis: the chat assistant's while
-    /// analysis follows it. Otherwise empty values fall back to the chat
-    /// assistant's.
+    /// analysis follows it. Otherwise an empty URL or model falls back to the
+    /// chat assistant's, and the key is that of the URL's service.
     pub fn analysis_endpoint(&self) -> (String, String, String) {
         let agent_base = base(self.get("agent_llm_base_url"));
         if self.analysis_follows_agent() {
@@ -307,32 +355,26 @@ impl Settings {
             self.get("analysis_llm_model").trim(),
             self.get("agent_llm_model").trim(),
         );
-        let mut key = self.get("analysis_llm_api_key").trim();
-        if key.is_empty() && base_url == agent_base {
-            key = self.get("agent_llm_api_key").trim();
-        }
-        if key.is_empty() && base_url == base(self.get("ark_base_url")) {
-            key = self.get("ark_api_key").trim();
-        }
-        (base_url.to_owned(), key.to_owned(), model.to_owned())
+        (
+            base_url.to_owned(),
+            self.api_key_for(base_url),
+            model.to_owned(),
+        )
     }
 
-    /// The OpenRouter key, else the key of the analysis or chat endpoint when
-    /// that already points at OpenRouter.
+    /// The key for image generation on OpenRouter.
     pub fn openrouter_api_key(&self) -> String {
-        let key = self.get("openrouter_api_key").trim();
-        if !key.is_empty() {
-            return key.to_owned();
-        }
-        let base_url = base(self.get("openrouter_base_url"));
-        let (analysis_base, analysis_key, _model) = self.analysis_endpoint();
-        if !analysis_key.is_empty() && analysis_base == base_url {
-            return analysis_key;
-        }
-        if base(self.get("agent_llm_base_url")) == base_url {
-            return self.get("agent_llm_api_key").trim().to_owned();
-        }
-        String::new()
+        self.api_key_for(self.key_url("openrouter_api_key"))
+    }
+
+    /// The key for image generation on Ark.
+    pub fn ark_api_key(&self) -> String {
+        self.api_key_for(self.key_url("ark_api_key"))
+    }
+
+    /// The key for image generation on SiliconFlow.
+    pub fn siliconflow_api_key(&self) -> String {
+        self.api_key_for(self.key_url("siliconflow_api_key"))
     }
 
     /// The chat assistant's extra request fields; invalid JSON sends none.
@@ -378,6 +420,8 @@ fn non_empty_or<'a>(value: &'a str, fallback: &'a str) -> &'a str {
 pub enum UpdateError {
     /// The key is not editable, or the value is not allowed for it.
     Invalid(String),
+    /// The API key for this service is not one word, or the service is not.
+    InvalidKey(String),
     /// The file or the credential store could not be written.
     Storage(String),
 }
@@ -386,7 +430,8 @@ pub enum UpdateError {
 #[derive(Clone, Default)]
 struct Saved {
     values: BTreeMap<String, String>,
-    secrets: BTreeMap<String, String>,
+    /// API keys by service.
+    keys: BTreeMap<String, String>,
 }
 
 pub struct SettingsStore {
@@ -403,20 +448,10 @@ impl SettingsStore {
         let path = data_dir.join(FILE_NAME);
         let mut saved = Saved {
             values: read_values(&path),
-            secrets: BTreeMap::new(),
+            keys: read_keys(secrets.as_ref()),
         };
-        for key in secret_keys() {
-            match secrets.get(key) {
-                Ok(Some(value)) if valid_setting(key, &value) => {
-                    saved
-                        .secrets
-                        .insert(key.to_owned(), value.trim().to_owned());
-                }
-                Ok(Some(_)) => log::warn!("ignoring an invalid saved {key}"),
-                Ok(None) => {}
-                Err(error) => log::warn!("cannot read {key} from the credential store: {error}"),
-            }
-        }
+        let urls = Settings::defaults(allow_fixture).with(&saved);
+        move_field_keys(secrets.as_ref(), &urls, &mut saved.keys);
         Self {
             path,
             secrets,
@@ -433,64 +468,139 @@ impl SettingsStore {
         Settings::defaults(self.allow_fixture).with(&self.saved())
     }
 
-    /// The effective settings and the keys changed from the defaults, taken
-    /// together so they agree.
+    /// The effective settings and the settings changed from the defaults,
+    /// taken together so they agree. API keys have no defaults, so they are
+    /// not among the changed settings.
     pub fn snapshot(&self) -> (Settings, BTreeSet<String>) {
         let saved = self.saved();
-        let keys = saved
-            .values
-            .keys()
-            .chain(saved.secrets.keys())
-            .cloned()
-            .collect();
-        (Settings::defaults(self.allow_fixture).with(&saved), keys)
+        let changed = saved.values.keys().cloned().collect();
+        (Settings::defaults(self.allow_fixture).with(&saved), changed)
     }
 
-    /// Applies changes in one go: a `None` value drops the saved change, so
-    /// the default applies again. Nothing is saved when any change is
-    /// invalid. Blocks on the credential store.
+    /// Applies changes to the settings, as [`Self::update_with_keys`] does.
+    #[cfg(test)]
     pub fn update(&self, changes: &[(String, Option<String>)]) -> Result<(), UpdateError> {
+        self.update_with_keys(changes, &[])
+    }
+
+    /// Applies changes in one go: to settings, and to API keys by service. A
+    /// `None` value drops a saved setting, so the default applies again, or
+    /// removes a key. Nothing is saved when any change is invalid. Blocks on
+    /// the credential store.
+    pub fn update_with_keys(
+        &self,
+        changes: &[(String, Option<String>)],
+        key_changes: &[(String, Option<String>)],
+    ) -> Result<(), UpdateError> {
         let mut saved = self.saved();
         let mut next = saved.clone();
         for (key, value) in changes {
             let Some(value) = value else {
                 next.values.remove(key);
-                next.secrets.remove(key);
                 continue;
             };
             let value = value.trim();
             if !valid_setting(key, value) || (value == "fixture" && !self.allow_fixture) {
                 return Err(UpdateError::Invalid(key.clone()));
             }
-            let target = if field(key).is_some_and(|field| field.secret) {
-                &mut next.secrets
-            } else {
-                &mut next.values
-            };
-            target.insert(key.clone(), value.to_owned());
+            next.values.insert(key.clone(), value.to_owned());
+        }
+        for (service, value) in key_changes {
+            if !one_word(service) || service.trim() != service {
+                return Err(UpdateError::InvalidKey(service.clone()));
+            }
+            match value {
+                None => {
+                    next.keys.remove(service);
+                }
+                Some(value) if valid_api_key(value) => {
+                    next.keys.insert(service.clone(), value.trim().to_owned());
+                }
+                Some(_) => return Err(UpdateError::InvalidKey(service.clone())),
+            }
         }
 
-        // Keep the in-memory copy in step with what actually got stored.
-        for key in secret_keys() {
-            let wanted = next.secrets.get(key);
-            if wanted == saved.secrets.get(key) {
-                continue;
-            }
-            let result = match wanted {
-                Some(value) => self.secrets.set(key, value),
-                None => self.secrets.delete(key),
-            };
-            result.map_err(|error| {
-                UpdateError::Storage(format!("credential store: {key}: {error}"))
-            })?;
-            match wanted {
-                Some(value) => saved.secrets.insert(key.to_owned(), value.clone()),
-                None => saved.secrets.remove(key),
-            };
-        }
+        self.store_keys(&mut saved, &next.keys)?;
         if next.values != saved.values {
             write_values(&self.path, &next.values).map_err(UpdateError::Storage)?;
             saved.values = next.values;
+        }
+        Ok(())
+    }
+
+    /// Saves changes the way the settings page does, with each key given
+    /// under its field in [`KEY_FIELDS`]: it goes to the service of that
+    /// field's URL once the other changes are made.
+    #[cfg(test)]
+    pub fn update_with_field_keys(
+        &self,
+        changes: &[(String, Option<String>)],
+    ) -> Result<(), UpdateError> {
+        let (keys, values): (Vec<_>, Vec<_>) = changes
+            .iter()
+            .cloned()
+            .partition(|(key, _)| KEY_FIELDS.contains(&key.as_str()));
+        let mut urls = self.settings();
+        for (key, value) in &values {
+            if let Some(field) = field(key) {
+                let value = value.as_deref().unwrap_or(field.default);
+                urls.values.insert(field.key, value.trim().to_owned());
+            }
+        }
+        let keys: Vec<_> = keys
+            .into_iter()
+            .map(|(field, value)| (service_of(urls.key_url(&field)), value))
+            .collect();
+        self.update_with_keys(&values, &keys)
+    }
+
+    /// Stores the keys in `wanted` that differ from the saved ones and
+    /// removes the rest, keeping the in-memory copy in step with what
+    /// actually got stored. A service is listed in [`KEY_INDEX`] before its
+    /// key is stored and unlisted after its key is gone: a listed service
+    /// with no key is harmless, while a key no entry lists would outlive a
+    /// reset.
+    fn store_keys(
+        &self,
+        saved: &mut Saved,
+        wanted: &BTreeMap<String, String>,
+    ) -> Result<(), UpdateError> {
+        let failed = |what: &str, error: String| {
+            UpdateError::Storage(format!("credential store: {what}: {error}"))
+        };
+        if wanted
+            .keys()
+            .any(|service| !saved.keys.contains_key(service))
+        {
+            write_index(
+                self.secrets.as_ref(),
+                saved.keys.keys().chain(wanted.keys()),
+            )
+            .map_err(|error| failed(KEY_INDEX, error))?;
+        }
+        for (service, value) in wanted {
+            if saved.keys.get(service) != Some(value) {
+                self.secrets
+                    .set(&key_entry(service), value)
+                    .map_err(|error| failed(service, error))?;
+                saved.keys.insert(service.clone(), value.clone());
+            }
+        }
+        let removed: Vec<String> = saved
+            .keys
+            .keys()
+            .filter(|service| !wanted.contains_key(*service))
+            .cloned()
+            .collect();
+        for service in &removed {
+            self.secrets
+                .delete(&key_entry(service))
+                .map_err(|error| failed(service, error))?;
+            saved.keys.remove(service);
+        }
+        if !removed.is_empty() {
+            write_index(self.secrets.as_ref(), saved.keys.keys())
+                .map_err(|error| failed(KEY_INDEX, error))?;
         }
         Ok(())
     }
@@ -509,17 +619,152 @@ impl SettingsStore {
             }
         }
         saved.values.clear();
-        for key in secret_keys() {
-            self.secrets.delete(key).map_err(|error| {
-                UpdateError::Storage(format!("credential store: {key}: {error}"))
-            })?;
-            saved.secrets.remove(key);
+        let failed = |what: &str, error: String| {
+            UpdateError::Storage(format!("credential store: {what}: {error}"))
+        };
+        // Also the services listed with a key that could not be read.
+        let mut services: BTreeSet<String> = saved.keys.keys().cloned().collect();
+        services
+            .extend(read_index(self.secrets.as_ref()).map_err(|error| failed(KEY_INDEX, error))?);
+        for service in &services {
+            self.secrets
+                .delete(&key_entry(service))
+                .map_err(|error| failed(service, error))?;
+            saved.keys.remove(service);
         }
-        if let Err(error) = self.secrets.delete(RETIRED_SECRET) {
-            log::warn!("cannot remove {RETIRED_SECRET} from the credential store: {error}");
+        self.secrets
+            .delete(KEY_INDEX)
+            .map_err(|error| failed(KEY_INDEX, error))?;
+        for name in KEY_FIELDS.into_iter().chain([RETIRED_SECRET]) {
+            if let Err(error) = self.secrets.delete(name) {
+                log::warn!("cannot remove {name} from the credential store: {error}");
+            }
         }
         Ok(())
     }
+}
+
+/// The services [`KEY_INDEX`] lists.
+fn read_index(secrets: &dyn SecretStore) -> Result<Vec<String>, String> {
+    Ok(secrets
+        .get(KEY_INDEX)?
+        .map(|text| {
+            text.lines()
+                .map(str::trim)
+                .filter(|service| !service.is_empty())
+                .map(str::to_owned)
+                .collect()
+        })
+        .unwrap_or_default())
+}
+
+/// Lists `services` in [`KEY_INDEX`]; none removes the entry.
+fn write_index<'a>(
+    secrets: &dyn SecretStore,
+    services: impl Iterator<Item = &'a String>,
+) -> Result<(), String> {
+    let services: BTreeSet<&str> = services.map(String::as_str).collect();
+    if services.is_empty() {
+        return secrets.delete(KEY_INDEX);
+    }
+    secrets.set(
+        KEY_INDEX,
+        &services.into_iter().collect::<Vec<_>>().join("\n"),
+    )
+}
+
+/// The saved API keys, by service.
+fn read_keys(secrets: &dyn SecretStore) -> BTreeMap<String, String> {
+    let services = match read_index(secrets) {
+        Ok(services) => services,
+        Err(error) => {
+            log::warn!("cannot read {KEY_INDEX} from the credential store: {error}");
+            return BTreeMap::new();
+        }
+    };
+    let mut keys = BTreeMap::new();
+    for service in services {
+        match secrets.get(&key_entry(&service)) {
+            Ok(Some(value)) if valid_api_key(&value) => {
+                keys.insert(service, value.trim().to_owned());
+            }
+            Ok(Some(_)) => log::warn!("ignoring an invalid saved key for {service}"),
+            Ok(None) => {}
+            Err(error) => {
+                log::warn!("cannot read the key for {service} from the credential store: {error}");
+            }
+        }
+    }
+    keys
+}
+
+/// Moves the keys earlier builds saved per field ([`KEY_FIELDS`]) to the
+/// services of the fields' URLs, adding to `keys`. A service that already
+/// has a key keeps it. The old entries go only once the moved keys are
+/// stored, so a locked credential store tries again on the next start.
+fn move_field_keys(
+    secrets: &dyn SecretStore,
+    urls: &Settings,
+    keys: &mut BTreeMap<String, String>,
+) {
+    let mut found = Vec::new();
+    for name in KEY_FIELDS {
+        match secrets.get(name) {
+            Ok(Some(value)) => found.push((name, value)),
+            Ok(None) => {}
+            Err(error) => {
+                log::warn!("cannot read {name} from the credential store: {error}");
+                return;
+            }
+        }
+    }
+    if found.is_empty() {
+        return;
+    }
+    let mut moved = BTreeMap::new();
+    for (name, value) in found {
+        let value = value.trim();
+        let service = service_of(urls.key_url(name));
+        if !valid_api_key(value) || service.is_empty() {
+            log::warn!("dropping an invalid saved {name}");
+            continue;
+        }
+        match keys.get(&service).or_else(|| moved.get(&service)) {
+            None => {
+                moved.insert(service, value.to_owned());
+            }
+            Some(kept) if kept != value => {
+                log::warn!("dropping the saved {name}: {service} already has another key");
+            }
+            Some(_) => {}
+        }
+    }
+    let stored = store_moved_keys(secrets, keys, &moved);
+    keys.extend(moved);
+    if let Err(error) = stored {
+        log::warn!("cannot move the saved API keys to their services: {error}");
+        return;
+    }
+    for name in KEY_FIELDS {
+        if let Err(error) = secrets.delete(name) {
+            log::warn!("cannot remove {name} from the credential store: {error}");
+        }
+    }
+}
+
+fn store_moved_keys(
+    secrets: &dyn SecretStore,
+    kept: &BTreeMap<String, String>,
+    moved: &BTreeMap<String, String>,
+) -> Result<(), String> {
+    if moved.is_empty() {
+        return Ok(());
+    }
+    write_index(secrets, kept.keys().chain(moved.keys()))?;
+    for (service, value) in moved {
+        secrets.set(&key_entry(service), value)?;
+    }
+    Ok(())
 }
 
 /// The non-secret changes saved in `settings.json`. API keys are never read
@@ -546,7 +791,7 @@ fn read_values(path: &Path) -> BTreeMap<String, String> {
             let Value::String(value) = value else {
                 return None;
             };
-            let editable = field(&key).is_some_and(|field| !field.secret);
+            let editable = field(&key).is_some();
             let retired = key == "image_provider" && value.trim() == RETIRED_IMAGE_PROVIDER;
             (editable && (valid_setting(&key, &value) || retired))
                 .then(|| (key, value.trim().to_owned()))

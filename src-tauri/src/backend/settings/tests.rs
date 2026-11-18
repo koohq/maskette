@@ -1,6 +1,7 @@
 //! Ported from the old backend's `tests/test_settings.py` and
 //! `tests/test_settings_probe.py`, plus the credential store.
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use axum::Router;
@@ -16,6 +17,9 @@ use super::secrets::SecretStore;
 use super::store::{self, FILE_NAME};
 use crate::backend::router;
 use crate::backend::tests::{TestBackend, authed, json_body};
+
+const OPENROUTER: &str = "openrouter.ai";
+const ARK: &str = "ark.cn-beijing.volces.com";
 
 fn backend() -> TestBackend {
     // Like the old test app, which allowed the fixtures.
@@ -45,6 +49,16 @@ async fn put(app: &Router, values: Value) -> Response {
         Method::PUT,
         "/api/settings",
         Some(json!({ "values": values })),
+    )
+    .await
+}
+
+async fn put_with_keys(app: &Router, values: Value, keys: Value) -> Response {
+    call(
+        app,
+        Method::PUT,
+        "/api/settings",
+        Some(json!({ "values": values, "keys": keys })),
     )
     .await
 }
@@ -90,11 +104,7 @@ async fn settings_report_effective_backends() {
         json!(["openai_compatible", "codex", "claude_code", "fixture"])
     );
     assert!(body["values"].get("ark_api_key").is_none());
-    assert_eq!(
-        body["secrets"]["ark_api_key"],
-        json!({"set": false, "source": "", "hint": ""})
-    );
-    assert_eq!(body["secrets"].as_object().unwrap().len(), 5);
+    assert_eq!(body["keys"], json!({}));
     let status = body["status"].as_object().unwrap();
     for flag in [
         "codex_cli",
@@ -204,8 +214,8 @@ async fn settings_reject_unknown_and_invalid_values() {
             json!({"agent_llm_model": "x".repeat(301)}),
             "agent_llm_model",
         ),
-        (json!({"ark_api_key": "  "}), "ark_api_key"),
-        (json!({"ark_api_key": "two words"}), "ark_api_key"),
+        // The fields that took a key per role are no settings.
+        (json!({"ark_api_key": "ark-secret-key-1234"}), "ark_api_key"),
     ] {
         let response = put(&app, values).await;
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -218,12 +228,37 @@ async fn settings_reject_unknown_and_invalid_values() {
 }
 
 #[tokio::test]
+async fn api_keys_must_be_one_word_for_one_service() {
+    let app = backend().app();
+    for (service, key) in [
+        (OPENROUTER, "  "),
+        (OPENROUTER, "two words"),
+        ("", "sk-or-test-00001111"),
+        ("two words", "sk-or-test-00001111"),
+        (" openrouter.ai", "sk-or-test-00001111"),
+    ] {
+        let response = put_with_keys(&app, json!({}), json!({ service: key })).await;
+        assert_eq!(
+            response.status(),
+            StatusCode::BAD_REQUEST,
+            "{service:?} {key:?}"
+        );
+        assert_eq!(
+            json_body(response).await,
+            json!({ "detail": format!("invalid_api_key:{service}") })
+        );
+    }
+    assert_eq!(read(&app).await["keys"], json!({}));
+}
+
+#[tokio::test]
 async fn an_invalid_value_saves_nothing_from_the_same_request() {
     let backend = backend();
     let app = backend.app();
-    let response = put(
+    let response = put_with_keys(
         &app,
-        json!({"ark_api_key": "ark-secret-key-1234", "image_provider": "dalle"}),
+        json!({"image_provider": "dalle"}),
+        json!({ ARK: "ark-secret-key-1234" }),
     )
     .await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -285,6 +320,7 @@ fn the_settings_file_never_supplies_api_keys_or_invalid_values() {
     let state = backend.restart();
     let (settings, saved) = state.settings.snapshot();
     assert_eq!(settings.get("ark_api_key"), "");
+    assert_eq!(settings.ark_api_key(), "");
     assert_eq!(settings.image_provider(), "fixture");
     assert_eq!(settings.get("ark_image_model"), "m2");
     assert_eq!(saved.into_iter().collect::<Vec<_>>(), ["ark_image_model"]);
@@ -314,7 +350,7 @@ async fn a_saved_codex_bridge_is_kept_but_can_no_longer_be_chosen() {
     let body = read(&app).await;
     assert_eq!(body["values"]["image_provider"], "codex_bridge");
     assert!(body["values"].get("codex_bridge_url").is_none());
-    assert!(body["secrets"].get("codex_bridge_token").is_none());
+    assert_eq!(body["keys"], json!({}));
     assert!(body["status"].get("codex_bridge").is_none());
     let response = put(&app, json!({"image_provider": "codex_bridge"})).await;
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
@@ -331,41 +367,37 @@ async fn a_saved_codex_bridge_is_kept_but_can_no_longer_be_chosen() {
 }
 
 #[tokio::test]
-async fn api_keys_are_write_only_and_kept_in_the_credential_store() {
+async fn api_keys_are_kept_per_service_and_write_only() {
     let backend = backend();
     let app = backend.app();
-    // The chat on Ark (the old default endpoint).
-    let response = put(
+    // The chat on Ark (the old default endpoint), as images can be.
+    let response = put_with_keys(
         &app,
         json!({"agent_llm_base_url": "https://ark.cn-beijing.volces.com/api/plan/v3"}),
+        json!({ ARK: " ark-secret-key-1234 " }),
     )
     .await;
-    assert_eq!(response.status(), StatusCode::OK);
-
-    let response = put(&app, json!({"ark_api_key": " ark-secret-key-1234 "})).await;
     assert_eq!(response.status(), StatusCode::OK);
     let text = body_text(response).await;
     assert!(!text.contains("ark-secret-key-1234"));
     let body: Value = serde_json::from_str(&text).unwrap();
-    assert_eq!(
-        body["secrets"]["ark_api_key"],
-        json!({"set": true, "source": "override", "hint": "…1234"})
-    );
+    assert_eq!(body["keys"], json!({ ARK: {"hint": "…1234"} }));
+    assert_eq!(body["overridden"], json!(["agent_llm_base_url"]));
+    // One key for every role on the service.
     assert_eq!(body["status"]["ark_key"], true);
-    assert_eq!(
-        body["overridden"],
-        json!(["agent_llm_base_url", "ark_api_key"])
-    );
-    // The agent reuses the Ark key when it talks to the same endpoint.
     assert_eq!(body["status"]["agent_llm_key"], true);
-    assert_eq!(
-        backend.state.settings.settings().get("ark_api_key"),
-        "ark-secret-key-1234"
-    );
+    assert_eq!(body["status"]["openrouter_key"], false);
+    let settings = backend.state.settings.settings();
+    assert_eq!(settings.ark_api_key(), "ark-secret-key-1234");
+    assert_eq!(settings.agent_api_key(), "ark-secret-key-1234");
 
     // In the credential store, and not in the settings file.
     assert_eq!(
-        backend.secrets.get("ark_api_key").unwrap().as_deref(),
+        backend
+            .secrets
+            .get(&store::key_entry(ARK))
+            .unwrap()
+            .as_deref(),
         Some("ark-secret-key-1234")
     );
     let file = backend.dir.path().join(FILE_NAME);
@@ -379,37 +411,54 @@ async fn api_keys_are_write_only_and_kept_in_the_credential_store() {
     // Still there after a restart.
     let restarted = backend.restart();
     assert_eq!(
-        restarted.settings.settings().get("ark_api_key"),
+        restarted.settings.settings().ark_api_key(),
         "ark-secret-key-1234"
     );
 
-    let body = json_body(put(&app, json!({"ark_api_key": null})).await).await;
-    assert_eq!(body["secrets"]["ark_api_key"]["set"], false);
-    assert_eq!(backend.secrets.get("ark_api_key").unwrap(), None);
+    let body = json_body(put_with_keys(&app, json!({}), json!({ ARK: null })).await).await;
+    assert_eq!(body["keys"], json!({}));
+    assert_eq!(body["status"]["agent_llm_key"], false);
+    // The key and the list of services that have one.
+    assert!(backend.secrets.snapshot().is_empty());
 }
 
 #[tokio::test]
 async fn short_keys_get_no_hint() {
     let app = backend().app();
-    let body = json_body(put(&app, json!({"openrouter_api_key": "sk-short"})).await).await;
-    assert_eq!(
-        body["secrets"]["openrouter_api_key"],
-        json!({"set": true, "source": "override", "hint": ""})
-    );
+    let body =
+        json_body(put_with_keys(&app, json!({}), json!({ OPENROUTER: "sk-short" })).await).await;
+    assert_eq!(body["keys"][OPENROUTER], json!({"hint": ""}));
 }
 
 #[tokio::test]
 async fn reset_also_removes_the_api_keys() {
     let backend = backend();
     let app = backend.app();
-    put(
+    put_with_keys(
         &app,
-        json!({"openrouter_api_key": "sk-or-test-00001111", "image_provider": "openrouter"}),
+        json!({"image_provider": "openrouter"}),
+        json!({ OPENROUTER: "sk-or-test-00001111" }),
     )
     .await;
-    assert_eq!(backend.secrets.snapshot().len(), 1);
+    // The key and the list of services that have one.
+    assert_eq!(backend.secrets.snapshot().len(), 2);
+    // A listed key that cannot be used...
+    backend
+        .secrets
+        .set("api_key_services", "openrouter.ai\nbroken.test")
+        .unwrap();
+    backend
+        .secrets
+        .set(&store::key_entry("broken.test"), "two words")
+        .unwrap();
+    let app = router(backend.restart());
+    // ...and one an earlier build saved per field.
+    backend
+        .secrets
+        .set("agent_llm_api_key", "sk-left-behind")
+        .unwrap();
     let body = json_body(call(&app, Method::DELETE, "/api/settings", None).await).await;
-    assert_eq!(body["secrets"]["openrouter_api_key"]["set"], false);
+    assert_eq!(body["keys"], json!({}));
     assert!(backend.secrets.snapshot().is_empty());
 }
 
@@ -419,9 +468,10 @@ async fn a_failing_credential_store_is_reported_and_changes_nothing() {
     let app = backend.app();
     *backend.secrets.fail_with.lock().unwrap() = Some("locked".to_owned());
 
-    let response = put(
+    let response = put_with_keys(
         &app,
-        json!({"ark_api_key": "ark-secret-key-1234", "image_provider": "ark"}),
+        json!({"image_provider": "ark"}),
+        json!({ ARK: "ark-secret-key-1234" }),
     )
     .await;
     assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
@@ -434,19 +484,20 @@ async fn a_failing_credential_store_is_reported_and_changes_nothing() {
     *backend.secrets.fail_with.lock().unwrap() = None;
     let body = read(&app).await;
     assert_eq!(body["overridden"], json!([]));
-    assert_eq!(body["secrets"]["ark_api_key"]["set"], false);
+    assert_eq!(body["keys"], json!({}));
 }
 
 #[tokio::test]
-async fn openrouter_reuses_the_analysis_key_on_the_same_endpoint() {
+async fn a_key_serves_every_role_on_its_service() {
     let app = backend().app();
     let body = json_body(
-        put(
+        put_with_keys(
             &app,
             json!({
+                "agent_llm_base_url": "https://api.openai.com/v1",
                 "analysis_llm_base_url": "https://openrouter.ai/api/v1/",
-                "analysis_llm_api_key": "sk-or-test-00001111",
             }),
+            json!({ OPENROUTER: "sk-or-test-00001111" }),
         )
         .await,
     )
@@ -454,6 +505,119 @@ async fn openrouter_reuses_the_analysis_key_on_the_same_endpoint() {
     assert_eq!(body["status"]["openrouter_key"], true);
     assert_eq!(body["status"]["analysis_llm_key"], true);
     assert_eq!(body["status"]["agent_llm_key"], false);
+}
+
+/// The same cases as `serviceOf` in the frontend's `settingsApi.test.ts`.
+#[test]
+fn a_service_is_the_host_of_its_url() {
+    for (url, service) in [
+        ("https://openrouter.ai/api/v1", "openrouter.ai"),
+        (" https://OpenRouter.ai/api/v1/ ", "openrouter.ai"),
+        (
+            "https://ark.cn-beijing.volces.com/api/plan/v3",
+            "ark.cn-beijing.volces.com",
+        ),
+        (
+            "https://ark.ap-southeast.bytepluses.com/api/v3",
+            "ark.ap-southeast.bytepluses.com",
+        ),
+        ("http://localhost:11434/v1", "localhost:11434"),
+        ("https://api.example.test:443/v1", "api.example.test"),
+        ("http://[::1]:8080/v1", "[::1]:8080"),
+        ("openrouter.ai/api/v1/", "openrouter.ai/api/v1"),
+        ("localhost:8080/v1", "localhost:8080/v1"),
+        ("", ""),
+    ] {
+        assert_eq!(store::service_of(url), service, "{url:?}");
+    }
+}
+
+/// An earlier build: the chat on Ark, analysis of its own and images on
+/// OpenRouter, with a key saved in each field.
+fn keys_saved_per_field(backend: &TestBackend) {
+    std::fs::write(
+        backend.dir.path().join(FILE_NAME),
+        r#"{"agent_llm_base_url": "https://ark.cn-beijing.volces.com/api/plan/v3", "llm_provider": "openai_compatible", "analysis_llm_base_url": "https://openrouter.ai/api/v1"}"#,
+    )
+    .unwrap();
+    for (name, value) in [
+        ("agent_llm_api_key", "chat-ark-key"),
+        ("ark_api_key", "image-ark-key"),
+        ("analysis_llm_api_key", "or-key"),
+        ("openrouter_api_key", "or-key"),
+        ("siliconflow_api_key", "sf-key"),
+    ] {
+        backend.secrets.set(name, value).unwrap();
+    }
+}
+
+fn expected_moved_keys() -> BTreeMap<String, String> {
+    [
+        ("api.siliconflow.cn", "sf-key"),
+        // Of two keys for one service, the chat assistant's stays.
+        (ARK, "chat-ark-key"),
+        (OPENROUTER, "or-key"),
+    ]
+    .into_iter()
+    .map(|(service, key)| (service.to_owned(), key.to_owned()))
+    .collect()
+}
+
+#[test]
+fn keys_saved_per_field_move_to_their_services_once() {
+    let backend = backend();
+    keys_saved_per_field(&backend);
+    let settings = backend.restart().settings.settings();
+    assert_eq!(settings.api_keys(), &expected_moved_keys());
+    assert_eq!(settings.ark_api_key(), "chat-ark-key");
+    assert_eq!(settings.analysis_endpoint().1, "or-key");
+
+    // The old entries are gone.
+    let stored = backend.secrets.snapshot();
+    assert_eq!(
+        stored.keys().map(String::as_str).collect::<Vec<_>>(),
+        [
+            "api_key:api.siliconflow.cn",
+            "api_key:ark.cn-beijing.volces.com",
+            "api_key:openrouter.ai",
+            "api_key_services",
+        ]
+    );
+    assert_eq!(
+        backend.restart().settings.settings().api_keys(),
+        &expected_moved_keys()
+    );
+}
+
+#[test]
+fn keys_saved_per_field_stay_until_they_can_move() {
+    let backend = backend();
+    keys_saved_per_field(&backend);
+    *backend.secrets.fail_writes_with.lock().unwrap() = Some("locked".to_owned());
+    // Used where they belong while the old entries stay...
+    let settings = backend.restart().settings.settings();
+    assert_eq!(settings.api_keys(), &expected_moved_keys());
+    assert_eq!(backend.secrets.snapshot().len(), 5);
+    // ...and moved on the next start.
+    *backend.secrets.fail_writes_with.lock().unwrap() = None;
+    backend.restart();
+    assert_eq!(backend.secrets.snapshot().len(), 4);
+}
+
+/// A service that already has a key keeps it: an earlier start moved the
+/// fields' keys, or the key was changed since.
+#[test]
+fn a_moved_key_never_replaces_a_key_of_the_service() {
+    let backend = backend();
+    backend
+        .state
+        .settings
+        .update_with_keys(&[], &[(ARK.to_owned(), Some("newer-ark-key".to_owned()))])
+        .unwrap();
+    keys_saved_per_field(&backend);
+    let settings = backend.restart().settings.settings();
+    assert_eq!(settings.ark_api_key(), "newer-ark-key");
+    assert_eq!(settings.api_keys()[OPENROUTER], "or-key");
 }
 
 #[tokio::test]
@@ -484,10 +648,14 @@ async fn analysis_extra_body_setting_must_be_a_json_object() {
 }
 
 #[test]
-fn every_secret_is_an_editable_field() {
-    assert_eq!(store::secret_keys().count(), 5);
-    assert!(store::valid_setting("ark_api_key", "sk-1"));
-    assert!(!store::valid_setting("ark_api_key", ""));
+fn every_key_field_shows_the_key_of_a_url() {
+    let settings = backend().state.settings.settings();
+    for field in store::KEY_FIELDS {
+        assert!(!settings.key_url(field).is_empty(), "{field}");
+        assert!(store::field(field).is_none(), "{field}");
+    }
+    assert!(store::valid_api_key("sk-1"));
+    assert!(!store::valid_api_key(""));
 }
 
 // --- Analysis that follows the chat assistant --------------------------------
@@ -498,7 +666,11 @@ fn save(backend: &TestBackend, changes: &[(&str, &str)]) {
         .iter()
         .map(|(key, value)| ((*key).to_owned(), Some((*value).to_owned())))
         .collect();
-    backend.state.settings.update(&changes).unwrap();
+    backend
+        .state
+        .settings
+        .update_with_field_keys(&changes)
+        .unwrap();
 }
 
 /// Which saved settings count as "the same as the chat assistant" (the
@@ -511,7 +683,7 @@ fn which_saved_settings_follow_the_chat_assistant() {
     let medium = r#"{"reasoning": {"effort": "medium"}}"#;
     /// (debug build, saved changes, llm_provider)
     type Case<'a> = (bool, &'a [(&'a str, &'a str)], &'a str);
-    let cases: [Case<'_>; 12] = [
+    let cases: [Case<'_>; 11] = [
         (false, &[], "same_as_agent"),
         (
             false,
@@ -538,11 +710,6 @@ fn which_saved_settings_follow_the_chat_assistant() {
         (
             false,
             &[("analysis_llm_model", "vision-model")],
-            "openai_compatible",
-        ),
-        (
-            false,
-            &[("analysis_llm_api_key", "analysis-key")],
             "openai_compatible",
         ),
         (
@@ -974,7 +1141,11 @@ fn agent_backend(llm: &FakeLlm, extra: Value) -> TestBackend {
                 .map(|(key, value)| (key, value.as_str().map(str::to_owned))),
         );
     }
-    backend.state.settings.update(&changes).unwrap();
+    backend
+        .state
+        .settings
+        .update_with_field_keys(&changes)
+        .unwrap();
     backend
 }
 
@@ -1229,7 +1400,7 @@ async fn analysis_does_not_borrow_the_agent_extra_body_on_another_url() {
     backend
         .state
         .settings
-        .update(&[
+        .update_with_field_keys(&[
             (
                 "analysis_llm_base_url".to_owned(),
                 Some(llm.base_url.clone()),

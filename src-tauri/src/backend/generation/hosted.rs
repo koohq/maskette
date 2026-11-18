@@ -490,11 +490,7 @@ pub struct Ark {
 impl Ark {
     pub fn from_settings(settings: &Settings) -> Result<Self, Failure> {
         Ok(Self {
-            api_key: required(
-                settings.get("ark_api_key").trim().to_owned(),
-                "ark_api_key",
-                "ark",
-            )?,
+            api_key: required(settings.ark_api_key(), "ark_api_key", "ark")?,
             base_url: base(settings.get("ark_base_url")),
             model: settings.get("ark_image_model").trim().to_owned(),
         })
@@ -601,7 +597,7 @@ impl SiliconFlow {
     pub fn from_settings(settings: &Settings) -> Result<Self, Failure> {
         Ok(Self {
             api_key: required(
-                settings.get("siliconflow_api_key").trim().to_owned(),
+                settings.siliconflow_api_key(),
                 "siliconflow_api_key",
                 "siliconflow",
             )?,

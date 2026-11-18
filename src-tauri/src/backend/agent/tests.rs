@@ -162,7 +162,7 @@ async fn setup(policy: impl Fn(&[Value]) -> Reply + Send + Sync + 'static) -> Se
     backend
         .state
         .settings
-        .update(&[
+        .update_with_field_keys(&[
             ("agent_llm_base_url".to_owned(), Some(llm.base_url.clone())),
             ("agent_llm_api_key".to_owned(), Some("key".to_owned())),
             ("agent_llm_model".to_owned(), Some("test-model".to_owned())),

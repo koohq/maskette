@@ -113,6 +113,7 @@ use crate::backend::agent::store::REFERENCE_TAGS;
 use crate::backend::agent::tools::APPROVED_DESIGN_NOTE;
 use crate::backend::ids;
 use crate::backend::settings::secrets::{KeyringSecrets, SERVICE, SecretStore as _};
+use crate::backend::settings::store::{KEY_FIELDS, key_entry, service_of};
 use crate::backend::tests::TestBackend;
 
 const DEFAULT_EDIT_NOTE: &str = "星のヘアピンを、同じ金色のハート形のヘアピンに変えてください。";
@@ -450,17 +451,14 @@ async fn compare_image_models() {
         "the {step} step takes no MASKETTE_COMPARE_ANALYSIS; the app's {step} gets none"
     );
 
-    // The app falls back to the chat and analysis keys when they point at
-    // OpenRouter; the keys are assumed to be OpenRouter's here.
+    // The app's OpenRouter key, or one an earlier build saved for a role
+    // that the app has not moved to its service yet (assumed OpenRouter's).
     let secrets = KeyringSecrets::new(SERVICE);
-    let key = [
-        "openrouter_api_key",
-        "agent_llm_api_key",
-        "analysis_llm_api_key",
-    ]
-    .into_iter()
-    .find_map(|name| secrets.get(name).expect("credential store readable"))
-    .expect("an OpenRouter key saved in Maskette's settings");
+    let openrouter = service_of("https://openrouter.ai/api/v1");
+    let key = std::iter::once(key_entry(&openrouter))
+        .chain(KEY_FIELDS[..3].iter().map(|name| (*name).to_owned()))
+        .find_map(|name| secrets.get(&name).expect("credential store readable"))
+        .expect("an OpenRouter key saved in Maskette's settings");
     if step == "judge" {
         let judge_model = std::env::var("MASKETTE_COMPARE_JUDGE")
             .unwrap_or_else(|_| judge::DEFAULT_MODEL.to_owned());
@@ -495,12 +493,12 @@ async fn compare_image_models() {
     backend
         .state
         .settings
-        .update(&[
-            ("image_provider".to_owned(), Some("openrouter".to_owned())),
-            ("openrouter_api_key".to_owned(), Some(key.clone())),
-            // The analysis goes to the chat assistant's endpoint, OpenRouter by default.
-            ("agent_llm_api_key".to_owned(), Some(key)),
-        ])
+        .update_with_keys(
+            &[("image_provider".to_owned(), Some("openrouter".to_owned()))],
+            // Images and the analysis (on the chat assistant's OpenRouter
+            // by default) share the service's key.
+            &[(openrouter, Some(key))],
+        )
         .expect("settings set");
     // Prompt text to try, in the format of the app's prompts.json.
     if let Ok(prompts) = std::env::var("MASKETTE_COMPARE_PROMPTS") {

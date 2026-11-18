@@ -1,9 +1,9 @@
 //! Settings page: switch the agent LLM, the analysis LLM and the image
 //! backend, and fill in their API keys.
 //!
-//! Ported from the old backend's `app/settings/`. API keys are write-only:
-//! responses only say whether a key is set, where it comes from and its last
-//! four characters. `GET /api/settings/prompts` (the prompt inventory) is
+//! Ported from the old backend's `app/settings/`. API keys are kept per
+//! service and are write-only: responses only say which services have one
+//! and its last four characters. `GET /api/settings/prompts` (the prompt inventory) is
 //! served by [`crate::backend::prompts`].
 
 pub mod models;
@@ -38,19 +38,18 @@ pub fn routes() -> Router<SharedState> {
         .route("/api/settings/models/{role}", get(model_candidates))
 }
 
+/// A saved API key, as the settings page may see it.
 #[derive(Serialize, Debug, PartialEq, Eq)]
-pub struct SecretOut {
-    pub set: bool,
-    /// `override` (saved on the settings page) or empty. The old backend
-    /// also reported `env`; the desktop app has no `.env`.
-    pub source: &'static str,
+pub struct KeyOut {
+    /// The last four characters of a key long enough to keep it secret.
     pub hint: String,
 }
 
 #[derive(Serialize, Debug)]
 pub struct SettingsOut {
     pub values: BTreeMap<&'static str, String>,
-    pub secrets: BTreeMap<&'static str, SecretOut>,
+    /// The services that have a key (see [`store::service_of`]).
+    pub keys: BTreeMap<String, KeyOut>,
     pub overridden: Vec<String>,
     pub options: BTreeMap<&'static str, Vec<&'static str>>,
     pub status: BTreeMap<&'static str, bool>,
@@ -61,29 +60,19 @@ pub struct SettingsUpdate {
     /// A null value drops the saved change, so the default applies again.
     #[serde(default)]
     values: BTreeMap<String, Option<String>>,
+    /// API keys by service; a null value removes the service's key.
+    #[serde(default)]
+    keys: BTreeMap<String, Option<String>>,
 }
 
-fn secret_out(settings: &Settings, key: &str) -> SecretOut {
-    let value = settings.get(key).trim();
-    if value.is_empty() {
-        return SecretOut {
-            set: false,
-            source: "",
-            hint: String::new(),
-        };
-    }
+fn key_out(value: &str) -> KeyOut {
     let chars: Vec<char> = value.chars().collect();
     let hint = if chars.len() >= 12 {
         format!("…{}", chars[chars.len() - 4..].iter().collect::<String>())
     } else {
         String::new()
     };
-    // Every key that is set was saved on this page: they have no default.
-    SecretOut {
-        set: true,
-        source: "override",
-        hint,
-    }
+    KeyOut { hint }
 }
 
 fn on_path(program: &str) -> bool {
@@ -94,7 +83,6 @@ pub fn describe(store: &SettingsStore) -> SettingsOut {
     let (settings, saved) = store.snapshot();
     let mut values: BTreeMap<&'static str, String> = FIELDS
         .iter()
-        .filter(|field| !field.secret)
         .map(|field| (field.key, settings.get(field.key).to_owned()))
         .collect();
     values.insert("llm_provider", settings.llm_provider().to_owned());
@@ -118,9 +106,9 @@ pub fn describe(store: &SettingsStore) -> SettingsOut {
         ("claude_cli", on_path(Settings::CLAUDE_CODE_PATH)),
         (
             "siliconflow_key",
-            !settings.get("siliconflow_api_key").trim().is_empty(),
+            !settings.siliconflow_api_key().is_empty(),
         ),
-        ("ark_key", !settings.get("ark_api_key").trim().is_empty()),
+        ("ark_key", !settings.ark_api_key().is_empty()),
         ("openrouter_key", !settings.openrouter_api_key().is_empty()),
         ("agent_llm_key", !settings.agent_api_key().is_empty()),
         (
@@ -131,8 +119,10 @@ pub fn describe(store: &SettingsStore) -> SettingsOut {
 
     SettingsOut {
         values,
-        secrets: store::secret_keys()
-            .map(|key| (key, secret_out(&settings, key)))
+        keys: settings
+            .api_keys()
+            .iter()
+            .map(|(service, key)| (service.clone(), key_out(key)))
             .collect(),
         overridden: saved.into_iter().collect(),
         options,
@@ -144,6 +134,9 @@ impl From<UpdateError> for ApiError {
     fn from(error: UpdateError) -> Self {
         match error {
             UpdateError::Invalid(key) => ApiError::bad_request(format!("invalid_setting:{key}")),
+            UpdateError::InvalidKey(service) => {
+                ApiError::bad_request(format!("invalid_api_key:{service}"))
+            }
             UpdateError::Storage(message) => {
                 log::error!("saving settings failed: {message}");
                 ApiError::internal(format!("settings_not_saved: {message}"))
@@ -176,7 +169,8 @@ async fn update_settings(
 ) -> Result<Json<SettingsOut>, ApiError> {
     let Json(update) = body?;
     let changes: Vec<(String, Option<String>)> = update.values.into_iter().collect();
-    blocking(&state, move |store| store.update(&changes)).await
+    let keys: Vec<(String, Option<String>)> = update.keys.into_iter().collect();
+    blocking(&state, move |store| store.update_with_keys(&changes, &keys)).await
 }
 
 async fn reset_settings(State(state): State<SharedState>) -> Result<Json<SettingsOut>, ApiError> {

@@ -7,14 +7,24 @@ import { SETTING_KEYS, settingKind, settingLabel, settingLabels } from "./settin
 // `import.meta.url` is not a file URL under jsdom; Vitest gives the test file's folder as `import.meta.dirname`.
 const STORE = join(import.meta.dirname, "../../../../src-tauri/src/backend/settings/store.rs");
 
-/** The keys of the editable settings (`FIELDS`), built with `text(...)`, `choice(...)` or `secret(...)`. */
+/** The part of `store.rs` from `start` to the end of the list it begins. */
+function list(source: string, start: string): string {
+  const from = source.indexOf(start);
+  return source.slice(from, source.indexOf("];", from));
+}
+
+/**
+ * The keys of the editable settings (`FIELDS`), built with `text(...)` or `choice(...)`, and of the fields that show a
+ * role's API key (`KEY_FIELDS`).
+ */
 function backendSettingKeys(): string[] {
   const source = readFileSync(STORE, "utf8");
-  const fields = source.slice(
-    source.indexOf("pub const FIELDS"),
-    source.indexOf("];", source.indexOf("pub const FIELDS")),
-  );
-  return [...fields.matchAll(/\b(?:text|choice|secret)\(\s*"([a-z][a-z0-9_]*)"/g)].flatMap((match) => match[1] ?? []);
+  const fields = list(source, "pub const FIELDS");
+  const keyFields = list(source, "pub const KEY_FIELDS");
+  return [
+    ...[...fields.matchAll(/\b(?:text|choice)\(\s*"([a-z][a-z0-9_]*)"/g)].flatMap((match) => match[1] ?? []),
+    ...[...keyFields.matchAll(/"([a-z][a-z0-9_]*)"/g)].flatMap((match) => match[1] ?? []),
+  ];
 }
 
 afterAll(async () => {
@@ -48,7 +58,6 @@ describe("setting labels", () => {
   });
 
   it("tells what kind of value the backend checks", () => {
-    expect(settingKind("ark_api_key")).toBe("secret");
     expect(settingKind("openrouter_extra_body")).toBe("extra_body");
     expect(settingKind("agent_llm_base_url")).toBe("other");
   });

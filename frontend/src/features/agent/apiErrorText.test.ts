@@ -158,8 +158,15 @@ describe("HTTP error codes", () => {
     expect(detailText(i18n.t, "invalid_setting:agent_llm_extra_body")).toBe(
       "「チャットアシスタント」の「追加パラメーター」が正しい JSON ではありません。{ } で囲んだ形で入力してください。",
     );
-    expect(detailText(i18n.t, "invalid_setting:openrouter_api_key")).toBe(
-      "「画像生成」の「API キー」に空白や改行が含まれていないか確認してください。",
+    // A refused key is named by its service.
+    expect(detailText(i18n.t, "invalid_api_key:openrouter.ai")).toBe(
+      "OpenRouter の API キーに空白や改行が含まれていないか確認してください。",
+    );
+    expect(detailText(i18n.t, "invalid_api_key:api.siliconflow.com")).toBe(
+      "SiliconFlow（国際版）の API キーに空白や改行が含まれていないか確認してください。",
+    );
+    expect(detailText(i18n.t, "invalid_api_key:llm.example.test:8080")).toBe(
+      "llm.example.test:8080 の API キーに空白や改行が含まれていないか確認してください。",
     );
     expect(detailText(i18n.t, "invalid_setting:agent_llm_base_url")).toBe(
       "「チャットアシスタント」の「API URL」の値が正しくありません（300 文字まで）。",

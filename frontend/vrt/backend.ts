@@ -229,7 +229,7 @@ const settings = {
     image_provider: "openrouter",
     siliconflow_image_model: "sf-model",
     ark_image_model: "ark-model",
-    openrouter_base_url: "https://openrouter.example.test/api/v1",
+    openrouter_base_url: "https://openrouter.ai/api/v1",
     openrouter_image_model: "vendor/image-model",
     openrouter_extra_body: "",
   },
@@ -239,13 +239,8 @@ const settings = {
     llm_provider: ["same_as_agent", "openai_compatible", "codex", "claude_code"],
     image_provider: ["openrouter", "codex", "siliconflow", "ark"],
   },
-  secrets: {
-    agent_llm_api_key: { set: true, source: "override", hint: "…1234" },
-    analysis_llm_api_key: { set: false, source: "", hint: "" },
-    siliconflow_api_key: { set: false, source: "", hint: "" },
-    ark_api_key: { set: false, source: "", hint: "" },
-    openrouter_api_key: { set: true, source: "env", hint: "…5678" },
-  },
+  // One OpenRouter key for the chat, the analysis that follows it, and images.
+  keys: { "openrouter.ai": { hint: "…1234" } },
   status: {
     agent_llm_key: true,
     analysis_llm_key: false,

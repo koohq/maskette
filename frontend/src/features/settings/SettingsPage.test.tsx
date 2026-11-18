@@ -31,13 +31,7 @@ const initial: BackendSettings = {
     llm_provider: ["same_as_agent", "openai_compatible", "codex", "claude_code"],
     image_provider: ["openrouter", "codex", "siliconflow", "ark"],
   },
-  secrets: {
-    agent_llm_api_key: { set: false, source: "", hint: "" },
-    analysis_llm_api_key: { set: false, source: "", hint: "" },
-    siliconflow_api_key: { set: true, source: "override", hint: "…0000" },
-    ark_api_key: { set: false, source: "", hint: "" },
-    openrouter_api_key: { set: false, source: "", hint: "" },
-  },
+  keys: { "api.siliconflow.cn": { hint: "…0000" } },
   status: {
     agent_llm_key: true,
     analysis_llm_key: false,
@@ -135,42 +129,109 @@ describe("SettingsPage", () => {
     });
   });
 
-  it("sends a typed API key once and never shows the saved one", async () => {
+  it("sends a typed API key once for its service and never shows the saved one", async () => {
+    const ark = {
+      ...initial,
+      values: { ...initial.values, ark_base_url: "https://ark.cn-beijing.volces.com/api/plan/v3" },
+    };
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === "PUT") {
         const saved = {
-          ...initial,
-          values: { ...initial.values, image_provider: "ark" },
-          secrets: { ...initial.secrets, ark_api_key: { set: true, source: "override", hint: "…9999" } },
-          overridden: ["ark_api_key", "image_provider"],
-          status: { ...initial.status, ark_key: true },
+          ...ark,
+          values: { ...ark.values, image_provider: "ark" },
+          keys: { ...ark.keys, "ark.cn-beijing.volces.com": { hint: "…9999" } },
+          overridden: ["image_provider"],
+          status: { ...ark.status, ark_key: true },
         };
         return new Response(JSON.stringify(saved));
       }
-      return new Response(JSON.stringify(initial));
+      return new Response(JSON.stringify(ark));
     });
     vi.stubGlobal("fetch", fetchMock);
     renderPage();
 
     fireEvent.click(await screen.findByRole("radio", { name: "火山方舟" }));
     expect(screen.getByText("需要填写方舟 API Key")).toBeTruthy();
+    expect(screen.getByText("火山方舟（中国大陆版）的 API Key · 未配置")).toBeTruthy();
     fireEvent.change(screen.getAllByPlaceholderText("粘贴 API Key").at(-1)!, {
       target: { value: " ark-new-key-9999 " },
     });
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
 
-    await screen.findByText(/已配置 …9999（在本页保存）/);
+    await screen.findByText("火山方舟（中国大陆版）的 API Key · 已配置 …9999");
     const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(JSON.parse(String(put?.[1]?.body))).toEqual({
-      values: { image_provider: "ark", ark_api_key: "ark-new-key-9999" },
+      values: { image_provider: "ark" },
+      keys: { "ark.cn-beijing.volces.com": "ark-new-key-9999" },
     });
     expect((screen.getByPlaceholderText("留空保持不变，输入新 Key 则替换") as HTMLInputElement).value).toBe("");
 
-    fireEvent.click(screen.getByRole("button", { name: "清除本页保存的 Key" }));
+    fireEvent.click(screen.getByRole("button", { name: "清除此 Key" }));
     fireEvent.click(screen.getByRole("button", { name: "保存" }));
     await waitFor(() => expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(2));
     const clear = fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT")[1]!;
-    expect(JSON.parse(String(clear[1]?.body))).toEqual({ values: { ark_api_key: null } });
+    expect(JSON.parse(String(clear[1]?.body))).toEqual({ values: {}, keys: { "ark.cn-beijing.volces.com": null } });
+  });
+
+  it("shares one key among the sections that use one service", async () => {
+    const shared = {
+      ...initial,
+      values: {
+        ...initial.values,
+        agent_llm_base_url: "https://openrouter.ai/api/v1",
+        llm_provider: "same_as_agent",
+        image_provider: "openrouter",
+      },
+      keys: { "openrouter.ai": { hint: "…1234" } },
+    };
+    const fetchMock = backend(shared);
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const chat = (await screen.findByRole("radiogroup", { name: "对话助手 LLM" })).closest("section") as HTMLElement;
+    const image = screen.getByRole("radiogroup", { name: "生图后端" }).closest("section") as HTMLElement;
+    expect(within(chat).getByText("OpenRouter 的 API Key · 已配置 …1234")).toBeTruthy();
+    expect(within(chat).getByText("此 Key 也用于“参考图分析 LLM”和“生图后端”。")).toBeTruthy();
+    expect(within(image).getByText("OpenRouter 的 API Key · 已配置 …1234")).toBeTruthy();
+    expect(within(image).getByText("此 Key 也用于“对话助手 LLM”和“参考图分析 LLM”。")).toBeTruthy();
+
+    // Typed in one section, the key shows in the other's field too.
+    const chatKey = within(chat).getByPlaceholderText("留空保持不变，输入新 Key 则替换") as HTMLInputElement;
+    const imageKey = within(image).getByPlaceholderText("留空保持不变，输入新 Key 则替换") as HTMLInputElement;
+    fireEvent.change(chatKey, { target: { value: "sk-or-new-0000" } });
+    expect(imageKey.value).toBe("sk-or-new-0000");
+
+    // On another service the chat (and the analysis that follows it) has a key of its own.
+    fireEvent.click(within(chat).getByRole("button", { name: "OpenAI" }));
+    expect(within(chat).getByText("OpenAI 的 API Key · 未配置")).toBeTruthy();
+    expect(within(chat).getByText("此 Key 也用于“参考图分析 LLM”。")).toBeTruthy();
+    expect(within(image).queryByText(/此 Key 也用于/)).toBeNull();
+    expect(imageKey.value).toBe("sk-or-new-0000");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({
+      values: { agent_llm_base_url: "https://api.openai.com/v1" },
+      keys: { "openrouter.ai": "sk-or-new-0000" },
+    });
+  });
+
+  it("saves no key typed for a URL that changed since", async () => {
+    const fetchMock = backend(initial);
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    const chat = (await screen.findByRole("radiogroup", { name: "对话助手 LLM" })).closest("section") as HTMLElement;
+    fireEvent.change(within(chat).getByPlaceholderText("粘贴 API Key"), { target: { value: "sk-for-example" } });
+    fireEvent.click(within(chat).getByRole("button", { name: "OpenAI" }));
+    // The field shows OpenAI's key now, which is not set.
+    expect((within(chat).getByPlaceholderText("粘贴 API Key") as HTMLInputElement).value).toBe("");
+    fireEvent.click(screen.getByRole("button", { name: "保存" }));
+
+    await waitFor(() => expect(fetchMock.mock.calls.some(([, init]) => init?.method === "PUT")).toBe(true));
+    const put = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
+    expect(JSON.parse(String(put?.[1]?.body))).toEqual({ values: { agent_llm_base_url: "https://api.openai.com/v1" } });
   });
 
   it("lets the analysis LLM use an OpenAI-compatible API that defaults to the chat assistant", async () => {
@@ -184,7 +245,10 @@ describe("SettingsPage", () => {
 
     expect(screen.getByPlaceholderText("留空沿用对话助手：https://example.test/v1")).toBeTruthy();
     expect(screen.getByPlaceholderText("留空沿用对话助手：chat-model")).toBeTruthy();
-    expect(screen.getByText("需要填写 API Key（或沿用对话助手的 Key）")).toBeTruthy();
+    expect(screen.getByText("需要填写 API Key")).toBeTruthy();
+    // With no URL of its own, analysis uses the chat assistant's, and so its key.
+    expect(screen.getByText("此 Key 也用于“参考图分析 LLM”。")).toBeTruthy();
+    expect(screen.getByText("此 Key 也用于“对话助手 LLM”。")).toBeTruthy();
     expect(screen.getByText("模型必须支持图片输入（多模态），否则分析会失败。")).toBeTruthy();
   });
 
@@ -442,7 +506,7 @@ describe("SettingsPage", () => {
     expect(within(chat).getByDisplayValue("https://generativelanguage.googleapis.com/v1beta/openai")).toBeTruthy();
     expect(within(presets).getByRole("button", { name: "Google Gemini" }).getAttribute("aria-pressed")).toBe("true");
     expect(within(chat).getByText("Google Gemini 的模型名不要加 models/。")).toBeTruthy();
-    // Volcengine Ark's is the URL of the Ark image settings, so the chat can reuse the Ark key.
+    // Volcengine Ark's is the URL of the Ark image settings, so the chat can share the Ark key.
     fireEvent.click(within(presets).getByRole("button", { name: "火山方舟" }));
     expect(within(chat).getByDisplayValue("https://ark.cn-beijing.volces.com/api/plan/v3")).toBeTruthy();
   });

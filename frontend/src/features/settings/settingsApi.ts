@@ -3,8 +3,9 @@ import { apiFetch, resolveApiUrls } from "../../api/backend";
 
 export const backendSettingsSchema = z.object({
   values: z.record(z.string(), z.string()),
-  // API keys are write-only: only whether they are set, where from, and the last characters.
-  secrets: z.record(z.string(), z.object({ set: z.boolean(), source: z.string(), hint: z.string() })),
+  // API keys are kept per service (`serviceOf`) and are write-only: only which services have one, and its last
+  // characters.
+  keys: z.record(z.string(), z.object({ hint: z.string() })),
   overridden: z.array(z.string()),
   options: z.record(z.string(), z.array(z.string())),
   status: z.record(z.string(), z.boolean()),
@@ -71,7 +72,7 @@ export interface UrlPreset {
 
 /**
  * API URLs the chat assistant and analysis can start from. Volcengine Ark's is the default Ark URL in `store.rs` (also
- * the old VSK default for the chat assistant), so an empty chat key reuses the Ark image key; SiliconFlow's is its
+ * the old VSK default for the chat assistant), so the chat and Ark image generation share a key; SiliconFlow's is its
  * default too. `settingsApi.test.ts` checks them against `store.rs`. Ark and SiliconFlow also run international sites
  * (BytePlus ModelArk for Ark), which this app has not been tried on.
  */
@@ -105,6 +106,32 @@ export interface PresetMatch {
 }
 
 export const normalizeUrl = (url = "") => url.trim().replace(/\/+$/, "");
+
+/**
+ * The service an API URL belongs to, which its key is saved under: the URL's host, with the port unless it is the
+ * scheme's default. A key comes from an account at one site, so every OpenRouter URL shares one, while the two sites of
+ * Ark or SiliconFlow keep one each. A URL that does not parse is a service of its own, and an empty one none. The same
+ * rule as `service_of` in `store.rs`.
+ */
+export function serviceOf(url: string | undefined): string {
+  const normalized = normalizeUrl(url);
+  try {
+    const { host } = new URL(normalized);
+    if (host) return host;
+  } catch {
+    // not a URL: a service of its own
+  }
+  return normalized;
+}
+
+/** The preset, and for a service with two sites the site, that a service (`serviceOf`) is. */
+export function presetOfService(service: string): PresetMatch | undefined {
+  for (const preset of URL_PRESETS) {
+    if (serviceOf(preset.url) === service) return preset.international ? { preset, region: "mainland" } : { preset };
+    if (preset.international && serviceOf(preset.international) === service) return { preset, region: "international" };
+  }
+  return undefined;
+}
 
 /** The preset, and for a service with two sites the site, whose URL `url` is. */
 export function matchingPreset(
@@ -181,9 +208,13 @@ export function getBackendSettings() {
   return request();
 }
 
-/** A null value drops the saved change, so the default applies again. */
-export function updateBackendSettings(values: Record<string, string | null>) {
-  return request({ method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ values }) });
+/**
+ * Saves changed settings and API keys by service. A null setting drops the saved change, so the default applies again;
+ * a null key removes the service's key.
+ */
+export function updateBackendSettings(values: Record<string, string | null>, keys: Record<string, string | null> = {}) {
+  const body = Object.keys(keys).length > 0 ? { values, keys } : { values };
+  return request({ method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 }
 
 export function resetBackendSettings() {

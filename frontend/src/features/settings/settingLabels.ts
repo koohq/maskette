@@ -1,12 +1,14 @@
 import type { TFunction } from "i18next";
+import { presetOfService } from "./settingsApi";
 
 type Section = "agentSection" | "analysisSection" | "imageSection";
 type Field = "base_url" | "model" | "api_key" | "extra_body" | "provider";
 
 /**
  * Where each setting sits on the settings page, so an error can name it the way the page does instead of by its key.
- * The keys are the editable settings in `src-tauri/src/backend/settings/store.rs` (`settingLabels.test.ts` checks that
- * none is missing). The image providers' settings all sit under the image section, which shows only the chosen one.
+ * The keys are the editable settings in `src-tauri/src/backend/settings/store.rs` and its `KEY_FIELDS`, the fields that
+ * show a role's API key (`settingLabels.test.ts` checks that none is missing). The image providers' settings all sit
+ * under the image section, which shows only the chosen one.
  */
 const SETTING_PLACES: Record<string, readonly [Section, Field]> = {
   agent_llm_provider: ["agentSection", "provider"],
@@ -55,8 +57,25 @@ export function settingLabels(t: TFunction, keys: string): string {
 }
 
 /** What the backend checks a setting's value for (`valid_setting`), so a refusal can say what to fix. */
-export function settingKind(key: string): "secret" | "extra_body" | "other" {
-  if (key.endsWith("_api_key")) return "secret";
-  if (key.endsWith("_extra_body")) return "extra_body";
-  return "other";
+export function settingKind(key: string): "extra_body" | "other" {
+  return key.endsWith("_extra_body") ? "extra_body" : "other";
+}
+
+/** A service (`serviceOf`) by its name in the URL presets, with the site for a service with two; else its host. */
+export function serviceLabel(t: TFunction, service: string): string {
+  const match = presetOfService(service);
+  if (!match) return service;
+  const name = t(`settings.urlPresets.${match.preset.id}`);
+  return match.region
+    ? t("settings.serviceSite", { service: name, site: t(`settings.urlRegions.${match.region}`) })
+    : name;
+}
+
+/**
+ * The text `key` with `{{service}}` filled in by `serviceLabel`. A service named with its site ends in a bracket,
+ * which in Japanese and Chinese needs no space after it, so those languages give such texts a `<key>_site` variant.
+ */
+export function serviceText(t: TFunction, key: string, service: string): string {
+  const site = presetOfService(service)?.region !== undefined;
+  return t(key, { service: serviceLabel(t, service), ...(site ? { context: "site" } : {}) });
 }

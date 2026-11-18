@@ -2,8 +2,8 @@
 //!
 //! Windows Credential Manager, macOS Keychain, or the Secret Service on
 //! Linux, through the `keyring` crate. Each key is one entry, named after
-//! its setting (for example `openrouter_api_key`) under [`SERVICE`]. Tests
-//! swap in [`MemorySecrets`].
+//! its service (for example `api_key:openrouter.ai`) under [`SERVICE`]; see
+//! [`super::store`]. Tests swap in [`MemorySecrets`].
 
 #[cfg(test)]
 use std::collections::BTreeMap;
@@ -68,6 +68,8 @@ pub struct MemorySecrets {
     entries: Mutex<BTreeMap<String, String>>,
     /// When set, every call fails with this message.
     pub fail_with: Mutex<Option<String>>,
+    /// When set, storing and deleting fail with this message.
+    pub fail_writes_with: Mutex<Option<String>>,
 }
 
 #[cfg(test)]
@@ -77,6 +79,15 @@ impl MemorySecrets {
             return Err(message);
         }
         Ok(self.entries.lock().unwrap())
+    }
+
+    fn writable_entries(
+        &self,
+    ) -> Result<std::sync::MutexGuard<'_, BTreeMap<String, String>>, String> {
+        if let Some(message) = self.fail_writes_with.lock().unwrap().clone() {
+            return Err(message);
+        }
+        self.entries()
     }
 
     pub fn snapshot(&self) -> BTreeMap<String, String> {
@@ -91,12 +102,13 @@ impl SecretStore for MemorySecrets {
     }
 
     fn set(&self, name: &str, value: &str) -> Result<(), String> {
-        self.entries()?.insert(name.to_owned(), value.to_owned());
+        self.writable_entries()?
+            .insert(name.to_owned(), value.to_owned());
         Ok(())
     }
 
     fn delete(&self, name: &str) -> Result<(), String> {
-        self.entries()?.remove(name);
+        self.writable_entries()?.remove(name);
         Ok(())
     }
 }

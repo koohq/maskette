@@ -1,5 +1,5 @@
 import type { TFunction } from "i18next";
-import { settingKind, settingLabel } from "../settings/settingLabels";
+import { serviceText, settingKind, settingLabel } from "../settings/settingLabels";
 
 /**
  * Codes the backend sends as the `detail` of an HTTP error (`src-tauri/src/backend/error.rs` and the routers) that a
@@ -38,6 +38,7 @@ export const DETAIL_CODES = new Set([
   "unsafe_entry",
   "import_not_saved",
   "invalid_setting",
+  "invalid_api_key",
   "probe_unsupported",
   "settings_not_saved",
   "version_not_saved",
@@ -50,11 +51,13 @@ export const DETAIL_CODES = new Set([
 
 /**
  * Codes that carry a value after a colon: `invalid_setting:<key>` names the setting, shown by its name on the settings
- * page with what the backend checks that kind of value for; the `..._not_saved: <error>`
+ * page with what the backend checks that kind of value for; `invalid_api_key:<service>` names the service whose key
+ * was refused (`serviceOf` in `settingsApi.ts`); the `..._not_saved: <error>`
  * ones add the system's own words, which are shown as they are (like `detail` in `failureText.ts`).
  */
-const VALUE_PARAMS: Record<string, "key" | "detail"> = {
+const VALUE_PARAMS: Record<string, "key" | "service" | "detail"> = {
   invalid_setting: "key",
+  invalid_api_key: "service",
   settings_not_saved: "detail",
   version_not_saved: "detail",
   reference_not_saved: "detail",
@@ -68,15 +71,11 @@ export function detailText(t: TFunction, detail: string): string | null {
   const value = match[2]?.trim() ?? "";
   const param = VALUE_PARAMS[code];
   if (param === "key") {
-    const kind = settingKind(value);
     const key =
-      kind === "secret"
-        ? "agent.errors.invalidSettingSecret"
-        : kind === "extra_body"
-          ? "agent.errors.invalidSettingJson"
-          : "agent.errors.invalid_setting";
+      settingKind(value) === "extra_body" ? "agent.errors.invalidSettingJson" : "agent.errors.invalid_setting";
     return t(key, { label: settingLabel(t, value) });
   }
+  if (param === "service") return serviceText(t, "agent.errors.invalid_api_key", value);
   const text = t(`agent.errors.${code}`);
   if (param === "detail" && value)
     return [text, t("agent.failures.detail", { detail: value })].join(t("agent.failures.gap"));

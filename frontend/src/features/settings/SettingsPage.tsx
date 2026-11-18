@@ -10,6 +10,7 @@ import { ThemeToggle } from "../workspace/ThemeToggle";
 import { AutoFixSection } from "./AutoFixSection";
 import { ModelField } from "./ModelField";
 import { PaletteSection } from "./PaletteSection";
+import { serviceText } from "./settingLabels";
 import {
   analysisBackend,
   type BackendSettings,
@@ -25,6 +26,7 @@ import {
   regionUrl,
   resetBackendSettings,
   SAME_AS_AGENT,
+  serviceOf,
   URL_PRESETS,
   URL_REGIONS,
   type UrlPreset,
@@ -40,6 +42,39 @@ const settingsQueryKey = ["backend-settings"];
 
 type Notice = { tone: "success" | "error"; text: string } | null;
 
+type Section = "agentSection" | "analysisSection" | "imageSection";
+
+/** The URL setting of each image backend that takes an API key. */
+const IMAGE_URLS: Record<string, string> = {
+  openrouter: "openrouter_base_url",
+  siliconflow: "siliconflow_base_url",
+  ark: "ark_base_url",
+};
+
+/**
+ * The sections whose choices in `form` use an API key, each with the service of its URL (`serviceOf`), whose key it
+ * uses. Analysis that follows the chat assistant uses the chat's.
+ */
+function keyUses(form: Record<string, string>): { section: Section; service: string }[] {
+  const uses: { section: Section; service: string }[] = [];
+  const agentUrl = form["agent_llm_base_url"];
+  const agentOnApi = form["agent_llm_provider"] === "openai_compatible";
+  if (agentOnApi) uses.push({ section: "agentSection", service: serviceOf(agentUrl) });
+  const analysis = form["llm_provider"];
+  if (analysis === SAME_AS_AGENT ? agentOnApi : analysis === "openai_compatible") {
+    const url = analysis === SAME_AS_AGENT ? agentUrl : analysisUrl(form);
+    uses.push({ section: "analysisSection", service: serviceOf(url) });
+  }
+  const imageUrl = IMAGE_URLS[form["image_provider"] ?? ""];
+  if (imageUrl) uses.push({ section: "imageSection", service: serviceOf(form[imageUrl]) });
+  return uses;
+}
+
+/** The URL analysis of its own talks to: its own, or when empty the chat assistant's. */
+function analysisUrl(form: Record<string, string>) {
+  return form["analysis_llm_base_url"]?.trim() || form["agent_llm_base_url"];
+}
+
 /** Analysis reuses the chat assistant's extra fields only while it talks to the same URL (empty = same). */
 function sharesAgentUrl(analysisUrl: string | undefined, agentUrl: string | undefined) {
   const analysis = normalizeUrl(analysisUrl);
@@ -51,8 +86,8 @@ export function SettingsPage() {
   const queryClient = useQueryClient();
   const settings = useQuery({ queryKey: settingsQueryKey, queryFn: getBackendSettings });
   const [form, setForm] = useState<Record<string, string>>({});
-  // New API keys typed by the user; null clears the key saved on this page.
-  const [secrets, setSecrets] = useState<Record<string, string | null>>({});
+  // New API keys typed by the user, by service (`serviceOf`); null removes the service's key.
+  const [keys, setKeys] = useState<Record<string, string | null>>({});
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -60,14 +95,19 @@ export function SettingsPage() {
   useEffect(() => {
     if (settings.data) {
       setForm(settings.data.values);
-      setSecrets({});
+      setKeys({});
     }
   }, [settings.data]);
 
   const data = settings.data;
   const changed = data ? Object.keys(form).filter((key) => form[key] !== data.values[key]) : [];
-  const changedSecrets = Object.entries(secrets).filter(([, value]) => value === null || value.trim() !== "");
-  const unsaved = changed.length + changedSecrets.length > 0;
+  const uses = keyUses(form);
+  // Only the keys of services the page shows: a key typed for a URL since changed is not saved.
+  const shownServices = new Set(uses.map((use) => use.service).filter(Boolean));
+  const changedKeys = Object.entries(keys).filter(
+    ([service, value]) => shownServices.has(service) && (value === null || value.trim() !== ""),
+  );
+  const unsaved = changed.length + changedKeys.length > 0;
   const disabled = busy || !data;
 
   async function apply(action: () => Promise<BackendSettings>) {
@@ -88,10 +128,10 @@ export function SettingsPage() {
 
   function save() {
     void apply(() =>
-      updateBackendSettings({
-        ...Object.fromEntries(changed.map((key) => [key, (form[key] ?? "").trim()])),
-        ...Object.fromEntries(changedSecrets.map(([key, value]) => [key, value === null ? null : value.trim()])),
-      }),
+      updateBackendSettings(
+        Object.fromEntries(changed.map((key) => [key, (form[key] ?? "").trim()])),
+        Object.fromEntries(changedKeys.map(([service, value]) => [service, value === null ? null : value.trim()])),
+      ),
     );
   }
 
@@ -101,16 +141,24 @@ export function SettingsPage() {
   }
 
   const set = (key: string) => (value: string) => setForm((current) => ({ ...current, [key]: value }));
-  const secretField = (key: string, hint?: string) =>
-    data ? (
-      <SecretField
+  /** The key field of `section`: the key of the service its URL belongs to, which other sections may share. */
+  const keyField = (section: Section, url: string | undefined) => {
+    if (!data) return null;
+    const service = serviceOf(url);
+    const sharedWith = uses
+      .filter((use) => use.service === service && use.section !== section)
+      .map((use) => t(`settings.${use.section}`));
+    return (
+      <KeyField
         disabled={disabled}
-        hint={hint}
-        onChange={(value) => setSecrets((current) => ({ ...current, [key]: value }))}
-        pending={secrets[key]}
-        saved={data.secrets[key]}
+        onChange={(value) => setKeys((current) => ({ ...current, [service]: value }))}
+        pending={keys[service]}
+        saved={data.keys[service]}
+        service={service}
+        sharedWith={sharedWith}
       />
-    ) : null;
+    );
+  };
 
   const agentBackend = form["agent_llm_provider"];
   const followsAgent = form["llm_provider"] === SAME_AS_AGENT;
@@ -179,7 +227,7 @@ export function SettingsPage() {
                     modelRole="agent"
                     value={form["agent_llm_model"]}
                   />
-                  {secretField("agent_llm_api_key", t("settings.agentKeyHint"))}
+                  {keyField("agentSection", form["agent_llm_base_url"])}
                   <TextField
                     disabled={disabled}
                     hint={t("settings.extraBodyHint")}
@@ -248,7 +296,7 @@ export function SettingsPage() {
                     modelRole="analysis"
                     value={form["analysis_llm_model"]}
                   />
-                  {secretField("analysis_llm_api_key", t("settings.analysisKeyHint"))}
+                  {keyField("analysisSection", analysisUrl(form))}
                   <TextField
                     disabled={disabled}
                     hint={t("settings.analysisExtraBodyHint")}
@@ -299,7 +347,7 @@ export function SettingsPage() {
                     modelRole="image"
                     value={form["openrouter_image_model"]}
                   />
-                  {secretField("openrouter_api_key", t("settings.openrouterKeyHint"))}
+                  {keyField("imageSection", form["openrouter_base_url"])}
                   <TextField
                     disabled={disabled}
                     hint={t("settings.openrouterExtraBodyHint")}
@@ -325,7 +373,7 @@ export function SettingsPage() {
                     onChange={set("siliconflow_image_model")}
                     value={form["siliconflow_image_model"]}
                   />
-                  {secretField("siliconflow_api_key")}
+                  {keyField("imageSection", form["siliconflow_base_url"])}
                 </>
               ) : null}
               {form["image_provider"] === "ark" ? (
@@ -343,14 +391,14 @@ export function SettingsPage() {
                     onChange={set("ark_image_model")}
                     value={form["ark_image_model"]}
                   />
-                  {secretField("ark_api_key")}
+                  {keyField("imageSection", form["ark_base_url"])}
                 </>
               ) : null}
             </BackendSection>
             <div className="flex items-center gap-3">
               <button
                 className="ide-button ide-button-primary"
-                disabled={disabled || changed.length + changedSecrets.length === 0}
+                disabled={disabled || !unsaved}
                 onClick={save}
                 type="button"
               >
@@ -358,7 +406,7 @@ export function SettingsPage() {
               </button>
               <button
                 className="ide-button"
-                disabled={disabled || data.overridden.length === 0}
+                disabled={disabled || (data.overridden.length === 0 && Object.keys(data.keys).length === 0)}
                 onClick={() => setConfirmingReset(true)}
                 type="button"
               >
@@ -704,45 +752,54 @@ function ProbePanel({ probeRole, unsaved }: { probeRole: ProbeRole; unsaved: boo
   );
 }
 
-function SecretField({
+/**
+ * The API key of one service (`serviceOf`), for every section that uses the service: typing it here also fills the
+ * other sections' fields of the service. The saved key is never shown, only its last characters.
+ */
+function KeyField({
+  service,
   saved,
   pending,
-  hint,
+  sharedWith,
   disabled,
   onChange,
 }: {
-  saved: BackendSettings["secrets"][string] | undefined;
+  service: string;
+  saved: BackendSettings["keys"][string] | undefined;
   pending: string | null | undefined;
-  hint?: string | undefined;
+  /** The other sections that use this service's key. */
+  sharedWith: string[];
   disabled: boolean;
   onChange: (value: string | null) => void;
 }) {
   const { t } = useTranslation();
   const clearing = pending === null;
-  const state = clearing
-    ? t("settings.keyClearing")
-    : saved?.set
-      ? t("settings.keyFromPage", { hint: saved.hint })
-      : t("settings.keyMissing");
+  let state = t("settings.keyMissing");
+  if (!service) state = t("settings.keyNeedsUrl");
+  else if (clearing) state = t("settings.keyClearing");
+  else if (saved) state = t("settings.keySet", { hint: saved.hint }).trim();
+  const sections = sharedWith
+    .map((section) => t("settings.sectionQuoted", { section }))
+    .join(t("settings.sectionJoin"));
   return (
     <div className="flex flex-col gap-1 text-xs text-(--ide-text-muted)">
       <label className="flex flex-col gap-1">
         <span>
-          {t("settings.apiKey")} · {state}
+          {service ? serviceText(t, "settings.serviceKey", service) : t("settings.apiKey")} · {state}
         </span>
         <input
           autoComplete="off"
           className="ide-input text-sm"
-          disabled={disabled || clearing}
+          disabled={disabled || clearing || !service}
           onChange={(event) => onChange(event.target.value)}
-          placeholder={saved?.set ? t("settings.keyReplace") : t("settings.keyEnter")}
+          placeholder={saved ? t("settings.keyReplace") : t("settings.keyEnter")}
           spellCheck={false}
           type="password"
           value={pending ?? ""}
         />
       </label>
-      {hint ? <span>{hint}</span> : null}
-      {saved?.source === "override" || clearing ? (
+      {sharedWith.length > 0 ? <span>{t("settings.keyShared", { sections })}</span> : null}
+      {saved || clearing ? (
         <button
           className="self-start text-(--ide-accent) hover:underline disabled:opacity-50"
           disabled={disabled}

@@ -176,7 +176,7 @@ fn openrouter_backend(fake: &Fake) -> (TestBackend, String) {
     backend
         .state
         .settings
-        .update(&[
+        .update_with_field_keys(&[
             ("image_provider".to_owned(), Some("openrouter".to_owned())),
             (
                 "openrouter_base_url".to_owned(),
@@ -546,7 +546,11 @@ async fn openrouter_needs_a_model_and_a_key() {
             .iter()
             .map(|(key, value)| ((*key).to_owned(), Some((*value).to_owned())))
             .collect();
-        backend.state.settings.update(&changes).unwrap();
+        backend
+            .state
+            .settings
+            .update_with_field_keys(&changes)
+            .unwrap();
         image_backend(&backend.state.settings.settings()).map(|_| ())
     };
     // Release builds generate with OpenRouter and GPT Image 2.6 Sunburst
@@ -591,7 +595,7 @@ fn analysis_backend(fake: &Fake) -> (TestBackend, String) {
     backend
         .state
         .settings
-        .update(&[
+        .update_with_field_keys(&[
             (
                 "llm_provider".to_owned(),
                 Some("openai_compatible".to_owned()),
