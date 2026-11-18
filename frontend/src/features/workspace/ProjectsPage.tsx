@@ -176,7 +176,7 @@ export function ProjectsPage() {
                     <IconDots size={16} />
                   </button>
                   {menuFor === project.id ? (
-                    <div className="absolute right-0 top-8 z-10 flex w-36 flex-col rounded-md border border-(--ide-border) bg-(--ide-panel-raised) p-1 shadow-lg">
+                    <div className="absolute right-0 top-8 z-10 flex w-max min-w-36 flex-col whitespace-nowrap rounded-md border border-(--ide-border) bg-(--ide-panel-raised) p-1 shadow-lg">
                       <button
                         className="ide-tree-item"
                         onClick={() => {
