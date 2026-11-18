@@ -30,7 +30,7 @@ pub const GENERATION_TOOLS: [&str; 5] = [
     "generate_turnaround",
 ];
 
-const APPROVED_DESIGN_NOTE: &str = "User-approved 2D character design from stage 1 (it may include the user's manual edits). It is the primary design source: convert it into the physical head shell while keeping its face, eyes, expression, hairstyle, colors, and accessories.";
+pub(crate) const APPROVED_DESIGN_NOTE: &str = "User-approved 2D character design from stage 1 (it may include the user's manual edits). It is the primary design source: convert it into the physical head shell while keeping its face, eyes, expression, hairstyle, colors, and accessories.";
 
 const MAX_LOCAL_EDIT_SIDE: u32 = 4096;
 const LOCAL_REVISIONS_DIR: &str = "local-revisions";

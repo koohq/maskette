@@ -34,6 +34,23 @@
 //! `MASKETTE_COMPARE_EDIT_REFERENCE=<image>` attaches that image instead,
 //! and `none` attaches nothing. Like the editor, it gets no analysis.
 //!
+//! `design`, `from-design` and `revise` follow the chat's own flow, which
+//! makes a character design first and the head shell from it:
+//! - `design` makes the character design (`<model>/design.png`) as the
+//!   chat's `generate_design` makes a front design: the character tagged
+//!   "front" (then any `MASKETTE_COMPARE_EXTRA`, as the user's other
+//!   references) and the analysis.
+//! - `from-design` makes the head shell front view (`<model>/front.png`)
+//!   from `<model>/design.png` in the output folder (the `design` step's, or
+//!   any design put there) as `generate_front_view` does once the user
+//!   approved that design: the design alone, tagged "design" and described
+//!   with the app's approved-design note, and the analysis. The character is
+//!   not sent.
+//! - `revise` revises `<model>/front.png` as the chat's `revise_front_view`
+//!   does (`<model>/revision.png`): that front view alone, tagged "front",
+//!   with `MASKETTE_COMPARE_EDIT_NOTE` (the heart hairpin by default) as the
+//!   instruction and no analysis.
+//!
 //! `turnaround` makes only the head shell turnaround of `follow`. With
 //! `MASKETTE_COMPARE_PROMPTS=<prompts.json>`, any step uses those prompt
 //! overrides (the app's `prompts.json` format), to try a text change
@@ -91,8 +108,9 @@ use std::time::Instant;
 use serde_json::{Value, json};
 
 use super::analysis::{self, AnalysisRequest, AnalysisResult, Feature};
-use super::{GenerationRequest, LocalEdit, Mode, image_api, image_backend};
+use super::{GenerationRequest, LocalEdit, Mode, ReferenceDescription, image_api, image_backend};
 use crate::backend::agent::store::REFERENCE_TAGS;
+use crate::backend::agent::tools::APPROVED_DESIGN_NOTE;
 use crate::backend::ids;
 use crate::backend::settings::secrets::{KeyringSecrets, SERVICE, SecretStore as _};
 use crate::backend::tests::TestBackend;
@@ -222,6 +240,43 @@ impl Run<'_> {
         request.reference_keys = std::iter::once(self.reference("front", character, name))
             .chain(extras.iter().cloned())
             .collect();
+        request
+    }
+
+    /// The chat's character design (`generate_design` with view "front" and
+    /// no base): the character, then the extra references, each with its
+    /// tag. `job` adds the analysis.
+    fn design_request(&self, character: &Path, name: &str, extras: &[String]) -> GenerationRequest {
+        let mut request = GenerationRequest::new("compare", "ja", Mode::CharacterFront);
+        request.reference_keys = std::iter::once(self.reference("front", character, name))
+            .chain(extras.iter().cloned())
+            .collect();
+        request
+    }
+
+    /// The head shell front view the chat makes once the user approved
+    /// `design` (`generate_front_view`): the design alone, tagged "design"
+    /// and described as approved; the character stays out, as it would pull
+    /// the result back from the design. `job` adds the analysis.
+    fn approved_design_request(&self, design: &Path) -> GenerationRequest {
+        // The app names a conversation's first design version `design-1`.
+        let key = self.reference("design", design, "design-1.png");
+        let mut request = GenerationRequest::new("compare", "ja", Mode::FrontDesign);
+        request.reference_descriptions = vec![ReferenceDescription {
+            reference_key: key.clone(),
+            description: APPROVED_DESIGN_NOTE.to_owned(),
+        }];
+        request.reference_keys = vec![key];
+        request
+    }
+
+    /// The chat's revision of a head shell front view
+    /// (`revise_front_view`): that front view alone, tagged "front", with
+    /// the note as the instruction. `job` adds no analysis to a revision.
+    fn revision_request(&self, front: &Path, note: &str) -> GenerationRequest {
+        let mut request = GenerationRequest::new("compare", "ja", Mode::FrontRevision);
+        request.free_text = note.to_owned();
+        request.reference_keys = vec![self.reference("front", front, "front-1.png")];
         request
     }
 
@@ -385,13 +440,14 @@ async fn compare_image_models() {
         .map(|text| parse_extras(&text))
         .unwrap_or_default();
     assert!(
-        extras.is_empty() || step == "front",
-        "MASKETTE_COMPARE_EXTRA only goes with the front step"
+        extras.is_empty() || step == "front" || step == "design",
+        "MASKETTE_COMPARE_EXTRA only goes with the front and design steps"
     );
     // An analysis would be made (and billed) for nothing.
     assert!(
-        step != "local" || std::env::var_os("MASKETTE_COMPARE_ANALYSIS").is_none(),
-        "the local step takes no MASKETTE_COMPARE_ANALYSIS; the editor's local revision gets none"
+        (step != "local" && step != "revise")
+            || std::env::var_os("MASKETTE_COMPARE_ANALYSIS").is_none(),
+        "the {step} step takes no MASKETTE_COMPARE_ANALYSIS; the app's {step} gets none"
     );
 
     // The app falls back to the chat and analysis keys when they point at
@@ -473,6 +529,38 @@ async fn compare_image_models() {
             for model in &models {
                 let request = run.front_request(&reference, &reference_name, &extra_keys);
                 run.job(model, "front", &request).await;
+            }
+        }
+        "design" => {
+            for model in &models {
+                let request = run.design_request(&reference, &reference_name, &extra_keys);
+                run.job(model, "design", &request).await;
+            }
+        }
+        "from-design" | "revise" => {
+            let (input, label) = if step == "revise" {
+                ("front.png", "revision")
+            } else {
+                ("design.png", "front")
+            };
+            // Everything is checked before the first billed call.
+            for model in &models {
+                assert!(
+                    out.join(slug(model)).join(input).is_file(),
+                    "no {input} for {model}; put one at <out>/{}/{input}",
+                    slug(model)
+                );
+            }
+            let note = std::env::var("MASKETTE_COMPARE_EDIT_NOTE")
+                .unwrap_or_else(|_| DEFAULT_EDIT_NOTE.to_owned());
+            for model in &models {
+                let image = out.join(slug(model)).join(input);
+                let request = if step == "revise" {
+                    run.revision_request(&image, &note)
+                } else {
+                    run.approved_design_request(&image)
+                };
+                run.job(model, label, &request).await;
             }
         }
         "follow" => {
@@ -633,7 +721,7 @@ async fn compare_image_models() {
             return;
         }
         other => panic!(
-            "MASKETTE_COMPARE_STEP is front, follow, local, turnaround, back, samples, judge, report or samples-report, not {other:?}"
+            "MASKETTE_COMPARE_STEP is front, design, from-design, revise, follow, local, turnaround, back, samples, judge, report or samples-report, not {other:?}"
         ),
     }
     println!("report: {}", report::write(&out).display());
@@ -824,4 +912,110 @@ fn an_extra_reference_cannot_be_a_second_front() {
         .expect("image written");
     let text = std::env::join_paths([format!("front={}", image.display())]).expect("a path list");
     parse_extras(&text);
+}
+
+/// The chain steps send what the chat sends (`generate_design`, then
+/// `generate_front_view` after `approve_design`, then `revise_front_view`;
+/// see the agent tests of those tools): the same mode, tags, description,
+/// note and analysis, with no model called.
+#[tokio::test]
+async fn the_chain_steps_send_what_the_chat_sends() {
+    let backend = TestBackend::new(true);
+    let out = tempfile::tempdir().expect("output folder");
+    let character = out.path().join("character.png");
+    image::RgbImage::from_pixel(64, 64, image::Rgb([240, 180, 150]))
+        .save(&character)
+        .expect("character written");
+    let (width, height) = super::FRONT_SIZE;
+    let picture = out.path().join("picture.png");
+    image::RgbImage::from_pixel(width, height, image::Rgb([230, 220, 210]))
+        .save(&picture)
+        .expect("picture written");
+    let lock = json!({"features": [{"kind": "eyes", "description": "丸い瞳孔"}]});
+    let run = Run {
+        backend: &backend,
+        out: out.path().to_owned(),
+        detail_lock: Some(lock.clone()),
+    };
+    let sent = |request: &GenerationRequest| {
+        image_api::prepare(backend.dir.path(), request, 4, None, None).expect("images prepared")
+    };
+    let lock_of = |mode: &str| {
+        let records = backend.state.generation.jobs.list();
+        let record = records
+            .iter()
+            .rfind(|record| record.generation_mode == mode)
+            .unwrap_or_else(|| panic!("a {mode} job"));
+        record.prompt_payload["detail_lock"].clone()
+    };
+
+    let design = run.design_request(&character, "character.png", &[]);
+    assert_eq!(design.generation_mode, Mode::CharacterFront);
+    assert_eq!(
+        design.reference_keys,
+        ["front:references/compare/character.png"]
+    );
+    let prepared = sent(&design);
+    assert_eq!(prepared.images.len(), 1);
+    assert!(
+        prepared
+            .prompt
+            .starts_with("Image 1 is the character reference."),
+        "{}",
+        prepared.prompt
+    );
+    assert!(run.job("vendor/model", "design", &design).await.is_some());
+    assert_eq!(lock_of("character_front"), lock);
+
+    let front = run.approved_design_request(&picture);
+    assert_eq!(front.generation_mode, Mode::FrontDesign);
+    assert_eq!(
+        front.reference_keys,
+        ["design:references/compare/design-1.png"]
+    );
+    assert_eq!(
+        front.reference_descriptions,
+        [ReferenceDescription {
+            reference_key: "design:references/compare/design-1.png".to_owned(),
+            description: APPROVED_DESIGN_NOTE.to_owned(),
+        }]
+    );
+    let prepared = sent(&front);
+    assert_eq!(prepared.images.len(), 1);
+    assert!(
+        prepared
+            .prompt
+            .starts_with("Image 1 is the user-approved 2D character design.")
+            && prepared.prompt.contains(&format!(
+                "- design:references/compare/design-1.png: {APPROVED_DESIGN_NOTE}"
+            )),
+        "{}",
+        prepared.prompt
+    );
+    assert!(run.job("vendor/model", "front", &front).await.is_some());
+    assert_eq!(lock_of("front_design"), lock);
+
+    let revision = run.revision_request(&picture, DEFAULT_EDIT_NOTE);
+    assert_eq!(revision.generation_mode, Mode::FrontRevision);
+    assert_eq!(
+        revision.reference_keys,
+        ["front:references/compare/front-1.png"]
+    );
+    assert_eq!(revision.free_text, DEFAULT_EDIT_NOTE);
+    let prepared = sent(&revision);
+    assert_eq!(prepared.images.len(), 1);
+    assert!(
+        prepared
+            .prompt
+            .starts_with("Image 1 is the approved front-view kigurumi head shell design.")
+            && prepared.prompt.contains(DEFAULT_EDIT_NOTE),
+        "{}",
+        prepared.prompt
+    );
+    assert!(
+        run.job("vendor/model", "revision", &revision)
+            .await
+            .is_some()
+    );
+    assert_eq!(lock_of("front_revision"), Value::Null);
 }
