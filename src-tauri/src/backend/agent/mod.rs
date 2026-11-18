@@ -18,6 +18,7 @@ pub mod history;
 pub mod llm;
 pub mod project_file;
 pub mod runner;
+pub mod sample;
 pub mod store;
 pub mod tools;
 

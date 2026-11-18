@@ -38,6 +38,7 @@ zip = { version = "=9.3.0", default-features = false, features = ["deflate-flate
 base64 = "0.23.1"
 ab_glyph = "0.2.32"
 dejavu = "2.37.0"
+sys-locale = "0.3.2"
 
 [dev-dependencies]
 http-body-util = "0.1.5"

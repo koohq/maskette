@@ -37,6 +37,12 @@ pnpm install
 pnpm dev            # opens the Maskette window (tauri dev)
 ```
 
+`pnpm dev` keeps its data in the same folder as the installed app
+(`%APPDATA%\app.maskette`). Debug builds use the folder in the
+`MASKETTE_DATA_DIR` environment variable instead when it is set; a folder
+that does not exist yet tries a first launch, the only time the sample
+project (`src-tauri/sample/`) is added.
+
 Other scripts:
 
 | Script | What it does |
@@ -56,3 +62,4 @@ Layout:
 - `frontend/` — the UI and the image editor (Vite, React, pixi.js, konva,
   onnxruntime-web, MediaPipe)
 - `src-tauri/` — the desktop shell and the local API, in Rust (Tauri, axum)
+- `src-tauri/sample/` — the sample project, an unzipped `.maskette` file

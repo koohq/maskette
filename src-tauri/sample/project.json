@@ -1,0 +1,303 @@
+{
+  "id": "e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c",
+  "created_at": "2026-11-15T01:19:57.312301+00:00",
+  "title": "Sample: cat-eared girl",
+  "locale": "en",
+  "status": "idle",
+  "state": {
+    "character_session_id": "e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c",
+    "references": [
+      {
+        "id": "ref-1-5dd507",
+        "key": "references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/uploads/ref-1-5dd507-cat-girl.webp",
+        "kind": "front",
+        "url": "/api/references/references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/uploads/ref-1-5dd507-cat-girl.webp",
+        "file_name": "cat-girl.webp",
+        "note": ""
+      }
+    ],
+    "analysis": {
+      "id": "85dacc88-5804-470b-9bec-d8b226b6093d",
+      "focus_note": "",
+      "features": [
+        {
+          "id": "feature-hair",
+          "kind": "hair",
+          "label": "Hair",
+          "description": "Bright orange, softly wavy bob that falls just past the jaw, with full straight bangs down to the brows."
+        },
+        {
+          "id": "feature-braid",
+          "kind": "hair",
+          "label": "Braid",
+          "description": "A thin braid on the right of the image (the character's left) runs from the parting down beside the face and is tied with a small green star."
+        },
+        {
+          "id": "feature-ears",
+          "kind": "ears",
+          "label": "Cat ears",
+          "description": "Orange cat ears with pale inner fur on top of the head. Both stay present and symmetric in every generated view, at exactly the size and height drawn."
+        },
+        {
+          "id": "feature-eyes",
+          "kind": "eyes",
+          "label": "Eyes",
+          "description": "Large round green eyes with a yellow-green gradient, several white highlights and dark upper lashes. Both eyes are an equal, mirrored pair at exactly the same height with the same size and shape."
+        },
+        {
+          "id": "feature-expression",
+          "kind": "expression",
+          "label": "Expression",
+          "description": "Gentle closed-mouth smile with a soft pink blush."
+        },
+        {
+          "id": "feature-hairpin",
+          "kind": "accessory",
+          "label": "Star hairpin",
+          "description": "Yellow five-pointed star hairpin on the bangs, on the left of the image (the character's right)."
+        }
+      ],
+      "warnings": []
+    },
+    "images": [
+      {
+        "id": "front-1",
+        "role": "front",
+        "job_id": "ade5e459-cc00-4731-b86d-a98dc8b55699",
+        "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/ade5e459-cc00-4731-b86d-a98dc8b55699/candidate-1.webp",
+        "reference_key": "references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/front-1.webp",
+        "width": 800,
+        "height": 1100,
+        "instructions": "",
+        "created_seq": 6,
+        "parent_id": null,
+        "source": "agent",
+        "recipe": null
+      },
+      {
+        "id": "turnaround-1",
+        "role": "turnaround",
+        "job_id": "35b1c0bf-9118-4523-906b-5add51f6493c",
+        "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/35b1c0bf-9118-4523-906b-5add51f6493c/candidate-1.webp",
+        "reference_key": "references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/turnaround-1.webp",
+        "width": 2528,
+        "height": 1696,
+        "instructions": "",
+        "created_seq": 13,
+        "parent_id": "front-1",
+        "source": "agent",
+        "recipe": null
+      }
+    ],
+    "current_design_id": null,
+    "approved_design_id": null,
+    "current_front_id": "front-1",
+    "approved_front_id": "front-1",
+    "last_user_seq": 9
+  },
+  "llm_messages": [
+    {
+      "role": "user",
+      "content": "[uploaded reference images: ref-1-5dd507 (front)]\nPlease make a head shell of this girl straight from this picture, without a character design."
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_a7b931032ce9cc69",
+          "type": "function",
+          "function": {
+            "name": "analyze_references",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_a7b931032ce9cc69",
+      "name": "analyze_references",
+      "content": "{\"features\":[{\"description\":\"Bright orange, softly wavy bob that falls just past the jaw, with full straight bangs down to the brows.\",\"kind\":\"hair\",\"label\":\"Hair\"},{\"description\":\"A thin braid on the right of the image (the character's left) runs from the parting down beside the face and is tied with a small green star.\",\"kind\":\"hair\",\"label\":\"Braid\"},{\"description\":\"Orange cat ears with pale inner fur on top of the head. Both stay present and symmetric in every generated view, at exactly the size and height drawn.\",\"kind\":\"ears\",\"label\":\"Cat ears\"},{\"description\":\"Large round green eyes with a yellow-green gradient, several white highlights and dark upper lashes. Both eyes are an equal, mirrored pair at exactly the same height with the same size and shape.\",\"kind\":\"eyes\",\"label\":\"Eyes\"},{\"description\":\"Gentle closed-mouth smile with a soft pink blush.\",\"kind\":\"expression\",\"label\":\"Expression\"},{\"description\":\"Yellow five-pointed star hairpin on the bangs, on the left of the image (the character's right).\",\"kind\":\"accessory\",\"label\":\"Star hairpin\"}],\"ok\":true,\"warnings\":[]}"
+    },
+    {
+      "role": "assistant",
+      "content": "There is only a front picture, so the sides and back of the hair will be guessed. Adding a picture tagged Side or Back would pin them down.",
+      "tool_calls": [
+        {
+          "id": "call_426aa6ab635f29af",
+          "type": "function",
+          "function": {
+            "name": "generate_front_view",
+            "arguments": "{\"skip_design\":true}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_426aa6ab635f29af",
+      "name": "generate_front_view",
+      "content": "{\"image_id\":\"front-1\",\"ok\":true,\"role\":\"front\",\"shown_to_user\":true,\"size\":\"800x1100\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor."
+    },
+    {
+      "role": "user",
+      "content": "[clicked approve on head shell front view front-1; it is now approved]"
+    },
+    {
+      "role": "assistant",
+      "content": "",
+      "tool_calls": [
+        {
+          "id": "call_9ab6e4c00cca661f",
+          "type": "function",
+          "function": {
+            "name": "generate_turnaround",
+            "arguments": "{}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_9ab6e4c00cca661f",
+      "name": "generate_turnaround",
+      "content": "{\"image_id\":\"turnaround-1\",\"ok\":true,\"role\":\"turnaround\",\"shown_to_user\":true,\"size\":\"2528x1696\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The four-view sheet is ready. Let me know if you'd like any changes."
+    }
+  ],
+  "events": [
+    {
+      "seq": 1,
+      "type": "user_message",
+      "created_at": "2026-11-15T01:20:03.512301+00:00",
+      "text": "Please make a head shell of this girl straight from this picture, without a character design.",
+      "action": null,
+      "image_id": null,
+      "attachments": [
+        {
+          "id": "ref-1-5dd507",
+          "url": "/api/references/references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/uploads/ref-1-5dd507-cat-girl.webp",
+          "kind": "front"
+        }
+      ]
+    },
+    {
+      "seq": 2,
+      "type": "run_state",
+      "created_at": "2026-11-15T01:20:03.543301+00:00",
+      "status": "running"
+    },
+    {
+      "seq": 3,
+      "type": "tool",
+      "created_at": "2026-11-15T01:20:05.716301+00:00",
+      "tool": "analyze_references",
+      "status": "succeeded",
+      "progress": 100,
+      "phase": "analyzing"
+    },
+    {
+      "seq": 4,
+      "type": "assistant_message",
+      "created_at": "2026-11-15T01:20:17.830301+00:00",
+      "text": "There is only a front picture, so the sides and back of the hair will be guessed. Adding a picture tagged Side or Back would pin them down."
+    },
+    {
+      "seq": 5,
+      "type": "tool",
+      "created_at": "2026-11-15T01:20:17.848301+00:00",
+      "tool": "generate_front_view",
+      "status": "succeeded",
+      "progress": 100,
+      "phase": "generating"
+    },
+    {
+      "seq": 6,
+      "type": "image",
+      "created_at": "2026-11-15T01:20:36.583301+00:00",
+      "image_id": "front-1",
+      "role": "front",
+      "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/ade5e459-cc00-4731-b86d-a98dc8b55699/candidate-1.webp",
+      "width": 800,
+      "height": 1100,
+      "instructions": "",
+      "parent_id": null,
+      "source": "agent"
+    },
+    {
+      "seq": 7,
+      "type": "assistant_message",
+      "created_at": "2026-11-15T01:20:39.154301+00:00",
+      "text": "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor."
+    },
+    {
+      "seq": 8,
+      "type": "run_state",
+      "created_at": "2026-11-15T01:20:39.171301+00:00",
+      "status": "idle"
+    },
+    {
+      "seq": 9,
+      "type": "user_message",
+      "created_at": "2026-11-15T01:21:35.930301+00:00",
+      "text": "",
+      "action": "approve_front",
+      "image_id": "front-1",
+      "attachments": []
+    },
+    {
+      "seq": 10,
+      "type": "front_approved",
+      "created_at": "2026-11-15T01:21:35.939301+00:00",
+      "image_id": "front-1"
+    },
+    {
+      "seq": 11,
+      "type": "run_state",
+      "created_at": "2026-11-15T01:21:35.958301+00:00",
+      "status": "running"
+    },
+    {
+      "seq": 12,
+      "type": "tool",
+      "created_at": "2026-11-15T01:21:38.293301+00:00",
+      "tool": "generate_turnaround",
+      "status": "succeeded",
+      "progress": 100,
+      "phase": "generating"
+    },
+    {
+      "seq": 13,
+      "type": "image",
+      "created_at": "2026-11-15T01:22:07.417301+00:00",
+      "image_id": "turnaround-1",
+      "role": "turnaround",
+      "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/35b1c0bf-9118-4523-906b-5add51f6493c/candidate-1.webp",
+      "width": 2528,
+      "height": 1696,
+      "instructions": "",
+      "parent_id": "front-1",
+      "source": "agent"
+    },
+    {
+      "seq": 14,
+      "type": "assistant_message",
+      "created_at": "2026-11-15T01:22:09.745301+00:00",
+      "text": "The four-view sheet is ready. Let me know if you'd like any changes."
+    },
+    {
+      "seq": 15,
+      "type": "run_state",
+      "created_at": "2026-11-15T01:22:09.763301+00:00",
+      "status": "idle"
+    }
+  ]
+}

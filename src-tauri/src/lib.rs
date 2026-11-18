@@ -1,10 +1,22 @@
 mod backend;
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use backend::settings::secrets::{self, KeyringSecrets};
 use backend::{Backend, BackendConfig};
 use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder};
+
+/// Where Maskette keeps its data. Debug builds use `MASKETTE_DATA_DIR`
+/// instead when it is set, so a first launch can be tried on an empty folder
+/// without touching the real one.
+fn data_dir(app: &tauri::App) -> tauri::Result<PathBuf> {
+    #[cfg(debug_assertions)]
+    if let Some(dir) = std::env::var_os("MASKETTE_DATA_DIR").filter(|dir| !dir.is_empty()) {
+        return Ok(PathBuf::from(dir));
+    }
+    app.path().app_data_dir()
+}
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -19,8 +31,10 @@ pub fn run() {
             }
 
             // The user's data folder, in place of the old backend's `runtime/`.
-            let data_dir = app.path().app_data_dir()?;
-            std::fs::create_dir_all(&data_dir)?;
+            // A new one (the first launch) gets the sample project.
+            let data_dir = data_dir(app)?;
+            let locale = backend::agent::sample::ui_locale(sys_locale::get_locales());
+            backend::agent::sample::open_data_dir(&data_dir, locale)?;
 
             let backend = Backend::start(BackendConfig {
                 data_dir,
