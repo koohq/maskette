@@ -162,6 +162,7 @@ const en: TranslationResource = {
     notices: {
       cancelled: "Stopped.",
       step_limit: "That took too many steps, so I paused. Tell me how to continue.",
+      empty_reply: "The AI's answer came back empty, so it paused here. Send a message to continue.",
     },
     errors: {
       generic: "Something went wrong: {{message}}",
@@ -234,6 +235,7 @@ const en: TranslationResource = {
       api_server_error: "{{service}} had a server error (HTTP {{status}}). Try again later.",
       api_http_error: "{{service}} returned an error (HTTP {{status}}).",
       api_timeout: "{{service}} did not answer within {{seconds}} seconds. Try again.",
+      api_stream_failed: "{{service}} sent an error partway through its answer. Try again.",
       api_no_image: "{{service}} answered without an image. Try again.",
       api_key_missing: "Not set: {{settings}}. Enter it on the settings page.",
       setting_missing: "Empty: {{settings}}. Fill it in on the settings page.",

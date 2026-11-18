@@ -160,6 +160,7 @@ const ja: TranslationResource = {
     notices: {
       cancelled: "停止しました。",
       step_limit: "手順が上限に達したため、いったん停止しました。続けるには指示を送ってください。",
+      empty_reply: "AI の返事が空だったため、いったん停止しました。続けるには指示を送ってください。",
     },
     errors: {
       generic: "エラーが発生しました：{{message}}",
@@ -235,6 +236,7 @@ const ja: TranslationResource = {
       api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間をおいて試してください。",
       api_http_error: "{{service}} がエラーを返しました（HTTP {{status}}）。",
       api_timeout: "{{service}} が {{seconds}} 秒以内に応答しませんでした。もう一度試してください。",
+      api_stream_failed: "{{service}} が返事の途中でエラーを返しました。もう一度試してください。",
       api_no_image: "{{service}} の応答に画像が含まれていませんでした。もう一度試してください。",
       api_key_missing: "{{settings}}が設定されていません。設定画面で入力してください。",
       setting_missing: "{{settings}}が入力されていません。設定画面で入力してください。",

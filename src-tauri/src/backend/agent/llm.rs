@@ -41,6 +41,11 @@ pub struct AssistantTurn {
 }
 
 impl AssistantTurn {
+    /// Neither a reply nor a tool call.
+    pub fn is_empty(&self) -> bool {
+        self.text.is_empty() && self.tool_calls.is_empty()
+    }
+
     /// The turn as a transcript message.
     pub fn to_message(&self) -> Value {
         let mut message = json!({"role": "assistant", "content": self.text});
@@ -152,7 +157,17 @@ pub async fn complete(
         )
         .await
         .map_err(|error| error.to_failure(base_url, "Agent LLM "))?;
-    Ok(parse_openai_message(&result.message))
+    let turn = parse_openai_message(&result.message);
+    if turn.is_empty() {
+        // How the answer ended tells a model that chose to say nothing
+        // (`stop`) from one that was cut short or whose call broke.
+        log::warn!(
+            "Agent LLM model={model} gave an empty reply (ending: {}; content before removing <think>: {} chars)",
+            result.ending.as_deref().unwrap_or("not streamed"),
+            chat_api::message_text(&result.message).chars().count(),
+        );
+    }
+    Ok(turn)
 }
 
 /// Names the kept prompt and output files of the next CLI step

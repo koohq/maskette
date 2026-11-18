@@ -189,6 +189,18 @@ describe("API and other failures", () => {
     );
   });
 
+  it("say when the API failed partway through its answer", async () => {
+    const params = { service: "openrouter.ai", detail: "Provider returned error" };
+    await i18n.changeLanguage("ja");
+    expect(failureText(i18n.t, "api_stream_failed", params, "x")).toBe(
+      "openrouter.ai が返事の途中でエラーを返しました。もう一度試してください。詳細：Provider returned error",
+    );
+    await i18n.changeLanguage("en");
+    expect(failureText(i18n.t, "api_stream_failed", params, "x")).toBe(
+      "openrouter.ai sent an error partway through its answer. Try again. Details: Provider returned error",
+    );
+  });
+
   it("name the missing settings as the settings page does", async () => {
     await i18n.changeLanguage("ja");
     expect(failureText(i18n.t, "api_key_missing", { settings: "openrouter_api_key" }, "x")).toBe(
@@ -216,5 +228,29 @@ describe("API and other failures", () => {
     expect(failureText(i18n.t, "no_references", {}, "x")).toBe(
       "There are no reference images yet. Upload at least one image of the character.",
     );
+  });
+});
+
+describe("Notices", () => {
+  it("that end a run have a translation in each language", async () => {
+    // agent/runner.rs: a stop, too many steps, a model that kept answering nothing.
+    for (const language of ["ja", "en", "zh-CN"]) {
+      await i18n.changeLanguage(language);
+      for (const code of ["cancelled", "step_limit", "empty_reply"]) {
+        const key = `agent.notices.${code}`;
+        expect(i18n.exists(key, { lng: language, fallbackLng: false }), `${language} ${key}`).toBe(true);
+      }
+    }
+  });
+
+  it("say that the answer was empty", async () => {
+    await i18n.changeLanguage("ja");
+    renderTimeline([
+      { seq: 1, type: "user_message", text: "この設定画で進めてください" },
+      { seq: 2, type: "notice", code: "empty_reply" },
+    ]);
+    expect(
+      screen.getByText("AI の返事が空だったため、いったん停止しました。続けるには指示を送ってください。"),
+    ).toBeTruthy();
   });
 });

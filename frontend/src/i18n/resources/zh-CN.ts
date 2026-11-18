@@ -152,6 +152,7 @@ const zhCN = {
     notices: {
       cancelled: "已停止。",
       step_limit: "这一轮步骤太多，先停下来了，你可以继续说下一步。",
+      empty_reply: "AI 的回复是空的，先停下来了，你可以再说一次下一步。",
     },
     errors: {
       generic: "出错了：{{message}}",
@@ -216,6 +217,7 @@ const zhCN = {
       api_server_error: "{{service}} 的服务器出错（HTTP {{status}}）。请稍后再试。",
       api_http_error: "{{service}} 返回了错误（HTTP {{status}}）。",
       api_timeout: "{{service}} 在 {{seconds}} 秒内没有回应。请重试。",
+      api_stream_failed: "{{service}} 在回复途中返回了错误。请重试。",
       api_no_image: "{{service}} 的回复中没有图片。请重试。",
       api_key_missing: "未设置{{settings}}。请在设置页面填写。",
       setting_missing: "{{settings}}为空。请在设置页面填写。",

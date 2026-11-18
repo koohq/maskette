@@ -27,6 +27,8 @@ use crate::backend::tests::{TestBackend, authed, json_body};
 enum Reply {
     Turn(&'static str, Vec<(&'static str, Value)>),
     Status(u16, &'static str),
+    /// A stream sent as it is (HTTP 200).
+    Stream(&'static str),
 }
 
 fn say(text: &'static str) -> Reply {
@@ -101,6 +103,9 @@ async fn fake_llm(policy: impl Fn(&[Value]) -> Reply + Send + Sync + 'static) ->
                         streamed(text, &calls, count),
                     )
                         .into_response(),
+                    Reply::Stream(body) => {
+                        ([(header::CONTENT_TYPE, "text/event-stream")], body).into_response()
+                    }
                     Reply::Status(status, text) => (
                         StatusCode::from_u16(status).unwrap(),
                         axum::Json(json!({"error": {"message": text}})),
@@ -938,6 +943,109 @@ async fn model_errors_are_reported_in_the_chat() {
     assert_eq!(
         events(&body, "run_state").last().unwrap()["status"],
         "error"
+    );
+}
+
+#[tokio::test]
+async fn an_empty_step_is_asked_again() {
+    // Right after a tool result, where the model should call the next tool
+    // (as Gemini 3.8 Flash once did after approve_design), it says nothing.
+    let seen = AtomicUsize::new(0);
+    let setup = setup(move |messages| {
+        if has(messages, "analyze_references")
+            && !has(messages, "generate_design")
+            && seen.fetch_add(1, Ordering::SeqCst) == 0
+        {
+            return say("");
+        }
+        auto_design(messages)
+    })
+    .await;
+    let id = setup.start().await;
+    let body = setup.send(&id, "帮我做这个角色", 1, &[]).await;
+
+    assert_eq!(body["status"], "idle");
+    assert_eq!(
+        tools(&body),
+        [
+            ("analyze_references".to_owned(), "succeeded".to_owned()),
+            ("generate_design".to_owned(), "succeeded".to_owned()),
+        ]
+    );
+    assert_eq!(
+        replies(&body),
+        ["我先分析一下参考图。", "设定图好了，看看可以吗？"]
+    );
+    assert!(events(&body, "notice").is_empty());
+    // analyse, nothing, the same step again (now the design), the question.
+    assert_eq!(setup.llm.calls(), 4);
+    let bodies = setup.llm.bodies.lock().unwrap().clone();
+    assert_eq!(bodies[1]["messages"], bodies[2]["messages"]);
+    // The empty answer stays out of the transcript.
+    let assistant: Vec<Value> = setup
+        .transcript(&id)
+        .into_iter()
+        .filter(|message| message["role"] == "assistant")
+        .collect();
+    assert_eq!(assistant.len(), 3);
+    assert!(
+        assistant
+            .iter()
+            .all(|message| message["content"] != "" || message.get("tool_calls").is_some())
+    );
+}
+
+#[tokio::test]
+async fn a_model_that_keeps_saying_nothing_gets_a_notice() {
+    let setup = setup(|_| say("")).await;
+    let id = setup.start().await;
+    let body = setup.send(&id, "hello", 0, &[]).await;
+
+    assert_eq!(body["status"], "idle");
+    assert_eq!(setup.llm.calls(), 1 + super::runner::EMPTY_STEP_RETRIES);
+    assert!(replies(&body).is_empty());
+    let notices = events(&body, "notice");
+    assert_eq!(notices.len(), 1);
+    assert_eq!(notices[0]["code"], "empty_reply");
+    assert!(events(&body, "error").is_empty());
+    assert!(
+        setup
+            .transcript(&id)
+            .iter()
+            .all(|message| message["role"] != "assistant")
+    );
+}
+
+#[tokio::test]
+async fn an_error_inside_the_stream_is_reported_in_the_chat() {
+    // OpenRouter's way: the stream has started (HTTP 200) when the
+    // provider fails, so the error comes as an event.
+    let setup = setup(|_| {
+        Reply::Stream(concat!(
+            "data: {\"choices\": [{\"delta\": {\"content\": \"好的，\"}}]}\n\n",
+            "data: {\"error\": {\"code\": 502, \"message\": \"Provider returned error\"}, ",
+            "\"choices\": [{\"index\": 0, \"delta\": {\"content\": \"\"}, \"finish_reason\": \"error\"}]}\n\n",
+            "data: [DONE]\n\n",
+        ))
+    })
+    .await;
+    let id = setup.start().await;
+    let body = setup.send(&id, "hello", 0, &[]).await;
+
+    assert_eq!(body["status"], "error");
+    assert_eq!(setup.llm.calls(), 1);
+    assert!(replies(&body).is_empty());
+    let errors = events(&body, "error");
+    assert_eq!(errors[0]["code"], "api_stream_failed");
+    assert_eq!(
+        errors[0]["params"],
+        json!({"service": "127.0.0.1", "detail": "Provider returned error"})
+    );
+    assert!(
+        errors[0]["message"]
+            .as_str()
+            .unwrap()
+            .starts_with("Agent LLM stream failed: ")
     );
 }
 

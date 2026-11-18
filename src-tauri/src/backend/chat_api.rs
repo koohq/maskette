@@ -48,6 +48,8 @@ pub struct ChatError {
     pub status: Option<u16>,
     /// Set when the wait for the answer ran out, in seconds.
     pub timeout_secs: Option<u64>,
+    /// The API sent an error inside a stream it had started (HTTP 200).
+    pub in_stream: bool,
     /// The API's (or the network's) own words, shortened.
     pub detail: String,
 }
@@ -58,6 +60,7 @@ impl ChatError {
             message: format!("HTTP {status}: {}", truncate(text)),
             status: Some(status),
             timeout_secs: None,
+            in_stream: false,
             detail: error_message(text),
         }
     }
@@ -71,6 +74,20 @@ impl ChatError {
             message: format!("{what}: {detail}"),
             status: None,
             timeout_secs: None,
+            in_stream: false,
+            detail,
+        }
+    }
+
+    /// An error the API sent after the stream had started, e.g. the model's
+    /// provider dropping out: OpenRouter sends it as an event with a
+    /// top-level `error` and `finish_reason: "error"`.
+    fn in_stream(detail: String) -> Self {
+        Self {
+            message: format!("stream failed: {detail}"),
+            status: None,
+            timeout_secs: None,
+            in_stream: true,
             detail,
         }
     }
@@ -82,6 +99,7 @@ impl ChatError {
         let message = format!("{prefix}{}", self.message);
         match self.timeout_secs {
             Some(seconds) => Failure::api_timeout(&service, seconds, message),
+            None if self.in_stream => Failure::api_stream_failed(&service, message, &self.detail),
             None => Failure::api(&service, self.status, message, &self.detail),
         }
     }
@@ -106,6 +124,10 @@ impl std::fmt::Display for ChatError {
 pub struct ChatResult {
     pub message: JsonObject,
     pub extra_body_dropped: bool,
+    /// How a streamed answer ended, for the log: `finish_reason`,
+    /// OpenRouter's `native_finish_reason` when it differs, and whether
+    /// `[DONE]` came. `None` for an answer that was not streamed.
+    pub ending: Option<String>,
 }
 
 /// Parses an extra-fields setting; an empty string means no fields.
@@ -231,6 +253,7 @@ impl ChatApi {
             Some(Value::Object(message)) => Ok(ChatResult {
                 message,
                 extra_body_dropped: dropped,
+                ending: None,
             }),
             _ => {
                 let detail = truncate(&reply.text);
@@ -238,6 +261,7 @@ impl ChatApi {
                     message: format!("unexpected response body: {detail}"),
                     status: Some(reply.status),
                     timeout_secs: None,
+                    in_stream: false,
                     detail,
                 })
             }
@@ -294,10 +318,14 @@ impl ChatApi {
         }
         match answer {
             StreamAnswer::Failed(reply) => Err(ChatError::http(reply.status, &reply.text)),
-            StreamAnswer::Live(response) => Ok(ChatResult {
-                message: consume_stream(response, timeout).await?,
-                extra_body_dropped: dropped,
-            }),
+            StreamAnswer::Live(response) => {
+                let (message, ending) = consume_stream(response, timeout).await?;
+                Ok(ChatResult {
+                    message,
+                    extra_body_dropped: dropped,
+                    ending: Some(ending),
+                })
+            }
         }
     }
 
@@ -454,6 +482,7 @@ fn timed_out(what: &str, timeout: Duration) -> ChatError {
         message: format!("{what}: no answer within {}s", timeout.as_secs()),
         status: None,
         timeout_secs: Some(timeout.as_secs()),
+        in_stream: false,
         detail: String::new(),
     }
 }
@@ -464,11 +493,12 @@ fn event_data(line: &str) -> Option<&str> {
     (!data.is_empty()).then_some(data)
 }
 
-/// Reads the stream to its end (or `[DONE]`) and joins the deltas.
+/// Reads the stream to its end (or `[DONE]`) and joins the deltas; also
+/// says how it ended (see [`StreamAssembler::ending`]).
 async fn consume_stream(
     response: reqwest::Response,
     timeout: Duration,
-) -> Result<JsonObject, ChatError> {
+) -> Result<(JsonObject, String), ChatError> {
     use futures_util::StreamExt;
 
     let mut assembler = StreamAssembler::default();
@@ -495,7 +525,11 @@ async fn consume_stream(
     if !pending.is_empty() {
         assembler.line(String::from_utf8_lossy(&pending).trim_end_matches('\r'));
     }
-    Ok(assembler.finish())
+    if let Some(detail) = assembler.failure() {
+        return Err(ChatError::in_stream(detail));
+    }
+    let ending = assembler.ending();
+    Ok((assembler.finish(), ending))
 }
 
 /// Puts streamed chat deltas back together into one message.
@@ -505,6 +539,13 @@ pub struct StreamAssembler {
     reasoning: String,
     /// By the delta's `index`, in order.
     tool_calls: std::collections::BTreeMap<i64, JsonObject>,
+    /// The last `finish_reason`, and OpenRouter's `native_finish_reason`
+    /// (the provider's own, e.g. Gemini's `MALFORMED_FUNCTION_CALL`).
+    finish_reason: Option<String>,
+    native_finish_reason: Option<String>,
+    /// What an error event inside the stream said.
+    error: Option<String>,
+    done: bool,
 }
 
 impl StreamAssembler {
@@ -514,16 +555,25 @@ impl StreamAssembler {
             return true; // comments and keep-alives
         };
         if data == "[DONE]" {
+            self.done = true;
             return false;
         }
         let Ok(chunk) = serde_json::from_str::<Value>(data) else {
             return true;
         };
-        let Some(delta) = chunk
-            .get("choices")
-            .and_then(|choices| choices.get(0))
-            .and_then(|choice| choice.get("delta"))
-        else {
+        if let Some(error) = chunk.get("error").filter(|error| truthy(error)) {
+            self.error = Some(error_text(error));
+        }
+        let Some(choice) = chunk.get("choices").and_then(|choices| choices.get(0)) else {
+            return true;
+        };
+        if let Some(Value::String(reason)) = choice.get("finish_reason") {
+            self.finish_reason = Some(reason.clone());
+        }
+        if let Some(Value::String(reason)) = choice.get("native_finish_reason") {
+            self.native_finish_reason = Some(reason.clone());
+        }
+        let Some(delta) = choice.get("delta") else {
             return true;
         };
         if let Some(Value::String(text)) = delta.get("content") {
@@ -572,6 +622,37 @@ impl StreamAssembler {
                 target.insert(key.to_owned(), Value::String(joined));
             }
         }
+    }
+
+    /// What went wrong, when the stream reported an error instead of
+    /// ending: an `error` event, or `finish_reason: "error"` alone.
+    pub fn failure(&self) -> Option<String> {
+        self.error.clone().or_else(|| {
+            (self.finish_reason.as_deref() == Some("error")).then(|| {
+                self.native_finish_reason.as_ref().map_or_else(
+                    || "finish_reason: error".to_owned(),
+                    |native| format!("finish_reason: error ({native})"),
+                )
+            })
+        })
+    }
+
+    /// How the stream ended, for the log: `stop`, `stop (native
+    /// MALFORMED_FUNCTION_CALL)`, `none, no [DONE]`, ...
+    pub fn ending(&self) -> String {
+        let mut ending = self
+            .finish_reason
+            .clone()
+            .unwrap_or_else(|| "none".to_owned());
+        if let Some(native) = &self.native_finish_reason
+            && !native.eq_ignore_ascii_case(&ending)
+        {
+            ending = format!("{ending} (native {native})");
+        }
+        if !self.done {
+            ending.push_str(", no [DONE]");
+        }
+        ending
     }
 
     pub fn finish(self) -> JsonObject {
@@ -666,10 +747,7 @@ fn mentions_any(text: &str, fields: &JsonObject) -> bool {
 pub fn error_message(text: &str) -> String {
     let message = match serde_json::from_str::<Value>(text) {
         Ok(Value::Object(body)) => match body.get("error") {
-            Some(Value::Object(error)) => error
-                .get("message")
-                .or_else(|| error.get("code"))
-                .map_or_else(|| Value::Object(error.clone()).to_string(), plain),
+            Some(error @ Value::Object(_)) => error_text(error),
             _ => body
                 .get("message")
                 .map_or_else(|| Value::Object(body.clone()).to_string(), plain),
@@ -678,6 +756,18 @@ pub fn error_message(text: &str) -> String {
         Err(_) => text.to_owned(),
     };
     message.chars().take(ERROR_TEXT_CHARS).collect()
+}
+
+/// An `error` field's message (else its code, else all of it), shortened.
+fn error_text(error: &Value) -> String {
+    let text = match error {
+        Value::Object(fields) => fields
+            .get("message")
+            .or_else(|| fields.get("code"))
+            .map_or_else(|| error.to_string(), plain),
+        other => plain(other),
+    };
+    text.chars().take(ERROR_TEXT_CHARS).collect()
 }
 
 fn plain(value: &Value) -> String {
@@ -753,6 +843,70 @@ mod tests {
                 "reasoning_content": "hmm",
                 "tool_calls": [{"id": "c1", "type": "function", "function": {"name": "gen", "arguments": "{\"a\": 1}"}}],
             })
+        );
+    }
+
+    #[test]
+    fn the_stream_says_how_it_ended() {
+        let mut assembler = StreamAssembler::default();
+        assert_eq!(assembler.ending(), "none, no [DONE]");
+        assembler
+            .line(r#"data: {"choices": [{"delta": {"content": "x"}, "finish_reason": null}]}"#);
+        assembler.line(
+            r#"data: {"choices": [{"delta": {}, "finish_reason": "stop", "native_finish_reason": "MALFORMED_FUNCTION_CALL"}]}"#,
+        );
+        assert_eq!(
+            assembler.ending(),
+            "stop (native MALFORMED_FUNCTION_CALL), no [DONE]"
+        );
+        assert!(!assembler.line("data: [DONE]"));
+        assert_eq!(assembler.ending(), "stop (native MALFORMED_FUNCTION_CALL)");
+        assert_eq!(assembler.failure(), None);
+
+        let mut same = StreamAssembler::default();
+        same.line(
+            r#"data: {"error": null, "choices": [{"delta": {}, "finish_reason": "stop", "native_finish_reason": "STOP"}]}"#,
+        );
+        same.line("data: [DONE]");
+        assert_eq!(same.ending(), "stop");
+        assert_eq!(same.failure(), None);
+    }
+
+    #[test]
+    fn an_error_inside_the_stream_is_a_failure() {
+        let mut assembler = StreamAssembler::default();
+        assembler.line(r#"data: {"choices": [{"delta": {"content": "好"}}]}"#);
+        assembler.line(
+            r#"data: {"error": {"code": 502, "message": "Provider returned error"}, "choices": [{"index": 0, "delta": {"content": ""}, "finish_reason": "error"}]}"#,
+        );
+        assert_eq!(
+            assembler.failure().as_deref(),
+            Some("Provider returned error")
+        );
+
+        let mut coded = StreamAssembler::default();
+        coded.line(r#"data: {"error": {"code": "server_error"}}"#);
+        assert_eq!(coded.failure().as_deref(), Some("server_error"));
+
+        let mut bare = StreamAssembler::default();
+        bare.line(
+            r#"data: {"choices": [{"delta": {}, "finish_reason": "error", "native_finish_reason": "OTHER"}]}"#,
+        );
+        assert_eq!(
+            bare.failure().as_deref(),
+            Some("finish_reason: error (OTHER)")
+        );
+
+        let failure = ChatError::in_stream("Provider returned error".to_owned())
+            .to_failure("https://openrouter.ai/api/v1", "Agent LLM ");
+        assert_eq!(failure.code, Some("api_stream_failed"));
+        assert_eq!(
+            failure.message,
+            "Agent LLM stream failed: Provider returned error"
+        );
+        assert_eq!(
+            Value::Object(failure.params),
+            serde_json::json!({"service": "openrouter.ai", "detail": "Provider returned error"})
         );
     }
 

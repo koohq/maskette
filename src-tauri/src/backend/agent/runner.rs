@@ -23,6 +23,9 @@ use crate::backend::prompts::Overrides;
 /// The old `.env`-only limits.
 pub const MAX_STEPS_PER_TURN: usize = 12;
 pub const MAX_GENERATIONS_PER_TURN: usize = 3;
+/// How many times a step that came back empty (no reply, no tool call) is
+/// asked again before the run stops with the `empty_reply` notice.
+pub const EMPTY_STEP_RETRIES: usize = 1;
 
 /// The built-in system prompt; `prompts.json` can replace it
 /// (`agent.system_prompt`). `{language}` and `{state}` are filled in.
@@ -317,6 +320,7 @@ async fn run_chat(
 ) -> Result<(), Failure> {
     let specs = tools::tool_specs();
     let mut generations = 0;
+    let mut empty_steps = 0;
     for _ in 0..MAX_STEPS_PER_TURN {
         if cancelled.load(Ordering::SeqCst) {
             let mut conversation = entry.lock();
@@ -355,6 +359,21 @@ async fn run_chat(
             turn
         };
         let turn = turn?;
+        if turn.is_empty() {
+            // Some models now and then answer nothing at all, e.g. right
+            // after a tool result where they should call the next tool.
+            // Taken as "waiting for the user", the run would stop with no
+            // word; ask the same step again, then say that nothing came.
+            // The empty answer stays out of the transcript.
+            if empty_steps < EMPTY_STEP_RETRIES {
+                empty_steps += 1;
+                log::warn!("agent model gave an empty reply; asking again");
+                continue;
+            }
+            let mut conversation = entry.lock();
+            entry.emit(&mut conversation, "notice", json!({"code": "empty_reply"}));
+            return Ok(());
+        }
         {
             let mut conversation = entry.lock();
             conversation.llm_messages.push(turn.to_message());

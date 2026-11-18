@@ -26,6 +26,7 @@ export const FAILURE_CODES = new Set([
   "api_server_error",
   "api_http_error",
   "api_timeout",
+  "api_stream_failed",
   "api_no_image",
   "api_key_missing",
   "setting_missing",

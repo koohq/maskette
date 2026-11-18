@@ -73,6 +73,13 @@ impl Failure {
         .with_detail(detail)
     }
 
+    /// A hosted API that sent an error partway through a streamed answer.
+    pub fn api_stream_failed(service: &str, message: impl Into<String>, detail: &str) -> Self {
+        Self::coded("api_stream_failed", message)
+            .with("service", service)
+            .with_detail(detail)
+    }
+
     /// A hosted API that did not answer within `seconds`.
     pub fn api_timeout(service: &str, seconds: u64, message: impl Into<String>) -> Self {
         Self::coded("api_timeout", message)
