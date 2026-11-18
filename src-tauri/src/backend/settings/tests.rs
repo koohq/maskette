@@ -87,7 +87,7 @@ async fn settings_report_effective_backends() {
     );
     assert_eq!(
         body["options"]["agent_llm_provider"],
-        json!(["openai_compatible", "codex", "claude_code"])
+        json!(["openai_compatible", "codex", "claude_code", "fixture"])
     );
     assert!(body["values"].get("ark_api_key").is_none());
     assert_eq!(
@@ -248,14 +248,17 @@ async fn fixtures_are_hidden_and_refused_when_not_allowed() {
     // go to OpenRouter.
     assert_eq!(body["values"]["llm_provider"], "same_as_agent");
     assert_eq!(body["values"]["image_provider"], "openrouter");
-    assert!(
-        !body["options"]["image_provider"]
-            .as_array()
-            .unwrap()
-            .contains(&json!("fixture"))
-    );
-    let response = put(&app, json!({"image_provider": "fixture"})).await;
-    assert_eq!(response.status(), StatusCode::BAD_REQUEST);
+    for role in ["image_provider", "llm_provider", "agent_llm_provider"] {
+        assert!(
+            !body["options"][role]
+                .as_array()
+                .unwrap()
+                .contains(&json!("fixture")),
+            "{role}"
+        );
+        let response = put(&app, json!({ role: "fixture" })).await;
+        assert_eq!(response.status(), StatusCode::BAD_REQUEST, "{role}");
+    }
     assert_eq!(
         json_body(put(&app, json!({"image_provider": "ark"})).await).await["values"]["image_provider"],
         "ark"

@@ -10,10 +10,13 @@
 //!   (see [`crate::backend::generation`]); a cancelled run stops its request.
 //! - The Claude Code chat assistant moves with the CLI paths, and the chat
 //!   can also run on Codex; cancelling stops a model step under way.
+//! - Debug builds also offer a chat fixture ([`fixture`]) that takes the
+//!   flow a step on per message, so it can be tried without a model.
 //! - Deleting a project also removes its images and working files.
 //! - The system prompt calls the assistant Maskette's; it cannot be
 //!   overridden yet (prompt overrides move with the prompts router).
 
+pub mod fixture;
 pub mod history;
 pub mod llm;
 pub mod project_file;

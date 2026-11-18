@@ -356,6 +356,32 @@ describe("SettingsPage", () => {
     ]);
   });
 
+  it("offers the test fixtures of a debug build, with a note of the chat's own", async () => {
+    const debug = {
+      ...initial,
+      options: Object.fromEntries(
+        Object.entries(initial.options).map(([key, options]) => [key, [...options, "fixture"]]),
+      ),
+    };
+    vi.stubGlobal("fetch", backend(debug));
+    renderPage();
+
+    const chat = await screen.findByRole("radiogroup", { name: "对话助手 LLM" });
+    const note = (name: string) => {
+      const radio = within(screen.getByRole("radiogroup", { name })).getByDisplayValue("fixture");
+      return document.getElementById(radio.getAttribute("aria-describedby") ?? "")?.textContent;
+    };
+    expect(note("对话助手 LLM")).toBe(
+      "开发用：不调用 AI，每次发送都按固定步骤进入下一步。分析和图像生成仍按各自的设置运行。",
+    );
+    expect(note("参考图分析 LLM")).toBe("开发用：不调用 AI，返回固定的示例结果。");
+    expect(note("生图后端")).toBe("开发用：不调用 AI，返回固定的示例图片。");
+    // Nothing to set up: no API URL or model.
+    fireEvent.click(within(chat).getByDisplayValue("fixture"));
+    expect(screen.queryByDisplayValue("https://example.test/v1")).toBeNull();
+    expect(screen.queryByDisplayValue("chat-model")).toBeNull();
+  });
+
   it("folds analysis onto the chat assistant's settings and unfolds it to a backend of its own", async () => {
     const following = { ...initial, values: { ...initial.values, llm_provider: "same_as_agent" } };
     const fetchMock = backend(following);

@@ -378,6 +378,10 @@ const ja: TranslationResource = {
       siliconflow: "SiliconFlow（硅基流动）の画像モデルを、API キーで使います。",
       ark: "Volcengine（火山引擎）の火山方舟で、画像モデル Seedream を API キーで使います。",
       fixture: "開発用です。AI を使わず、決まったサンプルの結果を返します。",
+      agent_llm_provider: {
+        fixture:
+          "開発用です。AI を使わず、送るたびに決まった手順で次の段階に進みます。分析と画像生成は、それぞれの設定どおりに動きます。",
+      },
       image_provider: {
         codex: "この PC の Codex CLI で画像を生成します。ChatGPT の有料プランのログインで使います。",
         fixture: "開発用です。AI を使わず、決まったサンプル画像を返します。",

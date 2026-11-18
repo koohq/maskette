@@ -12,6 +12,7 @@ use std::time::Duration;
 
 use serde_json::{Value, json};
 
+use super::fixture;
 use super::llm::{self, ToolCall};
 use super::store::{Conversation, DESIGN_ROLES, DesignImage, Entry};
 use super::tools::{self, GENERATION_TOOLS, LocalRevision, ToolContext};
@@ -322,26 +323,36 @@ async fn run_chat(
             entry.emit(&mut conversation, "notice", json!({"code": "cancelled"}));
             return Ok(());
         }
-        let overrides = Overrides::load(&state.data_dir);
-        let (prompt, messages, workspace) = {
-            let conversation = entry.lock();
-            (
-                system_prompt(&conversation, &overrides),
-                conversation.llm_messages.clone(),
-                state.agent.store.workspace(&conversation.id),
-            )
-        };
         let settings = state.settings.settings();
-        let backends = llm::Backends {
-            chat: &state.chat,
-            cli: &state.cli,
-            workspace: &workspace,
+        let scripted = {
+            let conversation = entry.lock();
+            (settings.get("agent_llm_provider").trim() == "fixture")
+                .then(|| fixture::turn(&settings, &conversation))
         };
-        let step = llm::complete(&settings, &backends, &prompt, &messages, &specs);
-        let Some(turn) = until_cancelled(cancelled, step).await else {
-            let mut conversation = entry.lock();
-            entry.emit(&mut conversation, "notice", json!({"code": "cancelled"}));
-            return Ok(());
+        let turn = if let Some(turn) = scripted {
+            turn
+        } else {
+            let overrides = Overrides::load(&state.data_dir);
+            let (prompt, messages, workspace) = {
+                let conversation = entry.lock();
+                (
+                    system_prompt(&conversation, &overrides),
+                    conversation.llm_messages.clone(),
+                    state.agent.store.workspace(&conversation.id),
+                )
+            };
+            let backends = llm::Backends {
+                chat: &state.chat,
+                cli: &state.cli,
+                workspace: &workspace,
+            };
+            let step = llm::complete(&settings, &backends, &prompt, &messages, &specs);
+            let Some(turn) = until_cancelled(cancelled, step).await else {
+                let mut conversation = entry.lock();
+                entry.emit(&mut conversation, "notice", json!({"code": "cancelled"}));
+                return Ok(());
+            };
+            turn
         };
         let turn = turn?;
         {

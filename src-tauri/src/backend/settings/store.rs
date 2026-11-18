@@ -89,7 +89,7 @@ pub const FIELDS: &[Field] = &[
         default: "openai_compatible",
         ..choice(
             "agent_llm_provider",
-            &["openai_compatible", "codex", "claude_code"],
+            &["openai_compatible", "codex", "claude_code", "fixture"],
         )
     },
     text("agent_llm_base_url", OPENROUTER_BASE_URL),

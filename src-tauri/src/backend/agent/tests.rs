@@ -2167,3 +2167,117 @@ async fn generated_assets_stay_inside_their_folder() {
         );
     }
 }
+
+/// A backend with the fixtures whose chat assistant is the fixture too.
+async fn fixture_setup(settings: &[(&str, &str)]) -> Setup {
+    let backend = TestBackend::new(true);
+    let mut values = vec![("agent_llm_provider".to_owned(), Some("fixture".to_owned()))];
+    values.extend(
+        settings
+            .iter()
+            .map(|(key, value)| ((*key).to_owned(), Some((*value).to_owned()))),
+    );
+    backend.state.settings.update(&values).unwrap();
+    Setup {
+        backend,
+        llm: fake_llm(no_llm).await,
+    }
+}
+
+#[tokio::test]
+async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
+    let setup = fixture_setup(&[]).await;
+    let id = setup.start().await;
+
+    let body = setup.send(&id, "你好", 0, &[]).await;
+    assert!(tools(&body).is_empty());
+
+    // References: the analysis, then a design.
+    let body = setup.send(&id, "", 1, &[]).await;
+    let design = body["state"]["current_design_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    // Text is the change.
+    let body = setup.send(&id, "眼睛大一点", 0, &[]).await;
+    let revised = body["state"]["current_design_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    assert_ne!(revised, design);
+    let image = images(&body)
+        .into_iter()
+        .find(|image| image["id"] == revised.as_str())
+        .unwrap();
+    assert_eq!(image["parent_id"], design.as_str());
+    assert_eq!(image["instructions"], "眼睛大一点");
+
+    // Each approval moves on to the next stage.
+    let body = setup
+        .send(
+            &id,
+            "",
+            0,
+            &[("action", "approve_design"), ("image_id", &revised)],
+        )
+        .await;
+    let front = body["state"]["current_front_id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let body = setup
+        .send(
+            &id,
+            "",
+            0,
+            &[("action", "approve_front"), ("image_id", &front)],
+        )
+        .await;
+
+    assert_eq!(body["status"], "idle");
+    let succeeded = |tool: &str| (tool.to_owned(), "succeeded".to_owned());
+    assert_eq!(
+        tools(&body),
+        [
+            succeeded("analyze_references"),
+            succeeded("generate_design"),
+            succeeded("revise_design"),
+            succeeded("generate_front_view"),
+            succeeded("generate_turnaround"),
+        ]
+    );
+    let generated = "已生成示例图。批准后进入下一阶段；发送文字则按文字重新生成。";
+    assert_eq!(
+        replies(&body),
+        [
+            "这是测试用示例的回复。附上参考图发送后，会生成示例设定图。",
+            generated,
+            generated,
+            generated,
+            "已生成头壳四视图示例。再次发送会重新生成。",
+        ]
+    );
+}
+
+#[tokio::test]
+async fn the_fixture_assistant_stops_when_a_tool_fails() {
+    // The image tools run on the image settings; OpenRouter has no key here.
+    let setup = fixture_setup(&[("image_provider", "openrouter")]).await;
+    let id = setup.start().await;
+    let body = setup.send(&id, "", 1, &[]).await;
+
+    assert_eq!(body["status"], "idle");
+    assert_eq!(
+        tools(&body),
+        [
+            ("analyze_references".to_owned(), "succeeded".to_owned()),
+            ("generate_design".to_owned(), "failed".to_owned()),
+        ]
+    );
+    assert_eq!(
+        tool_event(&body, "generate_design")["error_code"],
+        "api_key_missing"
+    );
+    assert_eq!(replies(&body), ["没有成功，请查看上面的错误。"]);
+}

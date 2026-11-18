@@ -356,6 +356,9 @@ const zhCN = {
       siliconflow: "通过 API Key 使用硅基流动的图像模型。",
       ark: "通过 API Key 使用火山引擎（Volcengine）火山方舟的图像模型 Seedream。",
       fixture: "开发用：不调用 AI，返回固定的示例结果。",
+      agent_llm_provider: {
+        fixture: "开发用：不调用 AI，每次发送都按固定步骤进入下一步。分析和图像生成仍按各自的设置运行。",
+      },
       image_provider: {
         codex: "用本机的 Codex CLI 生成图片，以 ChatGPT 付费订阅登录。",
         fixture: "开发用：不调用 AI，返回固定的示例图片。",

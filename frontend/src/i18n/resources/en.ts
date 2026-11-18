@@ -378,6 +378,10 @@ const en: TranslationResource = {
       siliconflow: "SiliconFlow's image models, with an API key.",
       ark: "Seedream, the image model on Volcengine Ark, with an API key.",
       fixture: "For development: returns fixed sample results without any AI.",
+      agent_llm_provider: {
+        fixture:
+          "For development: takes the flow a fixed step on per message without any AI. Analysis and image generation still use their own settings.",
+      },
       image_provider: {
         codex: "Generates images with Codex CLI on this computer, signed in with a paid ChatGPT plan.",
         fixture: "For development: returns fixed sample images without any AI.",
