@@ -1,11 +1,11 @@
-import { IconAlertTriangle, IconArrowLeft, IconCircleCheck, IconCircleX, IconPlugConnected } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCircleCheck, IconCircleX, IconPlugConnected } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
 import { ConfirmDialog } from "../../ui/IdeDialog";
 import { errorDetail } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
+import { HomeLink } from "../workspace/HomeLink";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import { AutoFixSection } from "./AutoFixSection";
 import { PaletteSection } from "./PaletteSection";
@@ -103,10 +103,7 @@ export function SettingsPage() {
   return (
     <div className="ide-home">
       <header className="ide-titlebar" style={{ height: 44 }}>
-        <Link aria-label={t("workspace.home")} className="ide-icon-button" title={t("workspace.home")} to="/">
-          <IconArrowLeft size={16} />
-        </Link>
-        <img alt="Maskette" className="h-6 w-6" src="/logo.png" />
+        <HomeLink />
         <span className="text-sm font-semibold">{t("settings.title")}</span>
         <span className="flex-1" />
         <ThemeToggle />

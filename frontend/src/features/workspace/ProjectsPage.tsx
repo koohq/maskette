@@ -80,8 +80,8 @@ export function ProjectsPage() {
   return (
     <div className="ide-home">
       <header className="ide-titlebar" style={{ height: 44 }}>
-        <img alt="Maskette" className="h-6 w-6" src="/logo.png" />
-        {/* In the window the OS title bar already says Maskette; the logo's alt keeps the name for screen readers. */}
+        {/* In the window the OS title bar already shows the app's icon and name, so the header carries only the
+          controls. A plain browser (the dev server) has no such bar, so the name is shown there. */}
         {inDesktopWindow() ? null : <span className="text-sm font-semibold">Maskette</span>}
         <span className="flex-1" />
         <SettingsLink />

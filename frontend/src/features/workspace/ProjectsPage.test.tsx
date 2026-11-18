@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import i18n from "../../i18n";
@@ -54,10 +54,10 @@ describe("ProjectsPage", () => {
 
     const header = container.querySelector("header")!;
     expect(header.textContent).toContain("Maskette");
-    expect(screen.getByRole("img", { name: "Maskette" })).toBeTruthy();
+    expect(header.querySelector("img")).toBeNull();
   });
 
-  it("leaves the name to the OS title bar in the Maskette window but keeps it for screen readers", () => {
+  it("leaves the app's icon and name to the OS title bar in the Maskette window", () => {
     window.__MASKETTE_BACKEND__ = { baseUrl: "http://127.0.0.1:4321", token: "test-token" };
     vi.stubGlobal(
       "fetch",
@@ -67,7 +67,8 @@ describe("ProjectsPage", () => {
 
     const header = container.querySelector("header")!;
     expect(header.textContent).not.toContain("Maskette");
-    expect(screen.getByRole("img", { name: "Maskette" })).toBeTruthy();
+    expect(header.querySelector("img")).toBeNull();
+    expect(within(header).getByRole("link", { name: "设置" })).toBeTruthy();
   });
 
   it("deletes a project through the in-app dialog without using window.confirm", async () => {

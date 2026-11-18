@@ -1,11 +1,4 @@
-import {
-  IconArrowLeft,
-  IconDeviceFloppy,
-  IconDownload,
-  IconMessageCircle,
-  IconPhoto,
-  IconSparkles,
-} from "@tabler/icons-react";
+import { IconDeviceFloppy, IconDownload, IconMessageCircle, IconPhoto, IconSparkles } from "@tabler/icons-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -57,6 +50,7 @@ import {
 import { readAutoEyeSymmetry } from "./autoFixPreferences";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { correctEyeSymmetry, supportsEyeSymmetryCorrection } from "./eyeSymmetryCorrection";
+import { HomeLink } from "./HomeLink";
 import { ThemeToggle } from "./ThemeToggle";
 import { useEditorDrafts } from "./useEditorDrafts";
 import { AgentResizeHandle, EditorTab, ImageLightbox } from "./WorkspaceChrome";
@@ -759,10 +753,7 @@ function TitleBar({
 
   return (
     <header className="ide-titlebar">
-      <Link aria-label={t("workspace.home")} className="ide-icon-button" title={t("workspace.home")} to="/">
-        <IconArrowLeft size={16} />
-      </Link>
-      <img alt="Maskette" className="h-5 w-5" src="/logo-head.png" />
+      <HomeLink />
       <div className="ide-titlebar-title">
         <Link className="hover:text-(--ide-text)" to="/">
           {t("workspace.projects")}
