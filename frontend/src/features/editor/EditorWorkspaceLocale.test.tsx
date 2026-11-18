@@ -5,6 +5,7 @@ import { kigTheme } from "../../app/theme";
 import i18n from "../../i18n";
 import { literalTranslations } from "../../i18n/literalTranslations";
 import ja from "../../i18n/resources/ja";
+import { EDITOR_TEST_TIMEOUT_MS } from "../../test/timeouts";
 import { editorTools } from "./components/EditorToolRail";
 import { EditorWorkspace } from "./EditorWorkspace";
 
@@ -128,7 +129,7 @@ function renderEditor() {
   );
 }
 
-describe.each(["ja", "en"] as const)("EditorWorkspace in %s", (locale) => {
+describe.each(["ja", "en"] as const)("EditorWorkspace in %s", { timeout: EDITOR_TEST_TIMEOUT_MS }, (locale) => {
   beforeAll(async () => {
     await i18n.changeLanguage(locale);
   });

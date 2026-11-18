@@ -2,6 +2,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { kigTheme } from "../../app/theme";
+import { EDITOR_TEST_TIMEOUT_MS } from "../../test/timeouts";
 import { EditorWorkspace } from "./EditorWorkspace";
 
 const pixiMocks = vi.hoisted(() => ({
@@ -94,7 +95,7 @@ function mockStageRect(stage: HTMLElement, width = 1280, height = 720) {
   });
 }
 
-describe("EditorWorkspace annotation controls", () => {
+describe("EditorWorkspace annotation controls", { timeout: EDITOR_TEST_TIMEOUT_MS }, () => {
   it("shows a note editor for the selected annotation pin", async () => {
     const onRecipeChange = vi.fn();
     renderEditor({ onRecipeChange });

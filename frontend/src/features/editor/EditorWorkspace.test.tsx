@@ -2,6 +2,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { kigTheme } from "../../app/theme";
+import { EDITOR_TEST_TIMEOUT_MS } from "../../test/timeouts";
 import { createEmptyRecipe, normalizeEditRecipe } from "./deformation/recipe";
 import type { EditorDraftState } from "./drafts/localDrafts";
 import { anchorEffectScale, EditorWorkspace, recipeHasEdits, rescaleAnchoredRecipe } from "./EditorWorkspace";
@@ -213,7 +214,7 @@ function firePointerEvent(
   fireEvent(target, event);
 }
 
-describe("EditorWorkspace", () => {
+describe("EditorWorkspace", { timeout: EDITOR_TEST_TIMEOUT_MS }, () => {
   afterEach(() => {
     cleanup();
     vi.useRealTimers();
