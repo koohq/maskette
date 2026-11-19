@@ -106,7 +106,7 @@ const en: TranslationResource = {
   agent: {
     welcomeTitle: "Upload a character to start a head design",
     welcomeBody:
-      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that.",
+      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that. I can also make an eye close-up for the mask maker.",
     placeholder: "Describe what you want, or tell me what to change…",
     attach: "Add reference images",
     send: "Send",
@@ -295,7 +295,7 @@ const en: TranslationResource = {
     analysisSection: "Reference analysis LLM",
     analysisHint: "Checks reference safety and analyses details.",
     imageSection: "Image backend",
-    imageHint: "Generates designs, head shell front views, turnarounds and local revisions.",
+    imageHint: "Generates designs, head shell front views, turnarounds, eye close-ups and local revisions.",
     baseUrl: "API base URL",
     model: "Model",
     modelDefault: "Leave empty for the default model",
