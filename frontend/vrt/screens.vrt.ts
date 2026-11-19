@@ -6,6 +6,7 @@ import zhCN from "../src/i18n/resources/zh-CN";
 import { EMPTY_PROJECT_ID, mockBackend, PROJECT_ID } from "./backend";
 import { compareWithKnown } from "./known-overflow";
 import { findOverflow } from "./overflow";
+import { movedWhilePressed } from "./press";
 
 const TEXTS = { ja, en, "zh-CN": zhCN } as const;
 
@@ -154,6 +155,20 @@ for (const locale of LOCALES) {
         await inspect(page, `workspace-tool-${tool}-end-${locale}-${MIN_SIZE.name}`, unanswered);
         await panel.evaluate((element) => element.scrollTo(0, 0));
       }
+    }
+  });
+}
+
+// The buttons above the canvas, pressed one by one: nothing else may move. The toolbar used to show a scrollbar while
+// a button was down, shifting the slider and the other buttons sideways.
+for (const viewport of [DEFAULT_SIZE, MIN_SIZE]) {
+  test(`workspace-toolbar-press-${viewport.name}`, async ({ page }) => {
+    await open(page, WORKSPACE, "ja", viewport);
+    const buttons = page.getByTestId("editor-canvas-toolbar").getByRole("button");
+    await expect(buttons).not.toHaveCount(0);
+    for (const button of await buttons.all()) {
+      const name = await button.getAttribute("aria-label");
+      expect.soft(await movedWhilePressed(page, button), `pressing ${name}`).toEqual([]);
     }
   });
 }

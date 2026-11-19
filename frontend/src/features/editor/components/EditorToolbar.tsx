@@ -98,7 +98,9 @@ export function EditorToolbar({
       wrap={shouldWrapToolbar ? "wrap" : "nowrap"}
       style={{
         minHeight: 42,
-        overflowX: isViewportOnlyToolbar ? "hidden" : shouldWrapToolbar ? "visible" : undefined,
+        // "clip", not "hidden": hidden would make the toolbar scroll up and down, so a button sinking while pressed
+        // would show a scrollbar that pushes everything sideways.
+        overflowX: isViewportOnlyToolbar ? "clip" : shouldWrapToolbar ? "visible" : undefined,
         padding: isViewportOnlyToolbar ? "2px 7px 7px 2px" : undefined,
         rowGap: shouldWrapToolbar ? 8 : undefined,
         width: "100%",
@@ -231,7 +233,8 @@ export function EditorToolbar({
             flex: showPrimaryActions ? "0 0 auto" : "1 1 auto",
             minHeight: 42,
             minWidth: 0,
-            overflowX: isViewportOnlyToolbar ? "hidden" : shouldWrapToolbar ? "visible" : "hidden",
+            // "clip" for the same reason as the toolbar around it.
+            overflowX: isViewportOnlyToolbar ? "clip" : shouldWrapToolbar ? "visible" : "clip",
             rowGap: shouldWrapToolbar ? 8 : undefined,
             width: "100%",
           }}

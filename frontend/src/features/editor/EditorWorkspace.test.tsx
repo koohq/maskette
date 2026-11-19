@@ -989,8 +989,9 @@ describe("EditorWorkspace", { timeout: EDITOR_TEST_TIMEOUT_MS }, () => {
     await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
 
     const toolbar = screen.getByTestId("editor-canvas-toolbar");
-    expect(toolbar).toHaveStyle({ overflowX: "hidden" });
     expect(toolbar).toHaveStyle({ flexWrap: "nowrap" });
+    // What does not fit is clipped with overflow-x: clip, which jsdom drops; the VRT checks it in a real browser
+    // (workspace-toolbar-press: pressing a button must not make the toolbar scroll).
   });
 
   it("pans the editor image with right-button mouse drag without opening the save menu", async () => {
