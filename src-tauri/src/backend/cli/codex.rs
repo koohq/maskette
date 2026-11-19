@@ -6,9 +6,10 @@
 //! to a file. It runs in the read-only sandbox with the shell tool, apps,
 //! plugins, the browser, computer use, sub-agents and web search turned off,
 //! without the user's `config.toml` (so without their MCP servers) or
-//! command rules. The chat and analysis also have the image tool off and
-//! keep no session; the chat gets no images (like Claude Code's chat, it
-//! answers from the transcript alone).
+//! command rules. No run keeps a session (`--ephemeral`), so the prompts
+//! stay out of Codex's own history; Maskette never resumes one. The chat
+//! and analysis also have the image tool off; the chat gets no images (like
+//! Claude Code's chat, it answers from the transcript alone).
 //!
 //! Codex 0.169 still offers the model a JavaScript `exec` tool that drives
 //! its file tools (`apply_patch`, `view_image`) and the sub-agent tools;
@@ -17,7 +18,8 @@
 //! the model ran a command is not used.
 //!
 //! The image comes from Codex's built-in image generation tool, which saves
-//! it under `<CODEX_HOME>/generated_images/<thread id>/`. Only the tool
+//! it under `<CODEX_HOME>/generated_images/<thread id>/`, session or not
+//! (the thread id still comes in `thread.started`). Only the tool
 //! writes there (the sandbox lets the model write nothing), so the image
 //! cannot have been drawn with code. Nothing else in Codex's home folder is
 //! read. The old backend also accepted a `manifest.json` the model wrote
@@ -84,6 +86,7 @@ pub fn arguments(
         "exec",
         "--json",
         "--skip-git-repo-check",
+        "--ephemeral",
         "--ignore-user-config",
         "--ignore-rules",
         "--sandbox",
@@ -108,9 +111,8 @@ pub fn arguments(
     .map(OsString::from)
     .collect();
     if matches!(purpose, Purpose::Chat | Purpose::Analysis) {
-        for arg in ["--ephemeral", "--disable", "image_generation"] {
-            args.push(arg.into());
-        }
+        args.push("--disable".into());
+        args.push("image_generation".into());
     }
     if purpose == Purpose::Analysis {
         args.push("-c".into());

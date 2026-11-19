@@ -627,7 +627,8 @@ fn codex_runs_read_only_without_the_shell() {
     }
     assert!(image_args.contains(&"--ignore-user-config"));
     assert!(image_args.ends_with(&["--", "-"]));
-    assert!(!image_args.contains(&"--ephemeral"));
+    // No session either: the image tool still saves under the thread id.
+    assert!(image_args.contains(&"--ephemeral"));
     assert!(!image_args.contains(&"image_generation"));
     assert!(!image_args.contains(&"-m"));
 
