@@ -160,7 +160,7 @@ const ja: TranslationResource = {
     notices: {
       cancelled: "停止しました。",
       step_limit: "手順が上限に達したため、いったん停止しました。続けるには指示を送ってください。",
-      empty_reply: "AI の返事が空だったため、いったん停止しました。続けるには指示を送ってください。",
+      empty_reply: "AI の応答が空だったため、いったん停止しました。続けるには指示を送ってください。",
     },
     errors: {
       generic: "エラーが発生しました：{{message}}",
@@ -175,7 +175,7 @@ const ja: TranslationResource = {
       too_many_references: "参考画像が多すぎます（1 つのプロジェクトで 8 枚まで）。",
       front_reference_required: "正面の画像は外せません。別の画像の用途を「正面」にすると入れ替わります。",
       reference_not_found: "この参考画像が見つかりません。画面を開き直してから、もう一度試してください。",
-      unsupported_image_type: "この形式の画像は使えません。PNG・JPEG・WebP の画像を選んでください。",
+      unsupported_image_type: "この形式の画像には対応していません。PNG・JPEG・WebP の画像を選んでください。",
       unknown_image: "この操作に使える画像が見つかりません。画面を開き直してから、もう一度試してください。",
       image_too_large: "画像が大きすぎます（上限 20 MB）。小さくしてから、もう一度試してください。",
       image_invalid: "画像として読み取れませんでした。PNG・JPEG・WebP の画像で、もう一度試してください。",
@@ -236,13 +236,13 @@ const ja: TranslationResource = {
       api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間をおいて試してください。",
       api_http_error: "{{service}} がエラーを返しました（HTTP {{status}}）。",
       api_timeout: "{{service}} が {{seconds}} 秒以内に応答しませんでした。もう一度試してください。",
-      api_stream_failed: "{{service}} が返事の途中でエラーを返しました。もう一度試してください。",
+      api_stream_failed: "{{service}} が応答の途中でエラーを返しました。もう一度試してください。",
       api_no_image: "{{service}} の応答に画像が含まれていませんでした。もう一度試してください。",
       api_key_missing: "{{settings}}が設定されていません。設定画面で入力してください。",
       setting_missing: "{{settings}}が入力されていません。設定画面で入力してください。",
       analysis_invalid: "分析の結果を読み取れませんでした（{{name}}）。もう一度試してください。",
       cancelled: "停止しました。",
-      reference_rejected: "この参考画像は使えません：{{reason}}",
+      reference_rejected: "この参考画像は使用できません：{{reason}}",
       rejectReason: {
         reference_adult_explicit: "性的に露骨な画像とみられます。",
         reference_unusable: "マスクのデザインに使えるほどキャラクターが分かりません。",
@@ -416,9 +416,9 @@ const ja: TranslationResource = {
       },
       siliconflow: {
         mainland:
-          "中国本土版の URL です。国際版とは、アカウントも API キーも別です。キーは、発行した側の URL でしか使えません。",
+          "中国本土版の URL です。国際版とは、アカウントも API キーも別です。キーは、発行した側の URL でのみ使用できます。",
         international:
-          "国際版の URL です。中国本土版とは、アカウントも API キーも別です。キーは、発行した側の URL でしか使えません。国際版での動作は確認していません。",
+          "国際版の URL です。中国本土版とは、アカウントも API キーも別です。キーは、発行した側の URL でのみ使用できます。国際版での動作は確認していません。",
       },
     },
     analysisSameAsAgent: "分析にもチャットアシスタントと同じ設定を使う",
@@ -426,7 +426,7 @@ const ja: TranslationResource = {
     analysisFollowsModel:
       "チャットアシスタントと同じ「{{backend}}」の {{model}} で分析します。モデルは画像入力に対応している必要があります。",
     analysisFollowsNoImages:
-      "{{model}} は画像入力に対応していないため、分析に使えません。チャットアシスタントのモデルを替えるか、このチェックを外して分析用のモデルを選んでください。",
+      "分析には、画像入力に対応したモデルが必要です（{{model}} は対応していません）。「チャットアシスタント」の「モデル」を替えるか、このチェックを外して「参考画像の分析」でモデルを選んでください。",
     modelListShow: "モデルの一覧を開く",
     modelListNote: {
       agent:

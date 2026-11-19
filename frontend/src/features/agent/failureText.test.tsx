@@ -193,7 +193,7 @@ describe("API and other failures", () => {
     const params = { service: "openrouter.ai", detail: "Provider returned error" };
     await i18n.changeLanguage("ja");
     expect(failureText(i18n.t, "api_stream_failed", params, "x")).toBe(
-      "openrouter.ai が返事の途中でエラーを返しました。もう一度試してください。詳細：Provider returned error",
+      "openrouter.ai が応答の途中でエラーを返しました。もう一度試してください。詳細：Provider returned error",
     );
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "api_stream_failed", params, "x")).toBe(
@@ -219,7 +219,7 @@ describe("API and other failures", () => {
     await i18n.changeLanguage("ja");
     expect(
       failureText(i18n.t, "reference_rejected", { reason: "reference_adult_explicit", detail: "explicit" }, "x"),
-    ).toBe("この参考画像は使えません：性的に露骨な画像とみられます。詳細：explicit");
+    ).toBe("この参考画像は使用できません：性的に露骨な画像とみられます。詳細：explicit");
     expect(failureText(i18n.t, "cancelled", {}, "Cancelled by the user.")).toBe("停止しました。");
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "reference_rejected", { reason: "reference_unusable" }, "x")).toBe(
@@ -250,7 +250,7 @@ describe("Notices", () => {
       { seq: 2, type: "notice", code: "empty_reply" },
     ]);
     expect(
-      screen.getByText("AI の返事が空だったため、いったん停止しました。続けるには指示を送ってください。"),
+      screen.getByText("AI の応答が空だったため、いったん停止しました。続けるには指示を送ってください。"),
     ).toBeTruthy();
   });
 });
