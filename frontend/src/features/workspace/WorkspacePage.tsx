@@ -13,6 +13,7 @@ import {
   cancelRun,
   type DesignImage,
   deleteAssistantMessage,
+  isEyeDetailRole,
   isTurnaroundRole,
   prepareUpload,
   type ReferenceTag,
@@ -57,7 +58,7 @@ import { AgentResizeHandle, EditorTab, ImageLightbox } from "./WorkspaceChrome";
 
 type Activity = "explorer" | EditorTool;
 
-const TURNAROUND_TOOLS: [EditorTool, ...EditorTool[]] = ["annotation", "liquify", "local-generate"];
+const SHEET_TOOLS: [EditorTool, ...EditorTool[]] = ["annotation", "liquify", "local-generate"];
 
 export function WorkspacePage() {
   const { t } = useTranslation();
@@ -91,7 +92,13 @@ export function WorkspacePage() {
   const images = conversation?.state.images ?? [];
   const activeVersion = images.find((image) => image.id === activeTabId) ?? null;
   const dirty = Boolean(editorStatus?.dirty);
-  const availableTools = isTurnaroundRole(activeVersion?.role) ? TURNAROUND_TOOLS : undefined;
+  // The face tools find a face; a four-view sheet or an eye close-up has none to find.
+  const limitedToolsNote = isTurnaroundRole(activeVersion?.role)
+    ? "workspace.turnaroundTools"
+    : isEyeDetailRole(activeVersion?.role)
+      ? "workspace.eyeDetailTools"
+      : null;
+  const availableTools = limitedToolsNote ? SHEET_TOOLS : undefined;
   const drafts = useEditorDrafts(projectId, activeTabId);
 
   useEffect(() => writeStored(AGENT_OPEN_STORAGE_KEY, agentOpen ? "1" : "0"), [agentOpen]);
@@ -455,9 +462,7 @@ export function WorkspacePage() {
                 <div className="ide-sidebar-header">{t(`workspace.tools.${activity}`)}</div>
                 <div className="ide-sidebar-scroll">
                   {activeVersion ? null : <p className="ide-empty">{t("workspace.openVersionFirst")}</p>}
-                  {isTurnaroundRole(activeVersion?.role) ? (
-                    <p className="ide-empty">{t("workspace.turnaroundTools")}</p>
-                  ) : null}
+                  {limitedToolsNote ? <p className="ide-empty">{t(limitedToolsNote)}</p> : null}
                   <div ref={setPanelEl} />
                 </div>
               </>

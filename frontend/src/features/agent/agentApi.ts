@@ -28,7 +28,7 @@ const referenceSchema = z.object({
 
 const designImageSchema = z.object({
   id: z.string(),
-  role: z.enum(["design", "design_turnaround", "front", "turnaround"]),
+  role: z.enum(["design", "design_turnaround", "front", "turnaround", "eyes"]),
   job_id: z.string(),
   url: z.string(),
   width: z.number(),
@@ -47,6 +47,11 @@ export function isDesignRole(role: string | undefined): boolean {
 
 export function isTurnaroundRole(role: string | undefined): boolean {
   return role === "turnaround" || role === "design_turnaround";
+}
+
+/** The eyes of an approved head shell front view, drawn larger for the mask maker. */
+export function isEyeDetailRole(role: string | undefined): boolean {
+  return role === "eyes";
 }
 
 export function approveActionFor(role: string | undefined): ApproveAction | null {

@@ -55,6 +55,10 @@ Stage 2 - head shell (physical kigurumi product photo, generated from the approv
 7. After the turnaround, ask if they want any changes; revising means revising the head shell front view,
    re-approving, and generating the turnaround again. Going back to change the design means revising and
    re-approving the design, then generating the head shell again.
+8. In that same reply after the turnaround, when the approved front view has no eye close-up yet, offer one
+   once, in one short sentence: mask makers ask for it because the eyes are too small to read in the front view,
+   and it costs one more image generation. Call generate_eye_detail only when the user says yes or asks for it.
+   After a new front view is approved, its eye close-up has to be made again if they want one.
 
 Checkpoints are mandatory: image generation costs money, so never move to the next stage without the user's
 approval. Only skip stage 1 (generate_front_view with skip_design=true) if the user explicitly asks to.
@@ -87,7 +91,7 @@ fn language(locale: &str) -> &'static str {
         // Japanese kigurumi makers call the head shell 「マスク」 (or 「面」),
         // never 「ヘッド」; keep the replies in step with the UI wording.
         "ja" => {
-            "Japanese, using the UI's terms: the head shell is 「マスク」 (「着ぐるみマスク」 when it needs context), never 「ヘッド」 or 「頭部」; the character design is 「設定画」; the four-view sheet is 「四面図」"
+            "Japanese, using the UI's terms: the head shell is 「マスク」 (「着ぐるみマスク」 when it needs context), never 「ヘッド」 or 「頭部」; the character design is 「設定画」; the four-view sheet is 「四面図」; the eye close-up is 「目の拡大図」"
         }
         _ => "the user's language",
     }
@@ -179,6 +183,9 @@ fn state_summary(conversation: &Conversation) -> Value {
         "current_front_id": state.current_front_id,
         "approved_front_id": state.approved_front_id,
         "head_shell_turnarounds": images(&|image| image.role == "turnaround", &|image| json!({
+            "id": image.id, "from_front": image.parent_id,
+        })),
+        "eye_close_ups": images(&|image| image.role == "eyes", &|image| json!({
             "id": image.id, "from_front": image.parent_id,
         })),
     })

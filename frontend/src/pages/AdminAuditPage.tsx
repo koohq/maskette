@@ -116,6 +116,7 @@ function formatAuditGenerationMode(value: string) {
   if (value === "front_revision") return "重生成正视图";
   if (value === "front_local_revision") return "局部生成";
   if (value === "turnaround") return "四视图";
+  if (value === "eye_detail") return "眼部特写";
   return value;
 }
 

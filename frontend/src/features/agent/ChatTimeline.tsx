@@ -12,7 +12,14 @@ import {
 import type { TFunction } from "i18next";
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { type AgentEvent, approveActionFor, type Conversation, isDesignRole, isTurnaroundRole } from "./agentApi";
+import {
+  type AgentEvent,
+  approveActionFor,
+  type Conversation,
+  isDesignRole,
+  isEyeDetailRole,
+  isTurnaroundRole,
+} from "./agentApi";
 import { failureText } from "./failureText";
 
 type TimelineProps = {
@@ -38,6 +45,7 @@ const TOOL_KEYS = new Set([
   "revise_front_view",
   "approve_front_view",
   "generate_turnaround",
+  "generate_eye_detail",
   "local_revision",
   "annotated_revision",
 ]);
@@ -346,7 +354,8 @@ function ImageCard({
 }) {
   const { t } = useTranslation();
   const role = event["role"] as string;
-  const isTurnaround = isTurnaroundRole(role);
+  // Four-view sheets and eye close-ups are wide: give them the full width.
+  const isTurnaround = isTurnaroundRole(role) || isEyeDetailRole(role);
   const url = event["url"] as string;
   const imageId = event["image_id"] as string;
   const source = (event["source"] as string) || "agent";

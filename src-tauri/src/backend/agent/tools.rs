@@ -17,17 +17,20 @@ use crate::backend::SharedState;
 use crate::backend::chat_api::JsonObject;
 use crate::backend::failure::Failure;
 use crate::backend::generation::analysis::{self, AnalysisError, AnalysisRequest};
-use crate::backend::generation::{self, GenerationRequest, LocalEdit, Mode, ReferenceDescription};
+use crate::backend::generation::{
+    self, EyeDetail, GenerationRequest, LocalEdit, Mode, ReferenceDescription,
+};
 use crate::backend::ids;
 use crate::backend::references;
 use crate::backend::safety::sanitize_user_text;
 
-pub const GENERATION_TOOLS: [&str; 5] = [
+pub const GENERATION_TOOLS: [&str; 6] = [
     "generate_design",
     "revise_design",
     "generate_front_view",
     "revise_front_view",
     "generate_turnaround",
+    "generate_eye_detail",
 ];
 
 pub(crate) const APPROVED_DESIGN_NOTE: &str = "User-approved 2D character design from stage 1 (it may include the user's manual edits). It is the primary design source: convert it into the physical head shell while keeping its face, eyes, expression, hairstyle, colors, and accessories.";
@@ -150,6 +153,11 @@ pub fn tool_specs() -> Vec<ToolSpec> {
                 "required": [],
             }),
         },
+        ToolSpec {
+            name: "generate_eye_detail",
+            description: "Stage 2. Draw the eyes and eyebrows of the approved head shell front view large and sharp, for the mask maker, who cannot read the eye design in the small front view. It keeps the design as it is. Costs one image generation and takes about a minute. Only call it when the user asked for it or said yes to your offer.",
+            parameters: json!({"type": "object", "properties": {}, "required": []}),
+        },
     ]
 }
 
@@ -220,6 +228,7 @@ pub async fn run_tool(name: &str, arguments: &JsonObject, context: &ToolContext)
         "revise_front_view" => revise_front_view(arguments, context).await,
         "approve_front_view" => approve_front_view(arguments, context),
         "generate_turnaround" => generate_turnaround(arguments, context).await,
+        "generate_eye_detail" => generate_eye_detail(context).await,
         other => Err(format!("Unknown tool '{other}'").into()),
     }
 }
@@ -635,6 +644,28 @@ async fn generate_turnaround(arguments: &JsonObject, context: &ToolContext) -> T
         "agent",
     )
     .await?;
+    Ok(image_result(&image))
+}
+
+/// The eyes of the approved front view, drawn larger for the mask maker.
+async fn generate_eye_detail(context: &ToolContext) -> ToolResult {
+    let (request, approved) = {
+        let conversation = context.entry.lock();
+        let state = &conversation.state;
+        let Some(approved) = state.image(state.approved_front_id.as_deref()).cloned() else {
+            return Err("No approved front view. Show the front view to the user and wait for their approval first.".into());
+        };
+        let base = reference_path(context.data_dir(), &approved.reference_key)
+            .filter(|path| path.is_file())
+            .ok_or("The approved front view's file is missing on disk.")?;
+        let mut request = request_for(&conversation, Mode::EyeDetail, "");
+        request.eye_detail = Some(EyeDetail {
+            base_image_path: base,
+            region: None,
+        });
+        (request, approved)
+    };
+    let image = run_generation(context, request, "eyes", "", Some(&approved), "agent").await?;
     Ok(image_result(&image))
 }
 

@@ -823,6 +823,60 @@ async fn approve_button_then_turnaround() {
 }
 
 #[tokio::test]
+async fn the_eye_close_up_is_drawn_from_the_approved_front_view() {
+    let setup = setup(auto_front).await;
+    let id = setup.start().await;
+    setup.send(&id, "", 1, &[]).await;
+    setup.llm.set(|messages| {
+        if last_is_user(messages) {
+            call("", "generate_eye_detail", json!({}))
+        } else {
+            say("好了。")
+        }
+    });
+    // Nothing to take the eyes from before an approval.
+    let body = setup.send(&id, "眼睛特写", 0, &[]).await;
+    let refused = tool_event(&body, "generate_eye_detail");
+    assert_eq!(refused["status"], "failed");
+    assert!(refused["error"].as_str().unwrap().contains("approved"));
+
+    let body = setup
+        .send(
+            &id,
+            "",
+            0,
+            &[("action", "approve_front"), ("image_id", "front-1")],
+        )
+        .await;
+    let eyes = images(&body)
+        .into_iter()
+        .find(|image| image["role"] == "eyes")
+        .unwrap();
+    assert_eq!(eyes["id"], "eyes-1");
+    assert_eq!(eyes["parent_id"], "front-1");
+    assert_eq!(
+        (eyes["width"].as_u64(), eyes["height"].as_u64()),
+        (Some(2400), Some(1200))
+    );
+    let job = setup.job(&body, "eyes-1");
+    assert_eq!(job.generation_mode, Mode::EyeDetail);
+    // The front view alone: the original art's eyes add little.
+    assert!(job.reference_keys.is_empty());
+    let eyes = job.eye_detail.unwrap();
+    assert_eq!(eyes.region, None);
+    assert_eq!(
+        image::image_dimensions(&eyes.base_image_path).unwrap(),
+        (800, 1100)
+    );
+    assert!(
+        eyes.base_image_path
+            .to_string_lossy()
+            .replace('\\', "/")
+            .contains("/references/agent/")
+    );
+}
+
+#[tokio::test]
 async fn text_approval_after_a_user_reply_is_allowed() {
     let setup = setup(auto_front).await;
     let id = setup.start().await;
@@ -2337,7 +2391,7 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
         .as_str()
         .unwrap()
         .to_owned();
-    let body = setup
+    setup
         .send(
             &id,
             "",
@@ -2345,6 +2399,8 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             &[("action", "approve_front"), ("image_id", &front)],
         )
         .await;
+    // After the turnaround, the next message makes the eye close-up.
+    let body = setup.send(&id, "继续", 0, &[]).await;
 
     assert_eq!(body["status"], "idle");
     let succeeded = |tool: &str| (tool.to_owned(), "succeeded".to_owned());
@@ -2356,8 +2412,14 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             succeeded("revise_design"),
             succeeded("generate_front_view"),
             succeeded("generate_turnaround"),
+            succeeded("generate_eye_detail"),
         ]
     );
+    let eyes = images(&body)
+        .into_iter()
+        .find(|image| image["role"] == "eyes")
+        .unwrap();
+    assert_eq!(eyes["parent_id"], front.as_str());
     let generated = "已生成示例图。批准后进入下一阶段；发送文字则按文字重新生成。";
     assert_eq!(
         replies(&body),
@@ -2366,7 +2428,8 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             generated,
             generated,
             generated,
-            "已生成头壳四视图示例。再次发送会重新生成。",
+            "已生成头壳四视图示例。再次发送会生成眼部特写示例。",
+            "已生成眼部特写示例。再次发送会重新生成四视图。",
         ]
     );
 }

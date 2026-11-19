@@ -38,10 +38,10 @@ pub fn turn(settings: &Settings, conversation: &Conversation) -> Result<Assistan
         .iter()
         .find(|name| GENERATION_TOOLS.contains(&name.as_str()))
     {
-        return Ok(say(if done == "generate_turnaround" {
-            lines.turnaround
-        } else {
-            lines.generated
+        return Ok(say(match done.as_str() {
+            "generate_turnaround" => lines.turnaround,
+            "generate_eye_detail" => lines.eyes,
+            _ => lines.generated,
         }));
     }
     let Some((name, arguments)) = next_tool(&conversation.state, &user_text(conversation)) else {
@@ -70,8 +70,20 @@ fn next_tool(state: &AgentState, text: &str) -> Option<(&'static str, JsonObject
     if !text.is_empty() {
         arguments.insert("instructions".to_owned(), json!(text));
     }
-    let name = if state.approved_front_id.is_some() {
-        "generate_turnaround"
+    let name = if let Some(front) = state.approved_front_id.as_deref() {
+        // The turnaround first, then the eye close-up, then the turnaround
+        // again on every later message.
+        let made_from = |role: &str| {
+            state
+                .images
+                .iter()
+                .any(|image| image.role == role && image.parent_id.as_deref() == Some(front))
+        };
+        if made_from("turnaround") && !made_from("eyes") {
+            "generate_eye_detail"
+        } else {
+            "generate_turnaround"
+        }
     } else if state.approved_design_id.is_some() {
         if state.current_front_id.is_some() && !text.is_empty() {
             "revise_front_view"
@@ -135,6 +147,7 @@ struct Lines {
     need_reference: &'static str,
     generated: &'static str,
     turnaround: &'static str,
+    eyes: &'static str,
     failed: &'static str,
 }
 
@@ -144,19 +157,22 @@ impl Lines {
             "ja" => Self {
                 need_reference: "テスト用サンプルの返事です。参考画像を添えて送ると、設定画のサンプルを作ります。",
                 generated: "サンプルの画像を作りました。承認すると次の段階に進みます。文字を送ると、それを指示にして作り直します。",
-                turnaround: "マスク四面図のサンプルを作りました。もう一度送ると作り直します。",
+                turnaround: "マスク四面図のサンプルを作りました。もう一度送ると、目の拡大図のサンプルを作ります。",
+                eyes: "目の拡大図のサンプルを作りました。もう一度送ると、四面図を作り直します。",
                 failed: "うまくいきませんでした。上のエラーを確かめてください。",
             },
             "zh-CN" => Self {
                 need_reference: "这是测试用示例的回复。附上参考图发送后，会生成示例设定图。",
                 generated: "已生成示例图。批准后进入下一阶段；发送文字则按文字重新生成。",
-                turnaround: "已生成头壳四视图示例。再次发送会重新生成。",
+                turnaround: "已生成头壳四视图示例。再次发送会生成眼部特写示例。",
+                eyes: "已生成眼部特写示例。再次发送会重新生成四视图。",
                 failed: "没有成功，请查看上面的错误。",
             },
             _ => Self {
                 need_reference: "This is the test sample replying. Send a reference image and it makes a sample design.",
                 generated: "Here is a sample image. Approve it to go on to the next stage, or send text to redo it with that as the change.",
-                turnaround: "Here is a sample head shell turnaround. Send again to redo it.",
+                turnaround: "Here is a sample head shell turnaround. Send again for a sample eye close-up.",
+                eyes: "Here is a sample eye close-up. Send again to redo the turnaround.",
                 failed: "That did not work. See the error above.",
             },
         }

@@ -99,6 +99,31 @@ describe("ChatTimeline", () => {
     expect(screen.getByText("已确认")).toBeTruthy();
   });
 
+  it("shows an eye close-up full width, named, and with nothing to approve", () => {
+    const eyes: AgentEvent = {
+      seq: 5,
+      type: "image",
+      role: "eyes",
+      image_id: "eyes-1",
+      url: "/api/generated/e.webp",
+      width: 1536,
+      height: 768,
+    };
+    render(
+      <ChatTimeline
+        conversation={conversation("front-1")}
+        events={[{ seq: 4, type: "tool", tool: "generate_eye_detail", status: "failed", error: "x" }, eyes]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running={false}
+      />,
+    );
+    expect(screen.getByText("生成眼部特写")).toBeTruthy();
+    const image = screen.getByRole("img", { name: "眼部特写" });
+    expect(image.closest("li")?.className).not.toContain("max-w-60");
+    expect(screen.queryByRole("button", { name: /确认/ })).toBeNull();
+  });
+
   it("renders tool progress and failures", () => {
     render(
       <ChatTimeline
