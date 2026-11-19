@@ -252,30 +252,31 @@ const settings = {
   },
 };
 
-/** OpenRouter's candidates for the model fields (`GET /api/settings/models/{role}`), long ids and every kind of price. */
+/** OpenRouter's chat models (`GET /api/settings/models/agent`): a long id and every kind of price. */
+const CHAT_MODELS = [
+  {
+    id: "google/gemini-3.8-flash",
+    name: "Google: Gemini 3.8 Flash",
+    price: { unit: "token", input: 0.3, output: 2.5 },
+  },
+  { id: "openai/gpt-6.2-astra", name: "OpenAI: GPT-6.2 Astra", price: { unit: "token", input: 4, output: 20 } },
+  {
+    id: "vendor/a-model-with-a-very-long-identifier-that-does-not-fit-in-the-list-preview-2026-11",
+    name: "Vendor: Long",
+    price: { unit: "token", input: 0.075, output: 0.3 },
+  },
+  { id: "vendor/free-model:free", name: "Vendor: Free", price: { unit: "token", input: 0, output: 0 } },
+  { id: "openrouter/auto", name: "Auto Router", price: null },
+];
+
+/**
+ * OpenRouter's candidates for the model fields (`GET /api/settings/models/{role}`). Analysis follows the chat here,
+ * so the chat list offers only the models on both lists: every chat model but GPT-6.2 Astra, which takes no images,
+ * so the list still shows the long id and every kind of price.
+ */
 const MODEL_CANDIDATES = {
-  agent: [
-    {
-      id: "google/gemini-3.8-flash",
-      name: "Google: Gemini 3.8 Flash",
-      price: { unit: "token", input: 0.3, output: 2.5 },
-    },
-    { id: "openai/gpt-6.2-astra", name: "OpenAI: GPT-6.2 Astra", price: { unit: "token", input: 4, output: 20 } },
-    {
-      id: "vendor/a-model-with-a-very-long-identifier-that-does-not-fit-in-the-list-preview-2026-11",
-      name: "Vendor: Long",
-      price: { unit: "token", input: 0.075, output: 0.3 },
-    },
-    { id: "vendor/free-model:free", name: "Vendor: Free", price: { unit: "token", input: 0, output: 0 } },
-    { id: "openrouter/auto", name: "Auto Router", price: null },
-  ],
-  analysis: [
-    {
-      id: "google/gemini-3.8-flash",
-      name: "Google: Gemini 3.8 Flash",
-      price: { unit: "token", input: 0.3, output: 2.5 },
-    },
-  ],
+  agent: CHAT_MODELS,
+  analysis: CHAT_MODELS.filter((model) => model.id !== "openai/gpt-6.2-astra"),
   image: [
     {
       id: "openai/gpt-image-2.6-sunburst",
