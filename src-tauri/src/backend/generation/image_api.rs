@@ -19,8 +19,8 @@ use super::hosted::ratio_value;
 use super::prompt::{self, Role};
 use super::usage::TokenUsage;
 use super::{
-    FRONT_SIZE, GeneratedImage, GenerationRequest, LocalEdit, Mode, TURNAROUND_SIZE, clean_root,
-    generated_root, generated_url, watermark,
+    EYE_BAND, EYE_DETAIL_SIZE, EyeDetail, FRONT_SIZE, GeneratedImage, GenerationRequest, LocalEdit,
+    Mode, TURNAROUND_SIZE, clean_root, generated_root, generated_url, watermark,
 };
 use crate::backend::chat_api::{self, JsonObject};
 use crate::backend::failure::Failure;
@@ -76,6 +76,10 @@ pub struct Prepared {
 enum Finish {
     Front,
     Turnaround,
+    /// Kept at the model's resolution, padded to the cut-out's shape.
+    EyeDetail {
+        ratio: f64,
+    },
     Local {
         base: RgbImage,
         mask: GrayImage,
@@ -122,10 +126,16 @@ pub fn prepare(
     max_prompt_chars: Option<usize>,
     aspect_ratios: Option<&[String]>,
 ) -> Result<Prepared, String> {
-    match &request.local_edit {
-        Some(edit) => prepare_local_revision(data_dir, request, edit, aspect_ratios),
-        None => prepare_generation(data_dir, request, max_images.max(1), max_prompt_chars),
+    if let Some(edit) = &request.local_edit {
+        return prepare_local_revision(data_dir, request, edit, aspect_ratios);
     }
+    if let Some(eyes) = &request.eye_detail {
+        return prepare_eye_detail(data_dir, request, eyes, aspect_ratios);
+    }
+    if request.generation_mode == Mode::EyeDetail {
+        return Err("An eye close-up needs the front view to take the eyes from".to_owned());
+    }
+    prepare_generation(data_dir, request, max_images.max(1), max_prompt_chars)
 }
 
 fn prepare_generation(
@@ -263,6 +273,78 @@ fn prepare_local_revision(
     })
 }
 
+/// The long side the eye cut-out is enlarged to before it is sent, so the
+/// model gets a canvas of its own size rather than a thumbnail.
+const EYE_CUT_OUT_LONG_SIDE: u32 = 1536;
+
+fn prepare_eye_detail(
+    data_dir: &Path,
+    request: &GenerationRequest,
+    eyes: &EyeDetail,
+    aspect_ratios: Option<&[String]>,
+) -> Result<Prepared, String> {
+    if !eyes.base_image_path.is_file() {
+        return Err("The front view for the eye close-up is missing".to_owned());
+    }
+    let base = load_rgb(&eyes.base_image_path)?;
+    let crop = eye_region(eyes.region, base.dimensions())?;
+    let crop = aspect_ratios.map_or(crop, |ratios| {
+        fit_crop_to_ratio(crop, base.dimensions(), ratios)
+    });
+    let cut = cut_out(&base, crop);
+    let scale = f64::from(EYE_CUT_OUT_LONG_SIDE) / f64::from(cut.width().max(cut.height()));
+    let cut = if scale > 1.0 {
+        imageops::resize(
+            &cut,
+            round_u32(f64::from(cut.width()) * scale),
+            round_u32(f64::from(cut.height()) * scale),
+            FilterType::Lanczos3,
+        )
+    } else {
+        cut
+    };
+    let ratio = f64::from(crop.width()) / f64::from(crop.height());
+    let supplemental: Vec<RgbImage> = user_references(data_dir, &request.reference_keys)
+        .iter()
+        .map(|reference| load_rgb(&reference.path))
+        .collect::<Result<_, _>>()?;
+    let mut images = vec![cut];
+    match supplemental.len() {
+        0 => {}
+        1 => images.extend(supplemental),
+        _ => images.push(contact_sheet(&supplemental)),
+    }
+    Ok(Prepared {
+        prompt: prompt::build_eye_detail_prompt(images.len() > 1),
+        images,
+        finish: Finish::EyeDetail { ratio },
+    })
+}
+
+/// The eye region on a base of `(width, height)`: the given rectangle, or
+/// [`EYE_BAND`].
+fn eye_region(region: Option<[u32; 4]>, (width, height): (u32, u32)) -> Result<Crop, String> {
+    let [left, top, right, bottom] = region.unwrap_or_else(|| {
+        let [left, top, right, bottom] = EYE_BAND;
+        [
+            round_u32(f64::from(width) * left),
+            round_u32(f64::from(height) * top),
+            round_u32(f64::from(width) * right),
+            round_u32(f64::from(height) * bottom),
+        ]
+    });
+    let (right, bottom) = (right.min(width), bottom.min(height));
+    if left >= right || top >= bottom {
+        return Err("The eye region is empty".to_owned());
+    }
+    Ok(Crop {
+        left: i64::from(left),
+        top: i64::from(top),
+        right: i64::from(right),
+        bottom: i64::from(bottom),
+    })
+}
+
 impl Prepared {
     /// The final output from the API's image.
     pub fn finish(&self, raw: &RgbImage) -> Result<RgbImage, String> {
@@ -277,6 +359,24 @@ impl Prepared {
                     pad_to_ratio(raw, f64::from(width) / f64::from(height), edge_colour(raw));
                 Ok(if padded.width() > width {
                     imageops::resize(&padded, width, height, FilterType::Lanczos3)
+                } else {
+                    padded
+                })
+            }
+            Finish::EyeDetail { ratio } => {
+                // Like the turnaround: never upscaled, padded rather than
+                // cropped, so no eyelash is cut off.
+                let padded = pad_to_ratio(raw, *ratio, edge_colour(raw));
+                let (max_width, max_height) = EYE_DETAIL_SIZE;
+                let scale = (f64::from(max_width) / f64::from(padded.width()))
+                    .min(f64::from(max_height) / f64::from(padded.height()));
+                Ok(if scale < 1.0 {
+                    imageops::resize(
+                        &padded,
+                        round_u32(f64::from(padded.width()) * scale),
+                        round_u32(f64::from(padded.height()) * scale),
+                        FilterType::Lanczos3,
+                    )
                 } else {
                     padded
                 })
@@ -1266,5 +1366,116 @@ mod tests {
         assert_eq!(safe_segment("ab-12_c.d"), "ab-12_c.d");
         assert_eq!(safe_segment("../a b//c"), "a-b-c");
         assert_eq!(safe_segment("..."), "unknown");
+    }
+
+    /// A front view with a dark square on each eye, and an eye request for it.
+    fn eye_front(dir: &Path, region: Option<[u32; 4]>) -> GenerationRequest {
+        let mut base = RgbImage::from_pixel(800, 1100, Rgb([230, 220, 210]));
+        for (left, right) in [(260, 340), (460, 540)] {
+            for y in 500..560 {
+                for x in left..right {
+                    base.put_pixel(x, y, Rgb([30, 120, 60]));
+                }
+            }
+        }
+        let front = dir.join("front.png");
+        base.save(&front).unwrap();
+        let mut request = GenerationRequest::new("s", "ja", Mode::EyeDetail);
+        request.eye_detail = Some(EyeDetail {
+            base_image_path: front,
+            region,
+        });
+        request
+    }
+
+    #[test]
+    fn the_eye_close_up_sends_the_eye_band_enlarged() {
+        let dir = tempfile::tempdir().unwrap();
+        let request = eye_front(dir.path(), None);
+        let ratios = ratios(&GPT_RATIOS);
+        let prepared = prepare(dir.path(), &request, 4, None, Some(&ratios)).unwrap();
+        // The band (120, 396)-(680, 660) is 560x264, widened to 2:1 and
+        // enlarged to 1536 wide; both eyes are inside it.
+        assert_eq!(prepared.images.len(), 1);
+        assert_eq!(prepared.images[0].dimensions(), (1536, 768));
+        let ratio = f64::from(1536) / f64::from(768);
+        assert_eq!(
+            nearest_aspect_ratio(1536, 768, &ratios).as_deref(),
+            Some("2:1")
+        );
+        let green = |image: &RgbImage, x: u32, y: u32| image.get_pixel(x, y).0[1] > 100;
+        let sent = &prepared.images[0];
+        // (300, 530) and (500, 530) on the front view: 120 and 388 off.
+        let scale = 1536.0 / 560.0;
+        for x in [300.0, 500.0] {
+            let (sent_x, sent_y) = ((x - 120.0) * scale, (530.0 - 388.0) * scale);
+            assert!(green(sent, round_u32(sent_x), round_u32(sent_y)), "{x}");
+        }
+        assert!(!prepared.prompt.contains("Image 2"));
+        assert!(prepared.prompt.contains("Keep the eye design exactly"));
+        assert!(
+            matches!(prepared.finish, Finish::EyeDetail { ratio: r } if (r - ratio).abs() < 0.01)
+        );
+    }
+
+    #[test]
+    fn the_eye_close_up_takes_a_given_region_and_the_art_as_image_2() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut request = eye_front(dir.path(), Some([250, 480, 550, 580]));
+        let art = references::root(dir.path()).join("p").join("eyes.png");
+        std::fs::create_dir_all(art.parent().unwrap()).unwrap();
+        RgbImage::from_pixel(300, 100, Rgb([0, 200, 0]))
+            .save(&art)
+            .unwrap();
+        request.reference_keys = vec!["supplemental:references/p/eyes.png".to_owned()];
+        // Without ratios the region is sent as it is (3:1), enlarged.
+        let prepared = prepare(dir.path(), &request, 4, None, None).unwrap();
+        assert_eq!(prepared.images.len(), 2);
+        assert_eq!(prepared.images[0].dimensions(), (1536, 512));
+        assert_eq!(prepared.images[1].dimensions(), (300, 100));
+        assert!(
+            prepared
+                .prompt
+                .contains("Image 2 shows the character's eyes")
+        );
+        assert!(prepared.prompt.contains("follow Image 1"));
+    }
+
+    #[test]
+    fn an_eye_close_up_needs_its_front_view_and_a_region() {
+        let dir = tempfile::tempdir().unwrap();
+        let request = GenerationRequest::new("s", "ja", Mode::EyeDetail);
+        assert!(prepare(dir.path(), &request, 4, None, None).is_err());
+        let empty = eye_front(dir.path(), Some([300, 500, 300, 600]));
+        assert!(prepare(dir.path(), &empty, 4, None, None).is_err());
+        let mut missing = eye_front(dir.path(), None);
+        if let Some(eyes) = missing.eye_detail.as_mut() {
+            eyes.base_image_path = dir.path().join("gone.png");
+        }
+        assert!(prepare(dir.path(), &missing, 4, None, None).is_err());
+    }
+
+    #[test]
+    fn the_eye_close_up_keeps_the_model_resolution_up_to_its_cap() {
+        let finish = |ratio: f64, raw: &RgbImage| {
+            Prepared {
+                prompt: String::new(),
+                images: Vec::new(),
+                finish: Finish::EyeDetail { ratio },
+            }
+            .finish(raw)
+            .unwrap()
+            .dimensions()
+        };
+        // GPT's 2:1 answer at 2K stays as it is; a 3:2 one is padded wider.
+        let wide = RgbImage::from_pixel(2048, 1024, Rgb([1, 2, 3]));
+        assert_eq!(finish(2.0, &wide), (2048, 1024));
+        let small = RgbImage::from_pixel(1536, 1024, Rgb([1, 2, 3]));
+        assert_eq!(finish(2.0, &small), (2048, 1024));
+        // Never upscaled; a larger one comes down to 2400 wide.
+        let tiny = RgbImage::from_pixel(600, 300, Rgb([1, 2, 3]));
+        assert_eq!(finish(2.0, &tiny), (600, 300));
+        let large = RgbImage::from_pixel(4096, 2048, Rgb([1, 2, 3]));
+        assert_eq!(finish(2.0, &large), (2400, 1200));
     }
 }

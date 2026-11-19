@@ -61,6 +61,14 @@
 //! and what OpenRouter billed (the change in the key's spending, so nothing
 //! else may use the key meanwhile). No image is made.
 //!
+//! `eyes` makes the eye close-up of `<model>/front.png` (or of
+//! `MASKETTE_COMPARE_FRONT=<image>`, copied there first) as the app makes
+//! it: the eyes cut out of the front view, from the app's default band or
+//! `MASKETTE_COMPARE_EYES=left,top,right,bottom` (pixels on the front view).
+//! `MASKETTE_COMPARE_EYE_ART=left,top,right,bottom` (pixels on the
+//! character) also makes `eyes-art`, with that crop of the character sent
+//! as the eyes of the original art.
+//!
 //! `turnaround` makes only the head shell turnaround of `follow`. With
 //! `MASKETTE_COMPARE_PROMPTS=<prompts.json>`, any step uses those prompt
 //! overrides (the app's `prompts.json` format), to try a text change
@@ -118,7 +126,9 @@ use std::time::Instant;
 use serde_json::{Value, json};
 
 use super::analysis::{self, AnalysisRequest, AnalysisResult, Feature};
-use super::{GenerationRequest, LocalEdit, Mode, ReferenceDescription, image_api, image_backend};
+use super::{
+    EyeDetail, GenerationRequest, LocalEdit, Mode, ReferenceDescription, image_api, image_backend,
+};
 use crate::backend::agent::store::REFERENCE_TAGS;
 use crate::backend::agent::tools::APPROVED_DESIGN_NOTE;
 use crate::backend::ids;
@@ -209,6 +219,32 @@ fn parse_extras(text: &std::ffi::OsStr) -> Vec<(String, PathBuf)> {
             (tag.to_owned(), image)
         })
         .collect()
+}
+
+/// `left,top,right,bottom` in pixels.
+fn pixel_box(text: &str) -> [u32; 4] {
+    let values: Vec<u32> = text
+        .split(',')
+        .map(|value| value.trim().parse().expect("a box is four whole pixels"))
+        .collect();
+    let [left, top, right, bottom] = values[..] else {
+        panic!("a box is left,top,right,bottom: {text}");
+    };
+    assert!(left < right && top < bottom, "an empty box: {text}");
+    [left, top, right, bottom]
+}
+
+/// The eye close-up of `front` (the approved front view): `region` on it,
+/// or the app's default band, and `art` (a key) as the eyes of the original
+/// art, if given.
+fn eye_request(front: &Path, region: Option<[u32; 4]>, art: Option<String>) -> GenerationRequest {
+    let mut request = GenerationRequest::new("compare", "ja", Mode::EyeDetail);
+    request.reference_keys = art.into_iter().collect();
+    request.eye_detail = Some(EyeDetail {
+        base_image_path: front.to_owned(),
+        region,
+    });
+    request
 }
 
 fn parse_masks(text: &str) -> BTreeMap<String, (f64, f64, f64, f64)> {
@@ -578,7 +614,7 @@ async fn compare_image_models() {
     );
     // An analysis would be made (and billed) for nothing.
     assert!(
-        (step != "local" && step != "revise")
+        (step != "local" && step != "revise" && step != "eyes")
             || std::env::var_os("MASKETTE_COMPARE_ANALYSIS").is_none(),
         "the {step} step takes no MASKETTE_COMPARE_ANALYSIS; the app's {step} gets none"
     );
@@ -755,6 +791,51 @@ async fn compare_image_models() {
                     lock_outside,
                 );
                 run.job(model, "local", &request).await;
+            }
+        }
+        "eyes" => {
+            let region = std::env::var("MASKETTE_COMPARE_EYES")
+                .ok()
+                .map(|text| pixel_box(&text));
+            let art = std::env::var("MASKETTE_COMPARE_EYE_ART").ok().map(|text| {
+                let crop = pixel_box(&text);
+                let image = image::open(&reference).expect("character readable");
+                let cut = image
+                    .crop_imm(crop[0], crop[1], crop[2] - crop[0], crop[3] - crop[1])
+                    .to_rgb8();
+                let path = out.join("character-eyes.png");
+                cut.save(&path).expect("eye crop saved");
+                run.reference("supplemental", &path, "character-eyes.png")
+            });
+            // Everything is checked before the first billed call.
+            for model in &models {
+                let folder = out.join(slug(model));
+                if let Ok(front) = std::env::var("MASKETTE_COMPARE_FRONT") {
+                    std::fs::create_dir_all(&folder).expect("output folder");
+                    image::open(&front)
+                        .expect("front view readable")
+                        .to_rgb8()
+                        .save(folder.join("front.png"))
+                        .expect("front view saved");
+                }
+                assert!(
+                    folder.join("front.png").is_file(),
+                    "no front view for {model}; put one at <out>/{}/front.png",
+                    slug(model)
+                );
+            }
+            for model in &models {
+                let front = out.join(slug(model)).join("front.png");
+                run.job(model, "eyes", &eye_request(&front, region, None))
+                    .await;
+                if let Some(art) = &art {
+                    run.job(
+                        model,
+                        "eyes-art",
+                        &eye_request(&front, region, Some(art.clone())),
+                    )
+                    .await;
+                }
             }
         }
         "turnaround" => {

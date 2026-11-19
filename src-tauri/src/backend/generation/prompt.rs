@@ -508,6 +508,7 @@ pub fn stage_lines(mode: Mode, t: &Texts) -> Vec<String> {
         Mode::FrontDesign | Mode::FrontRevision | Mode::FrontLocalRevision => {
             final_front_view_prompt(t)
         }
+        Mode::EyeDetail => EYE_DETAIL_LINES.map(str::to_owned).into(),
     }
 }
 
@@ -601,6 +602,8 @@ pub fn system_constraints(mode: Mode, overrides: &Overrides) -> Vec<String> {
         Mode::FrontLocalRevision => {
             return BASE_CONSTRAINTS.map(str::to_owned).into();
         }
+        // Its own prompt holds its rules (`build_eye_detail_prompt`).
+        Mode::EyeDetail => return Vec::new(),
     };
     overrides.list(key, default)
 }
@@ -971,6 +974,35 @@ and every unrelated detail exactly the same."
             "Image 2 is a supplemental reference for the requested detail; use it only to clarify that detail."
                 .to_owned(),
         );
+    }
+    lines.join("\n")
+}
+
+const EYE_DETAIL_LINES: [&str; 6] = [
+    "Image 1 is a crop around the eyes of an approved front-view product photograph of a kigurumi head shell, \
+enlarged from a small picture, so it is soft.",
+    "Make a sharp, high-resolution close-up photograph of these same eyes for the mask maker, who reads the eye \
+design from it.",
+    "Keep the eye design exactly as in Image 1: the shape and size of each eye, the spacing and tilt of the two \
+eyes, the iris colours and their gradient, the pupil shape, the number, shapes and positions of the highlights, the \
+eyelid and eyelash lines, the eyebrows, and the skin and blush colours.",
+    "Only make it sharper: draw the fine detail the enlargement blurred, and add no eye detail, makeup, eyelashes, \
+highlights or decoration that Image 1 does not have.",
+    "Keep the framing of Image 1: both eyes and both eyebrows, seen straight on, with the same lighting, shell \
+material and wig fibre.",
+    "Do not add text, labels, arrows, watermarks or a second view.",
+];
+
+const EYE_DETAIL_REFERENCE_LINE: &str = "Image 2 shows the character's eyes in the original art. Use it only to \
+read details too small to see in Image 1 (the iris pattern, the highlight shapes, the eyelash ends). Where Image 1 \
+and Image 2 differ, follow Image 1: it is the design the user approved.";
+
+/// The eye close-up's prompt; `has_reference` when Image 2 shows the
+/// character's eyes in the original art.
+pub fn build_eye_detail_prompt(has_reference: bool) -> String {
+    let mut lines: Vec<&str> = EYE_DETAIL_LINES.to_vec();
+    if has_reference {
+        lines.insert(2, EYE_DETAIL_REFERENCE_LINE);
     }
     lines.join("\n")
 }

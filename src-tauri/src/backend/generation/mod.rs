@@ -148,15 +148,40 @@ pub enum Mode {
     CharacterFront,
     CharacterRevision,
     CharacterTurnaround,
+    /// The eyes of an approved head shell front view, drawn larger for the
+    /// mask maker (see [`EyeDetail`]).
+    EyeDetail,
 }
 
 impl Mode {
     pub fn output_size(self) -> (u32, u32) {
         match self {
             Self::Turnaround | Self::CharacterTurnaround => TURNAROUND_SIZE,
+            Self::EyeDetail => EYE_DETAIL_SIZE,
             _ => FRONT_SIZE,
         }
     }
+}
+
+/// The eye close-up's shape and the most it is kept at: the model's own
+/// resolution, never upscaled.
+pub const EYE_DETAIL_SIZE: (u32, u32) = (2400, 1200);
+
+/// Where a head shell front view has its eyes and eyebrows when no region
+/// is given: left, top, right, bottom as fractions of the image. The front
+/// view prompt centres the face, so the band is wide enough for the eyes of
+/// a small or a large head.
+pub const EYE_BAND: [f64; 4] = [0.15, 0.36, 0.85, 0.60];
+
+/// The inputs of an eye close-up: the eyes of `base_image_path` (the
+/// approved front view), cut out and drawn larger and sharper. The user's
+/// references on the request, if any, go along to show the eyes' details.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct EyeDetail {
+    pub base_image_path: PathBuf,
+    /// Left, top, right, bottom in pixels on the base image; `None` takes
+    /// [`EYE_BAND`].
+    pub region: Option<[u32; 4]>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -191,6 +216,7 @@ pub struct GenerationRequest {
     pub detail_lock: Option<Value>,
     pub generation_mode: Mode,
     pub local_edit: Option<LocalEdit>,
+    pub eye_detail: Option<EyeDetail>,
 }
 
 impl GenerationRequest {
@@ -204,6 +230,7 @@ impl GenerationRequest {
             detail_lock: None,
             generation_mode: mode,
             local_edit: None,
+            eye_detail: None,
         }
     }
 }

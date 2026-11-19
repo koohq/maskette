@@ -12,10 +12,12 @@ use serde_json::Value;
 use super::slug;
 
 /// The modes in page order, with their headings.
-const MODES: [(&str, &str); 3] = [
+const MODES: [(&str, &str); 5] = [
     ("front", "正面図"),
     ("turnaround", "四面図"),
     ("local", "部分再生成"),
+    ("eyes", "目の拡大図"),
+    ("eyes-art", "目の拡大図（元の絵の目つき）"),
 ];
 
 /// Space kept around the masked area in the before/after crops (px on the
@@ -280,7 +282,49 @@ a {{ color:inherit; }}
             escape(model)
         );
     }
-    html.push_str("</div>\n</main>\n</body>\n</html>\n");
+    html.push_str("</div>\n");
+
+    // Eye close-ups: the front view's eye band, then each close-up.
+    if models
+        .iter()
+        .any(|model| run(model, "eyes").is_some() || run(model, "eyes-art").is_some())
+    {
+        html.push_str("<h2>目の拡大図</h2>\n<div class=\"wide\">\n");
+        let size = super::super::FRONT_SIZE;
+        let [left, top, right, bottom] = super::super::EYE_BAND;
+        let band = (
+            (f64::from(size.0) * left).round() as u32,
+            (f64::from(size.1) * top).round() as u32,
+            (f64::from(size.0) * right).round() as u32,
+            (f64::from(size.1) * bottom).round() as u32,
+        );
+        for model in &models {
+            let mut figures = Vec::new();
+            if let Some(front) = file(model, "front") {
+                figures.push(format!(
+                    "<figure>{}<figcaption>正面図の同じあたり</figcaption></figure>",
+                    crop(&front, size, band)
+                ));
+            }
+            for (mode, heading) in [("eyes", "拡大図"), ("eyes-art", "拡大図（元の絵の目つき）")]
+            {
+                if let Some(src) = file(model, mode) {
+                    figures.push(format!(
+                        "<figure>{}<figcaption>{heading}</figcaption></figure>",
+                        image(&src, heading)
+                    ));
+                }
+            }
+            let _ = writeln!(
+                html,
+                "<div class=\"card\"><h3>{}</h3><div class=\"wide\">{}</div></div>",
+                escape(model),
+                figures.join("")
+            );
+        }
+        html.push_str("</div>\n");
+    }
+    html.push_str("</main>\n</body>\n</html>\n");
 
     let path = out.join("index.html");
     std::fs::write(&path, html).expect("report written");

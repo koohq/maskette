@@ -362,7 +362,11 @@ fn enum_values(parameters: &JsonObject, name: &str) -> Option<Vec<String>> {
 
 fn openrouter_resolution(mode: Mode) -> &'static str {
     match mode {
-        Mode::Turnaround | Mode::CharacterTurnaround => OPENROUTER_TURNAROUND_RESOLUTION,
+        // The eye close-up is there to show detail the front view is too
+        // small for.
+        Mode::Turnaround | Mode::CharacterTurnaround | Mode::EyeDetail => {
+            OPENROUTER_TURNAROUND_RESOLUTION
+        }
         Mode::FrontLocalRevision => OPENROUTER_LOCAL_EDIT_RESOLUTION,
         _ => OPENROUTER_FRONT_RESOLUTION,
     }
