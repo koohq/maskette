@@ -107,7 +107,7 @@ describe("ProjectsPage", () => {
     await openMenu("删除项目");
     fireEvent.click(screen.getAllByRole("button", { name: "删除项目" }).at(-1)!);
 
-    expect((await screen.findByRole("alert")).textContent).toBe("上一步还在进行中，请稍等。");
+    expect((await screen.findByRole("alert")).textContent).toBe("助手正在处理，请稍后再试。");
     expect(screen.getByRole("dialog")).toBeTruthy();
   });
 
@@ -170,7 +170,7 @@ describe("ProjectsPage", () => {
     fireEvent.click(screen.getAllByRole("button", { name: "新建项目" })[0]!);
     fireEvent.click(screen.getByRole("button", { name: "创建" }));
 
-    expect((await screen.findByRole("alert")).textContent).toBe("上一步还在进行中，请稍等。");
+    expect((await screen.findByRole("alert")).textContent).toBe("助手正在处理，请稍后再试。");
     expect(screen.getByRole("dialog", { name: "新建项目" })).toBeTruthy();
     expect(fetchMock.mock.calls.some(([, init]) => init?.method === "POST")).toBe(true);
   });

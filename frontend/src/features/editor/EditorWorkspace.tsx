@@ -2455,7 +2455,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
             />
           </LocalGenerateStep>
 
-          <LocalGenerateStep index={3} title="修改范围">
+          <LocalGenerateStep index={3} title="边缘处理">
             <Group gap={0} wrap="nowrap" className="ide-segmented">
               <Button
                 data-testid="local-scope-soft"
@@ -2464,7 +2464,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 style={{ flex: 1 }}
                 variant={localLockOutside ? "light" : "filled"}
               >
-                尽量保持其他部分
+                自然融入周围
               </Button>
               <Button
                 data-testid="local-scope-lock"
@@ -2473,11 +2473,11 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 style={{ flex: 1 }}
                 variant={localLockOutside ? "filled" : "light"}
               >
-                锁定区域外
+                保持边缘清晰
               </Button>
             </Group>
             <Text c="dimmed" size="xs">
-              {localLockOutside ? "区域外的像素保持不变，边缘过渡更硬。" : "允许修改自然融入周围，区域外可能轻微变化。"}
+              {localLockOutside ? "重绘到区域的边缘，边界更清晰。" : "区域的边缘与原图平滑融合。"}
             </Text>
           </LocalGenerateStep>
 

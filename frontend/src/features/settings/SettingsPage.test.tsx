@@ -324,7 +324,7 @@ describe("SettingsPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: "测试连接" }));
 
     await screen.findByText("glm-5 不可用");
-    expect(screen.getByText("Key 无效或没有权限（HTTP 401: bad key）")).toBeTruthy();
+    expect(screen.getByText("API Key 未被接受。请检查 API Key（HTTP 401: bad key）")).toBeTruthy();
   });
 
   it("recommends the API-key backends and notes the subscription CLIs are for personal use", async () => {
@@ -598,7 +598,7 @@ describe("SettingsPage", () => {
         .map((option) => option.textContent),
     ).toEqual(["vendor/free-model免费"]);
     fireEvent.change(combobox, { target: { value: "vendor/unlisted" } });
-    expect(within(chat).getByText("没有匹配的模型。输入的模型名也可以直接使用。")).toBeTruthy();
+    expect(within(chat).getByText("列表中没有匹配的模型。输入的模型名也可以直接使用。")).toBeTruthy();
     fireEvent.keyDown(combobox, { key: "Escape" });
     expect((combobox as HTMLInputElement).value).toBe("vendor/unlisted");
   });

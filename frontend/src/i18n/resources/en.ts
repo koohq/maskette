@@ -169,8 +169,8 @@ const en: TranslationResource = {
       // Codes the backend sends as the `detail` of an HTTP error (`features/agent/apiErrorText.ts`).
       conversation_not_found:
         "This project was not found. It may have been deleted; open it again from the project list.",
-      conversation_running: "The previous step is still running, please wait.",
-      message_not_found: "That reply no longer exists.",
+      conversation_running: "The assistant is working, please try again shortly.",
+      message_not_found: "That reply was not found. Reopen the page.",
       nothing_to_regenerate: "There is no message of yours to answer again.",
       empty_message: "The message is empty. Type something or attach an image.",
       too_many_files: "Up to 6 images per message.",
@@ -221,7 +221,7 @@ const en: TranslationResource = {
         "{{name}} has reached its usage limit. Try again later, or choose a backend that uses an API key in the settings.",
       cli_offline: "{{name}} could not reach its server. Check your network and try again.",
       cli_empty_reply: "{{name}} gave an empty answer. Try again.",
-      cli_ran_command: "{{name}} tried to run a command, so its result was not used.",
+      cli_ran_command: "{{name}} tried to run a command on this PC. For safety, this result was discarded. Try again.",
       codex_home_unknown:
         "Codex's home folder is unknown, so the image it made cannot be collected (check CODEX_HOME).",
       codex_no_image: "Codex did not make an image with its image generation tool. Try again.",
@@ -259,7 +259,7 @@ const en: TranslationResource = {
     open: "Settings",
     intro:
       "Choose and configure the backends used by the chat assistant, reference analysis and image generation. Changes are saved on this computer.",
-    loadFailed: "Could not load settings",
+    loadFailed: "Could not load settings. Restart the app.",
     saveFailed: "Save failed: {{error}}",
     saved: "Saved. Applies from the next request.",
     save: "Save",
@@ -306,11 +306,11 @@ const en: TranslationResource = {
     probeOk: "{{model}} works · {{ms}} ms",
     probeFailed: "{{model}} does not work",
     probeReason: {
-      auth: "The key is invalid or lacks permission ({{detail}})",
+      auth: "The API key was not accepted. Check the API key ({{detail}})",
       not_found: "Endpoint or model not found; check the API URL and model name ({{detail}})",
-      unreachable: "Cannot reach this URL ({{detail}})",
+      unreachable: "Could not connect to the API URL. Check the network connection and the API URL ({{detail}})",
       no_vision: "This model does not accept images ({{detail}})",
-      missing_endpoint: "API URL or model is missing",
+      missing_endpoint: "Enter the API URL and the model name",
       error: "Request failed: {{detail}}",
     },
     probeCheck: {
@@ -440,7 +440,7 @@ const en: TranslationResource = {
       perMillionTokens: "{{price}} / 1M tokens",
       free: "Free",
     },
-    modelNoMatch: "No model matches. The name you typed can still be used.",
+    modelNoMatch: "No model in the list matches. The name you typed can still be used.",
     status: {
       agent_llm_key: "Needs an API key",
       analysis_llm_key: "Needs an API key",

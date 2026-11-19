@@ -193,7 +193,7 @@ describe("HTTP error codes", () => {
     expect(apiErrorText(i18n.t, new AgentApiError("load", 500))).toBe("エラーが発生しました：load");
     expect(errorDetail(i18n.t, new Error("Failed to fetch"))).toBe("Failed to fetch");
     expect(errorDetail(i18n.t, "probe_unsupported")).toBe(
-      "接続テストは、「OpenAI 互換 API」を選んで保存したときだけ使えます。",
+      "接続テストは、「OpenAI 互換 API」を選んで保存したときだけ使用できます。",
     );
   });
 });

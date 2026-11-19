@@ -17,8 +17,8 @@ const AVOIDED: { word: RegExp; use: string }[] = [
   { word: /エディタ(?!ー)/u, use: "エディター" },
   { word: /パラメータ(?!ー)/u, use: "パラメーター" },
   { word: /フォルダ(?!ー)/u, use: "フォルダー" },
-  // Said of a thing, 使えない also reads as "useless". The positive 使えます is fine.
-  { word: /使えません|使えな[いかく]/u, use: "使用できません・対応していません" },
+  // Said of a thing, 使える／使えない sound like "capable／useless". 使えば (if you use) is fine.
+  { word: /使え(?!ば)/u, use: "使用できます・使用できません・対応していません" },
   { word: /止めました/u, use: "停止しました" },
   { word: /無くなりました/u, use: "廃止されました" },
   { word: /このマシン|このコンピューター/u, use: "この PC" },
@@ -83,7 +83,9 @@ describe("Japanese wording", () => {
     expect(flagged("この画像は使えません")).toBe(true);
     expect(flagged("エディタを開く")).toBe(true);
     expect(flagged("エディターを開く")).toBe(false);
-    expect(flagged("「OpenAI 互換 API」を選んだときだけ使えます")).toBe(false);
+    expect(flagged("「OpenAI 互換 API」を選んだときだけ使えます")).toBe(true);
+    expect(flagged("「OpenAI 互換 API」を選んだときだけ使用できます")).toBe(false);
+    expect(flagged("この形式を使えば開けます")).toBe(false);
     expect("1回".match(UNSPACED)).toEqual(["1回"]);
     expect("API キー".match(UNSPACED)).toBeNull();
   });
