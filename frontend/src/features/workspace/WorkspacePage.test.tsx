@@ -75,6 +75,7 @@ vi.mock("./useEditorDrafts", () => ({
 
 vi.mock("../editor/EditorWorkspace", () => ({
   EditorWorkspace: forwardRef(() => null),
+  ViewportToolbarPlaceholder: () => null,
 }));
 
 vi.mock("./AgentPanel", () => ({ AgentPanel: () => null }));

@@ -35,6 +35,16 @@ export function ExplorerPanel({
   const approvedIds = new Set([state?.approved_design_id, state?.approved_front_id].filter(Boolean) as string[]);
   const currentIds = new Set([state?.current_design_id, state?.current_front_id].filter(Boolean) as string[]);
 
+  if (!conversation) {
+    // Not read yet: empty sections would show "none" and then be pushed down as the ones above them fill.
+    return (
+      <>
+        <div className="ide-sidebar-header">{t("workspace.explorer")}</div>
+        <div className="ide-sidebar-scroll" />
+      </>
+    );
+  }
+
   return (
     <>
       <div className="ide-sidebar-header">{t("workspace.explorer")}</div>

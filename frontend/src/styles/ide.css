@@ -513,6 +513,11 @@
   flex: 1 0 auto;
 }
 
+/* The editor's slot before the editor fills it: out of the row, where a placeholder keeps the room meanwhile. */
+.ide-toolbar-view:empty {
+  display: none;
+}
+
 .ide-toolbar .editor-viewport-toolbar {
   flex: 1;
   min-width: 0;

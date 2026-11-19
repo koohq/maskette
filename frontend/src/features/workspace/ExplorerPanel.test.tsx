@@ -132,4 +132,24 @@ describe("ExplorerPanel", () => {
     expect(onTagReference).toHaveBeenCalledWith("ref-2", "back");
     expect(screen.getByRole("note").textContent).toContain("没有侧面和背面的参考图");
   });
+
+  it("shows no sections while the project is still being read", () => {
+    const props = {
+      activeVersionId: null,
+      disabled: false,
+      onAddReferences: vi.fn(),
+      onOpenImage: vi.fn(),
+      onOpenVersion: vi.fn(),
+      onTagReference: vi.fn(),
+    };
+    const { rerender } = render(<ExplorerPanel {...props} conversation={null} />);
+    // Shown now, they would say there is nothing, then be pushed down as the sections above them fill.
+    expect(screen.queryByText("参考图")).toBeNull();
+    expect(screen.queryByText("版本")).toBeNull();
+    expect(screen.queryByText("还没有参考图")).toBeNull();
+
+    rerender(<ExplorerPanel {...props} conversation={conversation} />);
+    expect(screen.getByText("参考图")).toBeTruthy();
+    expect(screen.getByText("版本")).toBeTruthy();
+  });
 });

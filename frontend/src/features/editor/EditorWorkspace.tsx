@@ -216,6 +216,12 @@ const defaultEditorTools: EditorTool[] = [
   "local-generate",
 ];
 const landmarkTools = new Set<EditorTool>(["proportion", "face", "eyes", "brows", "mouth"]);
+
+/** The viewport toolbar has the landmark buttons when one of the tools moves landmarks. */
+function offersLandmarkToggle(tools: readonly EditorTool[]) {
+  return tools.some((tool) => landmarkTools.has(tool));
+}
+
 const minEditorZoom = 0.4;
 const maxEditorZoom = 2.2;
 const minLiquifySymmetryAxis = 0.35;
@@ -433,6 +439,24 @@ function loadBlobImage(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
+/**
+ * Keeps the room of the viewport toolbar that an editor in the IDE layout puts in `toolbarTarget`, while there is no
+ * editor yet (its draft is still being read). Without it, what sits beside the toolbar moves up and then back down.
+ * The same toolbar as an editor opens with, never seen.
+ */
+export function ViewportToolbarPlaceholder({ availableTools }: { availableTools?: EditorTool[] | undefined }) {
+  const tools = availableTools?.length ? availableTools : defaultEditorTools;
+  return (
+    <div aria-hidden="true" className="editor-viewport-toolbar" style={{ visibility: "hidden" }}>
+      <EditorToolbar
+        showCompareAction={false}
+        showLandmarkToggle={offersLandmarkToggle(tools)}
+        showPrimaryActions={false}
+      />
+    </div>
+  );
+}
+
 export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspaceProps>(function EditorWorkspace(
   {
     availableTools,
@@ -621,7 +645,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
     title: "局部生成",
     description: "涂抹要修改的区域，提交给 AI 只重做这一块。",
   };
-  const canShowLandmarkToggle = enabledTools.some((tool) => landmarkTools.has(tool));
+  const canShowLandmarkToggle = offersLandmarkToggle(enabledTools);
   const effectiveShowLandmarks = canShowLandmarkToggle && showLandmarkControls && !temporarilyHideLandmarks;
   const zoomPercent = Math.round(zoom * 100);
   const canUndo = liquifyHistoryAvailability.canUndo;

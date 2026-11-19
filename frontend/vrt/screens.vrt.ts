@@ -5,6 +5,7 @@ import ja from "../src/i18n/resources/ja";
 import zhCN from "../src/i18n/resources/zh-CN";
 import { EMPTY_PROJECT_ID, mockBackend, PROJECT_ID } from "./backend";
 import { compareWithKnown } from "./known-overflow";
+import { layoutShifts, recordLayoutShifts } from "./layoutShifts";
 import { findOverflow } from "./overflow";
 import { movedWhilePressed } from "./press";
 
@@ -170,6 +171,22 @@ for (const viewport of [DEFAULT_SIZE, MIN_SIZE]) {
       const name = await button.getAttribute("aria-label");
       expect.soft(await movedWhilePressed(page, button), `pressing ${name}`).toEqual([]);
     }
+  });
+}
+
+// The workspace as it opens and as other versions are opened from the list: nothing may move by itself. It used to:
+// the explorer filled in under empty sections, and the canvas went up and back down while each version's editor was
+// being set up.
+for (const viewport of [DEFAULT_SIZE, MIN_SIZE]) {
+  test(`workspace-steady-${viewport.name}`, async ({ page }) => {
+    await recordLayoutShifts(page);
+    await open(page, WORKSPACE, "ja", viewport);
+    for (const version of ["design-2", "front-1"]) {
+      await page.locator(".ide-sidebar-scroll").getByText(version, { exact: true }).click();
+      await expect(page.locator(".ide-canvas-info")).toContainText(version);
+      await expect(page.locator(".ide-editor-stage")).toBeVisible();
+    }
+    expect(await layoutShifts(page)).toEqual([]);
   });
 }
 

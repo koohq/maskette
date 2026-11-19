@@ -38,6 +38,7 @@ import {
   type EditorStatus,
   EditorWorkspace,
   type EditorWorkspaceHandle,
+  ViewportToolbarPlaceholder,
 } from "../editor/EditorWorkspace";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
@@ -59,6 +60,12 @@ import { AgentResizeHandle, EditorTab, ImageLightbox } from "./WorkspaceChrome";
 type Activity = "explorer" | EditorTool;
 
 const SHEET_TOOLS: [EditorTool, ...EditorTool[]] = ["annotation", "liquify", "local-generate"];
+
+/** The version a project opens on: the current front view, else the current design, else the newest. */
+function initialVersionId(conversation: Conversation) {
+  const { current_front_id, current_design_id, images } = conversation.state;
+  return current_front_id ?? current_design_id ?? images[images.length - 1]?.id;
+}
 
 export function WorkspacePage() {
   const { t } = useTranslation();
@@ -126,14 +133,25 @@ export function WorkspacePage() {
     setActiveTabId(imageId);
   }, []);
 
+  // The current version opens in the same render as the project's first snapshot. Opened from the effect below, it
+  // would come a frame later, after the page had shown the hint to open a version.
+  const [openedOnLoad, setOpenedOnLoad] = useState<string | null>(null);
+  if (conversation && conversation.id !== openedOnLoad) {
+    setOpenedOnLoad(conversation.id);
+    const initial = initialVersionId(conversation);
+    if (initial) {
+      setOpenTabs((tabs) => (tabs.includes(initial) ? tabs : [...tabs, initial]));
+      setActiveTabId(initial);
+    }
+  }
+
   // Open the current version on load, then follow new versions as they arrive (unless the user is mid-edit).
   useEffect(() => {
     if (!conversation) return;
     const ids = conversation.state.images.map((image) => image.id);
     if (seenImageIds.current === null) {
       seenImageIds.current = new Set(ids);
-      const initial =
-        conversation.state.current_front_id ?? conversation.state.current_design_id ?? ids[ids.length - 1];
+      const initial = initialVersionId(conversation);
       if (initial) openVersion(initial);
       return;
     }
@@ -494,6 +512,12 @@ export function WorkspacePage() {
           {activeVersion && projectId ? (
             <>
               <div className="ide-toolbar">
+                {/* The editor puts its viewport toolbar in the slot after this; until it does, this keeps the room. */}
+                {drafts.loaded ? null : (
+                  <div className="ide-toolbar-view">
+                    <ViewportToolbarPlaceholder availableTools={availableTools} />
+                  </div>
+                )}
                 <div className="ide-toolbar-view" ref={setToolbarEl} />
                 <div className="ide-toolbar-actions">
                   {editorTool === "annotation" &&
@@ -569,14 +593,15 @@ export function WorkspacePage() {
                 <p className="agent-notice agent-notice-error">
                   {t("agent.errors.load", { message: errorDetail(t, loadError) })}
                 </p>
-              ) : (
+              ) : // Nothing until the project is read: an existing project would first show as one with no versions.
+              conversation ? (
                 <>
                   <img alt="" className="h-12 w-12 opacity-60" src="/logo.png" />
                   <p className="max-w-sm text-sm">
                     {images.length ? t("workspace.openVersionFirst") : t("workspace.noVersions")}
                   </p>
                 </>
-              )}
+              ) : null}
             </div>
           )}
           {dragging ? <div className="ide-dropzone">{t("agent.dropHint")}</div> : null}
