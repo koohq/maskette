@@ -602,4 +602,88 @@ describe("SettingsPage", () => {
     fireEvent.keyDown(combobox, { key: "Escape" });
     expect((combobox as HTMLInputElement).value).toBe("vendor/unlisted");
   });
+
+  describe("analysis that follows the chat assistant's model", () => {
+    const openRouter = "https://openrouter.ai/api/v1";
+    /** The chat assistant on OpenRouter with `model`, analysis following it or not. */
+    const onOpenRouter = (model: string, follow: boolean): BackendSettings => ({
+      ...initial,
+      values: {
+        ...initial.values,
+        agent_llm_base_url: openRouter,
+        agent_llm_model: model,
+        llm_provider: follow ? "same_as_agent" : "codex",
+      },
+    });
+    /** OpenRouter's two chat lists: one model in both, one that only calls tools, one that only takes images. */
+    const lists = (url: string): ModelCandidate[] => {
+      const both = { id: "vendor/both", name: "", price: null };
+      if (url.startsWith("/api/settings/models/agent?"))
+        return [both, { id: "vendor/tools-only", name: "", price: null }];
+      if (url.startsWith("/api/settings/models/analysis?")) {
+        return [both, { id: "vendor/images-only", name: "", price: null }];
+      }
+      return [];
+    };
+    const noImages = /不支持图片输入，无法用于分析/;
+    const chatSection = () =>
+      screen.getByRole("radiogroup", { name: "对话助手 LLM" }).closest("section") as HTMLElement;
+    const offered = (section: HTMLElement) => {
+      fireEvent.click(within(section).getByRole("button", { name: "展开模型列表" }));
+      const ids = within(section)
+        .getAllByRole("option")
+        .map((option) => option.textContent);
+      fireEvent.keyDown(within(section).getByRole("combobox"), { key: "Escape" });
+      return ids;
+    };
+
+    it("offers only the chat models that also take images", async () => {
+      vi.stubGlobal("fetch", backend(onOpenRouter("vendor/both", true), lists));
+      renderPage();
+
+      await screen.findByRole("radiogroup", { name: "对话助手 LLM" });
+      await within(chatSection()).findByRole("combobox");
+      expect(offered(chatSection())).toEqual(["vendor/both"]);
+      fireEvent.click(within(chatSection()).getByRole("button", { name: "展开模型列表" }));
+      expect(within(chatSection()).getByText(/同时支持工具调用和图片输入/)).toBeTruthy();
+      fireEvent.keyDown(within(chatSection()).getByRole("combobox"), { key: "Escape" });
+
+      // Analysis of its own: every chat model again.
+      fireEvent.click(screen.getByRole("checkbox", { name: "分析也使用对话助手的设置" }));
+      expect(offered(chatSection())).toEqual(["vendor/both", "vendor/tools-only"]);
+    });
+
+    it("warns about a chat model that takes no images, whichever was set first", async () => {
+      vi.stubGlobal("fetch", backend(onOpenRouter("vendor/tools-only", false), lists));
+      renderPage();
+
+      // The model came first; following the chat assistant afterwards shows the warning.
+      const same = await screen.findByRole("checkbox", { name: "分析也使用对话助手的设置" });
+      await within(chatSection()).findByRole("combobox");
+      expect(screen.queryByText(noImages)).toBeNull();
+      fireEvent.click(same);
+      expect((await screen.findByRole("alert")).textContent).toMatch(noImages);
+      expect(screen.getByRole("alert").textContent).toContain("vendor/tools-only");
+
+      // A model that takes images clears it, and so does a name the lists do not have (they cannot tell).
+      const model = within(chatSection()).getByRole("combobox");
+      fireEvent.change(model, { target: { value: "vendor/both" } });
+      expect(screen.queryByText(noImages)).toBeNull();
+      fireEvent.change(model, { target: { value: "vendor/unlisted" } });
+      expect(screen.queryByText(noImages)).toBeNull();
+
+      // So does analysis of its own.
+      fireEvent.change(model, { target: { value: "vendor/tools-only" } });
+      expect(screen.getByText(noImages)).toBeTruthy();
+      fireEvent.click(same);
+      expect(screen.queryByText(noImages)).toBeNull();
+    });
+
+    it("warns about a saved setting on opening the page", async () => {
+      vi.stubGlobal("fetch", backend(onOpenRouter("vendor/tools-only", true), lists));
+      renderPage();
+
+      expect((await screen.findByRole("alert")).textContent).toMatch(noImages);
+    });
+  });
 });

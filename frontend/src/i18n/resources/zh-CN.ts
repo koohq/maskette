@@ -402,9 +402,13 @@ const zhCN = {
     analysisSameAsAgent: "分析也使用对话助手的设置",
     analysisFollows: "分析使用与对话助手相同的“{{backend}}”。",
     analysisFollowsModel: "分析使用与对话助手相同的“{{backend}}”中的 {{model}}。该模型需要支持图片输入。",
+    analysisFollowsNoImages:
+      "{{model}} 不支持图片输入，无法用于分析。请更换对话助手的模型，或取消勾选并为分析选择模型。",
     modelListShow: "展开模型列表",
     modelListNote: {
       agent: "OpenRouter 上支持工具调用的模型。价格（美元）为每百万 token 的输入 / 输出。",
+      agentWithAnalysis:
+        "OpenRouter 上同时支持工具调用和图片输入的模型（分析也使用该模型）。价格（美元）为每百万 token 的输入 / 输出。",
       analysis: "OpenRouter 上支持图片输入的模型。价格（美元）为每百万 token 的输入 / 输出。",
       image: "OpenRouter 上支持参考图的图像模型。价格（美元）为生成图片的费用。",
     },

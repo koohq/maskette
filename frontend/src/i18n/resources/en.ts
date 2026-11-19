@@ -425,9 +425,13 @@ const en: TranslationResource = {
     analysisFollows: "Analysis runs on the chat assistant's {{backend}}.",
     analysisFollowsModel:
       "Analysis uses {{model}} on the chat assistant's {{backend}}. The model must accept image input.",
+    analysisFollowsNoImages:
+      "{{model}} does not accept images, so analysis cannot use it. Pick another model for the chat assistant, or clear this box and choose a model for analysis.",
     modelListShow: "Show the model list",
     modelListNote: {
       agent: "OpenRouter models that support tool calling. Prices in US dollars per million input / output tokens.",
+      agentWithAnalysis:
+        "OpenRouter models that support tool calling and accept images (analysis uses the model too). Prices in US dollars per million input / output tokens.",
       analysis: "OpenRouter models that accept images. Prices in US dollars per million input / output tokens.",
       image: "OpenRouter image models that accept reference images. Prices in US dollars for the generated image.",
     },

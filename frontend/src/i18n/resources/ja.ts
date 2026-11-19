@@ -425,10 +425,14 @@ const ja: TranslationResource = {
     analysisFollows: "チャットアシスタントと同じ「{{backend}}」で分析します。",
     analysisFollowsModel:
       "チャットアシスタントと同じ「{{backend}}」の {{model}} で分析します。モデルは画像入力に対応している必要があります。",
+    analysisFollowsNoImages:
+      "{{model}} は画像入力に対応していないため、分析に使えません。チャットアシスタントのモデルを替えるか、このチェックを外して分析用のモデルを選んでください。",
     modelListShow: "モデルの一覧を開く",
     modelListNote: {
       agent:
         "OpenRouter のモデルのうち、ツール呼び出しに対応したもの。料金（米ドル）は 100 万トークンあたりの入力 / 出力です。",
+      agentWithAnalysis:
+        "OpenRouter のモデルのうち、ツール呼び出しと画像入力の両方に対応したもの（分析にも使うため）。料金（米ドル）は 100 万トークンあたりの入力 / 出力です。",
       analysis:
         "OpenRouter のモデルのうち、画像入力に対応したもの。料金（米ドル）は 100 万トークンあたりの入力 / 出力です。",
       image: "OpenRouter の画像モデルのうち、参考画像を受け付けるもの。料金（米ドル）は生成する画像の分です。",

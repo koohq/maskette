@@ -8,7 +8,7 @@ import { LanguageSelector } from "../i18n/LanguageSelector";
 import { HomeLink } from "../workspace/HomeLink";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import { AutoFixSection } from "./AutoFixSection";
-import { ModelField } from "./ModelField";
+import { ModelField, useTakesImages } from "./ModelField";
 import { PaletteSection } from "./PaletteSection";
 import { serviceText } from "./settingLabels";
 import {
@@ -162,6 +162,13 @@ export function SettingsPage() {
 
   const agentBackend = form["agent_llm_provider"];
   const followsAgent = form["llm_provider"] === SAME_AS_AGENT;
+  // Analysis on the chat assistant's API model needs a model that takes images; checked on the value as it is, so
+  // the order the two were set in does not matter.
+  const sharesApiModel = followsAgent && agentBackend === "openai_compatible";
+  const sharedTakesImages = useTakesImages(
+    form["agent_llm_model"],
+    sharesApiModel ? (form["agent_llm_base_url"] ?? "") : "",
+  );
 
   /** Folds analysis onto the chat assistant's settings, or unfolds it onto a backend of its own. */
   function followAgent(follow: boolean) {
@@ -220,6 +227,7 @@ export function SettingsPage() {
                     value={form["agent_llm_base_url"]}
                   />
                   <ModelField
+                    alsoAnalysis={followsAgent}
                     baseUrl={form["agent_llm_base_url"] ?? ""}
                     disabled={disabled}
                     label={t("settings.model")}
@@ -273,6 +281,11 @@ export function SettingsPage() {
               {followsAgent ? (
                 <>
                   <p className="text-xs text-(--ide-text-muted)">{followSummary()}</p>
+                  {sharesApiModel && sharedTakesImages === false ? (
+                    <p className="text-xs text-(--ide-danger)" role="alert">
+                      {t("settings.analysisFollowsNoImages", { model: form["agent_llm_model"]?.trim() })}
+                    </p>
+                  ) : null}
                   {agentBackend === "openai_compatible" && analysisBackend(data.values) === "openai_compatible" ? (
                     <ProbePanel probeRole="analysis" unsaved={unsaved} />
                   ) : null}

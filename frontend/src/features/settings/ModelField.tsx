@@ -32,6 +32,20 @@ function useModelCandidates(role: ModelRole, baseUrl: string): ModelCandidate[] 
   return candidates.data ?? [];
 }
 
+/**
+ * Whether `model` at `baseUrl` takes images, as OpenRouter's lists tell: `false` only for a listed chat model that
+ * is missing from the models that take images; `undefined` when the lists cannot tell (another service, a list that
+ * failed or is still loading, a name not listed).
+ */
+export function useTakesImages(model: string | undefined, baseUrl: string): boolean | undefined {
+  const chatModels = useModelCandidates("agent", baseUrl);
+  const imageModels = useModelCandidates("analysis", baseUrl);
+  const name = model?.trim() ?? "";
+  if (name === "" || imageModels.length === 0) return undefined;
+  if (imageModels.some((candidate) => candidate.id === name)) return true;
+  return chatModels.some((candidate) => candidate.id === name) ? false : undefined;
+}
+
 const dollars = new Intl.NumberFormat("en-US", { maximumSignificantDigits: 3 });
 
 export function formatPrice(t: TFunction, price: ModelPrice): string {
@@ -50,6 +64,7 @@ export function formatPrice(t: TFunction, price: ModelPrice): string {
  */
 export function ModelField({
   modelRole,
+  alsoAnalysis,
   baseUrl,
   label,
   value,
@@ -60,6 +75,8 @@ export function ModelField({
 }: {
   /** Which role's candidates to offer. */
   modelRole: ModelRole;
+  /** Analysis uses this model too (it follows the chat assistant): offer only the candidates that also take images. */
+  alsoAnalysis?: boolean | undefined;
   baseUrl: string;
   label: string;
   value: string | undefined;
@@ -69,7 +86,14 @@ export function ModelField({
   onChange: (value: string) => void;
 }) {
   const { t } = useTranslation();
-  const candidates = useModelCandidates(modelRole, baseUrl);
+  const own = useModelCandidates(modelRole, baseUrl);
+  // The same list as `own` (one request) unless analysis shares the model.
+  const imageModels = useModelCandidates(alsoAnalysis ? "analysis" : modelRole, baseUrl);
+  const candidates = useMemo(() => {
+    if (!alsoAnalysis) return own;
+    const takeImages = new Set(imageModels.map((model) => model.id));
+    return own.filter((model) => takeImages.has(model.id));
+  }, [alsoAnalysis, own, imageModels]);
   const id = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -183,7 +207,9 @@ export function ModelField({
           </button>
           {expanded ? (
             <div className="ide-combobox-popup">
-              <p className="ide-combobox-note">{t(`settings.modelListNote.${modelRole}`)}</p>
+              <p className="ide-combobox-note">
+                {t(alsoAnalysis ? "settings.modelListNote.agentWithAnalysis" : `settings.modelListNote.${modelRole}`)}
+              </p>
               <div
                 aria-label={label}
                 className="ide-combobox-list"
