@@ -99,6 +99,39 @@ describe("SettingsPage", () => {
     expect(screen.getByText("已修改")).toBeTruthy();
   });
 
+  it("keeps the app's own settings back until the backend settings arrive, then shows them below", async () => {
+    let answer: (response: Response) => void = () => {};
+    const fetchMock = vi.fn(
+      (url: string) =>
+        new Promise<Response>((resolve) => {
+          if (url.startsWith("/api/settings/models/")) resolve(new Response(JSON.stringify({ models: [] })));
+          else answer = resolve;
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    renderPage();
+
+    // Shown now, they would be pushed off the screen as the backend sections come in above them.
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(screen.queryByRole("heading", { name: "生成后的自动修正" })).toBeNull();
+
+    answer(new Response(JSON.stringify(initial)));
+    const autoFix = await screen.findByRole("heading", { name: "生成后的自动修正" });
+    const image = screen.getByRole("radiogroup", { name: "生图后端" });
+    expect(image.compareDocumentPosition(autoFix) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("still shows the app's own settings when the backend settings cannot be read", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ detail: "down" }), { status: 500 })),
+    );
+    renderPage();
+
+    await screen.findByText("无法读取设置。请重新启动应用。");
+    expect(screen.getByRole("heading", { name: "生成后的自动修正" })).toBeTruthy();
+  });
+
   it("shows the OpenRouter image fields and saves its model", async () => {
     const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
       if (init?.method === "PUT") {

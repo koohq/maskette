@@ -1,6 +1,6 @@
 import { IconAlertTriangle, IconCircleCheck, IconCircleX, IconPlugConnected } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../ui/IdeDialog";
 import { errorDetail } from "../agent/apiErrorText";
@@ -91,13 +91,14 @@ export function SettingsPage() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
-
-  useEffect(() => {
-    if (settings.data) {
-      setForm(settings.data.values);
-      setKeys({});
-    }
-  }, [settings.data]);
+  // The form restarts from the settings each time they are loaded or saved. Taken while rendering rather than in an
+  // effect, so the sections never show once without their fields and then push everything below them down.
+  const [formFrom, setFormFrom] = useState<BackendSettings | undefined>(undefined);
+  if (settings.data && settings.data !== formFrom) {
+    setFormFrom(settings.data);
+    setForm(settings.data.values);
+    setKeys({});
+  }
 
   const data = settings.data;
   const changed = data ? Object.keys(form).filter((key) => form[key] !== data.values[key]) : [];
@@ -437,12 +438,17 @@ export function SettingsPage() {
             </div>
           </div>
         ) : null}
-        <div className="mt-6">
-          <AutoFixSection />
-        </div>
-        <div className="mt-6">
-          <PaletteSection />
-        </div>
+        {/* Kept back until the backend settings arrive: shown first, they would be pushed off the screen by them. */}
+        {data || settings.isError ? (
+          <>
+            <div className="mt-6">
+              <AutoFixSection />
+            </div>
+            <div className="mt-6">
+              <PaletteSection />
+            </div>
+          </>
+        ) : null}
       </main>
       {confirmingReset ? (
         <ConfirmDialog
