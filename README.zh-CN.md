@@ -87,6 +87,6 @@ AI 生成的图片，每张图里的眼睛和发型可能会略有不同。设�
 ## 许可证
 
 Maskette 基于 ElysiaRealm0019 的 [Visual Studio Kigurumi](https://github.com/ElysiaRealm0019/Visual-Studio-Kigurumi)（VSK），
-VSK 又基于 SeaRabbit / 海兔（icyqwq）的 [KigCraft](https://kigcraft.com)。
+VSK 又基于 SeaRabbit / 海兔（icyqwq）的 [KigCraft](https://github.com/icyqwq/KigCraft)。
 许可证为 GPL-3.0-or-later，任何人都可以自由使用、修改和分发。
-详见 [LICENSE](LICENSE)。源代码就在本仓库中。
+详见 [LICENSE](LICENSE)。

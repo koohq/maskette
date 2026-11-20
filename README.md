@@ -172,13 +172,12 @@ settings).
 Maskette is based on
 [Visual Studio Kigurumi](https://github.com/ElysiaRealm0019/Visual-Studio-Kigurumi)
 (VSK) by [ElysiaRealm0019](https://github.com/ElysiaRealm0019), which is
-based on [KigCraft](https://kigcraft.com) by SeaRabbit / 海兔
+based on [KigCraft](https://github.com/icyqwq/KigCraft) by SeaRabbit / 海兔
 ([icyqwq](https://github.com/icyqwq)). Thanks to both projects.
 
 Like them, Maskette is licensed under GPL-3.0-or-later: anyone may use,
-change and share it under the GPL's terms, and the source code is in this
-repository. See [LICENSE](LICENSE), which also records what Maskette
-changed.
+change and share it under the GPL's terms. See [LICENSE](LICENSE), which
+also records what Maskette changed.
 
 ## Development
 

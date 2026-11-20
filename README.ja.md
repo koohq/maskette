@@ -87,6 +87,6 @@ Windows の「設定」→「アプリ」から Maskette をアンインスト�
 ## ライセンス
 
 Maskette は [Visual Studio Kigurumi](https://github.com/ElysiaRealm0019/Visual-Studio-Kigurumi)（ElysiaRealm0019、以下 VSK）を基にしています。
-VSK は、SeaRabbit / 海兔（icyqwq）の [KigCraft](https://kigcraft.com) を基にしています。
+VSK は、SeaRabbit / 海兔（icyqwq）の [KigCraft](https://github.com/icyqwq/KigCraft) を基にしています。
 ライセンスは GPL-3.0-or-later です。GPL の条件のもとで、誰でも自由に使用・改変・再配布できます。
-詳しくは [LICENSE](LICENSE) を参照してください。ソースコードはこのリポジトリにあります。
+詳しくは [LICENSE](LICENSE) を参照してください。

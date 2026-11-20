@@ -6,10 +6,11 @@ Copyright (C) 2026 Maskette contributors
 Lineage
 -------
 KigCraft by SeaRabbit / 海兔 (icyqwq)
-  https://kigcraft.com
+  https://github.com/icyqwq/KigCraft (site: https://kigcraft.com)
   -> Visual Studio Kigurumi (VSK) by ElysiaRealm0019
      https://github.com/ElysiaRealm0019/Visual-Studio-Kigurumi
     -> Maskette
+       https://github.com/koohq/maskette
 
 Maskette is a modified version of Visual Studio Kigurumi (VSK) by
 ElysiaRealm0019, which is itself a derivative work based on KigCraft, the
@@ -22,6 +23,9 @@ Modifications: in November 2026 (first commit 2026-11-08), the VSK frontend
 repository and modified: it was wrapped in a Tauri desktop shell, its
 server deployment files were removed, and the app was renamed to Maskette.
 The git history records every later change.
+
+Source code: the complete source code of Maskette, including the source of
+each released version, is available at https://github.com/koohq/maskette.
 
 Maskette is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free
