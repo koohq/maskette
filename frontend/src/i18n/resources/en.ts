@@ -106,7 +106,7 @@ const en: TranslationResource = {
   agent: {
     welcomeTitle: "Upload a character to start a head design",
     welcomeBody:
-      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that. I can also make an eye close-up for the mask maker, and order notes that put the shapes and colours of each part into words.",
+      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that. I can also make an eye close-up, and order notes that put the shapes and colours of each part into words.",
     placeholder: "Describe what you want, or tell me what to change…",
     attach: "Add reference images",
     send: "Send",
@@ -166,7 +166,7 @@ const en: TranslationResource = {
     toolReasoning: "~{{count}} tokens reasoned",
     orderNotes: {
       title: "Order notes",
-      hint: "Send them to the mask maker with the front view, the four-view sheet and the eye close-up.",
+      hint: "When you send them to a mask maker, include the front view, the four-view sheet and the eye close-up.",
       stale:
         "These notes are for a front view approved earlier. Ask the assistant to rewrite them for the current one.",
       copy: "Copy",

@@ -7,9 +7,8 @@
 
 Maskette is a desktop app for designing kigurumi masks from character art.
 Give it reference pictures of a character, and its design assistant helps
-you work out a 2D design, then a finished-mask front view, four views, and
-for the mask maker an eye close-up and order notes that put the shapes and
-colours into words.
+you work out a 2D design, then a finished-mask front view, four views, an
+eye close-up, and order notes that put the shapes and colours into words.
 Every image can be adjusted by hand in the built-in editor, and each result
 is kept in the project's version history.
 
