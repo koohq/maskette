@@ -1,6 +1,6 @@
 import { ThemeProvider } from "@mui/material/styles";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { kigTheme } from "../../app/theme";
 import { EDITOR_TEST_TIMEOUT_MS } from "../../test/timeouts";
 import { EditorWorkspace } from "./EditorWorkspace";
@@ -96,6 +96,12 @@ function mockStageRect(stage: HTMLElement, width = 1280, height = 720) {
 }
 
 describe("EditorWorkspace annotation controls", { timeout: EDITOR_TEST_TIMEOUT_MS }, () => {
+  afterEach(() => {
+    cleanup();
+    vi.clearAllMocks();
+    vi.unstubAllGlobals();
+  });
+
   it("shows a note editor for the selected annotation pin", async () => {
     const onRecipeChange = vi.fn();
     renderEditor({ onRecipeChange });
@@ -117,5 +123,21 @@ describe("EditorWorkspace annotation controls", { timeout: EDITOR_TEST_TIMEOUT_M
         }),
       ),
     );
+  });
+
+  it("leaves the focus on the canvas when the keyboard deletes the last mark", async () => {
+    renderEditor();
+    await waitFor(() => expect(pixiMocks.setImageUrl).toHaveBeenCalledWith("/candidate.webp"));
+
+    const stage = screen.getByTestId("editor-stage");
+    mockStageRect(stage);
+    fireEvent.pointerDown(stage, { clientX: 640, clientY: 360, pointerId: 1 });
+
+    const pin = await screen.findByTestId("annotation-pin-1");
+    pin.focus();
+    fireEvent.keyDown(pin, { key: "Delete" });
+
+    await waitFor(() => expect(screen.queryByTestId("annotation-pin-1")).toBeNull());
+    expect(document.activeElement).toBe(stage);
   });
 });

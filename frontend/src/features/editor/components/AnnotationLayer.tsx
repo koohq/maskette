@@ -1,5 +1,5 @@
 import { IconTrash } from "@tabler/icons-react";
-import { type KeyboardEvent, type PointerEvent, useId, useRef } from "react";
+import { type KeyboardEvent, type PointerEvent, type RefObject, useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { translateLiteralString } from "../../../i18n/literalTranslations";
 import {
@@ -19,6 +19,8 @@ export type AnnotationLayerProps = {
   debugHrnetBox?: { height: number; width: number; x: number; y: number } | null | undefined;
   debugLandmarks?: Array<LandmarkPoint & { index: number; score?: number }> | undefined;
   detailRegions?: DetailRegion[] | undefined;
+  /** Where the keyboard goes when a delete leaves no mark to focus, such as the canvas the marks sit on. */
+  emptyFocusTarget?: RefObject<HTMLElement | null> | undefined;
   eyeRegionScale?: number | undefined;
   height: number;
   landmarks?: ManualLandmarks | undefined;
@@ -153,6 +155,7 @@ export function AnnotationLayer({
   debugHrnetBox,
   debugLandmarks = [],
   detailRegions = [],
+  emptyFocusTarget,
   eyeRegionScale,
   height,
   landmarks,
@@ -184,6 +187,17 @@ export function AnnotationLayer({
   const stageRef = useRef<HTMLDivElement>(null);
   if (!visible) return null;
   const showLandmarkMarks = Boolean(showLandmarks && landmarks);
+
+  // After a delete from the keyboard, hand focus to the next mark (or the previous one at the end), or to
+  // emptyFocusTarget once no mark is left, so the keyboard is not left nowhere. Focusing a mark selects it, after the
+  // delete has cleared the selection.
+  function focusAfterDelete(index: number) {
+    const neighbour = annotations[index + 1] ?? annotations[index - 1];
+    const target = neighbour
+      ? stageRef.current?.querySelector<HTMLElement>(`[data-annotation-mark="${CSS.escape(neighbour.id)}"]`)
+      : emptyFocusTarget?.current;
+    target?.focus();
+  }
 
   const stageTestId = showLandmarks ? "landmark-stage" : showLiquifyStrokes ? "liquify-stage" : "annotation-stage";
   const visibleLiquifyStrokes = showLiquifyStrokes
@@ -238,14 +252,7 @@ export function AnnotationLayer({
             if (event.key === "Delete" || event.key === "Backspace") {
               event.preventDefault();
               onAnnotationDelete?.(annotation.id);
-              // Hand focus to the next mark (or the previous one at the end) so the keyboard is not left nowhere.
-              // Focusing it selects it, after the delete has cleared the selection.
-              const neighbour = annotations[index + 1] ?? annotations[index - 1];
-              if (neighbour) {
-                stageRef.current
-                  ?.querySelector<HTMLElement>(`[data-annotation-mark="${CSS.escape(neighbour.id)}"]`)
-                  ?.focus();
-              }
+              focusAfterDelete(index);
             }
           },
           "data-annotation-mark": annotation.id,
@@ -272,7 +279,12 @@ export function AnnotationLayer({
             aria-label={translateLiteralString("删除标注", i18n.language)}
             data-testid={`annotation-delete-${annotation.id}`}
             // Delete on click, so Enter and Space work too; the pointer press must not reach the stage below.
-            onClick={() => onAnnotationDelete?.(annotation.id)}
+            // A click from the keyboard (detail 0) moves the focus on as Delete does; a pointer click leaves it, so
+            // the next mark is not selected under the pointer.
+            onClick={(event) => {
+              onAnnotationDelete?.(annotation.id);
+              if (event.detail === 0) focusAfterDelete(index);
+            }}
             onPointerDown={(event) => event.stopPropagation()}
             style={{
               alignItems: "center",

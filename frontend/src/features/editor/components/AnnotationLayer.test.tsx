@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { createRef } from "react";
 import { afterAll, afterEach, describe, expect, it, vi } from "vitest";
 import i18n from "../../../i18n";
 import type { ManualLandmarks } from "../deformation/landmarks";
@@ -158,6 +159,27 @@ describe("AnnotationLayer marks", () => {
     expect(document.activeElement).toBe(screen.getByRole("button", { name: "四角形の注釈 3" }));
   });
 
+  it("moves focus to the empty-focus target when the keyboard deletes the only mark", async () => {
+    await i18n.changeLanguage("ja");
+    const canvas = createRef<HTMLDivElement>();
+    render(
+      <div data-testid="canvas" ref={canvas} tabIndex={-1}>
+        <AnnotationLayer
+          annotations={[mark("a", "pin")]}
+          emptyFocusTarget={canvas}
+          height={400}
+          onAnnotationDelete={vi.fn()}
+          width={400}
+        />
+      </div>,
+    );
+
+    const pin = screen.getByRole("button", { name: "注釈 1" });
+    pin.focus();
+    fireEvent.keyDown(pin, { key: "Delete" });
+    expect(document.activeElement).toBe(screen.getByTestId("canvas"));
+  });
+
   it("deletes the selected mark from its delete button on a click, not on the press", async () => {
     await i18n.changeLanguage("zh-CN");
     const onAnnotationDelete = vi.fn();
@@ -174,8 +196,53 @@ describe("AnnotationLayer marks", () => {
     const button = screen.getByRole("button", { name: "删除标注" });
     fireEvent.pointerDown(button);
     expect(onAnnotationDelete).not.toHaveBeenCalled();
-    fireEvent.click(button);
+    fireEvent.click(button, { detail: 1 });
     expect(onAnnotationDelete).toHaveBeenCalledWith("c");
+  });
+
+  it("moves focus on after the delete button is pressed from the keyboard, not after a pointer click", async () => {
+    await i18n.changeLanguage("zh-CN");
+    const canvas = createRef<HTMLDivElement>();
+    const { rerender } = render(
+      <div data-testid="canvas" ref={canvas} tabIndex={-1}>
+        <AnnotationLayer
+          annotations={annotations}
+          emptyFocusTarget={canvas}
+          height={400}
+          onAnnotationDelete={vi.fn()}
+          selectedAnnotationId="c"
+          width={400}
+        />
+      </div>,
+    );
+
+    // A pointer click (detail 1) leaves the focus alone, so the next mark is not selected under the pointer.
+    const button = screen.getByRole("button", { name: "删除标注" });
+    button.focus();
+    fireEvent.click(button, { detail: 1 });
+    expect(document.activeElement).toBe(button);
+
+    // Enter or Space clicks with detail 0: the focus goes to the next mark, as Delete on the mark does.
+    fireEvent.click(button, { detail: 0 });
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "文字标注 4: 眼睛大一点" }));
+
+    // With the only mark gone, the focus goes to the empty-focus target.
+    rerender(
+      <div data-testid="canvas" ref={canvas} tabIndex={-1}>
+        <AnnotationLayer
+          annotations={[mark("a", "pin")]}
+          emptyFocusTarget={canvas}
+          height={400}
+          onAnnotationDelete={vi.fn()}
+          selectedAnnotationId="a"
+          width={400}
+        />
+      </div>,
+    );
+    const onlyButton = screen.getByRole("button", { name: "删除标注" });
+    onlyButton.focus();
+    fireEvent.click(onlyButton, { detail: 0 });
+    expect(document.activeElement).toBe(screen.getByTestId("canvas"));
   });
 
   it("moves a focused landmark with the arrow keys", async () => {

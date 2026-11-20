@@ -1207,6 +1207,16 @@ li:hover > div > .agent-message-actions,
   opacity: 1;
 }
 
+/* The canvas takes the focus when the last mark is deleted from the keyboard; ring it inside its edge then. */
+.editor-stage:focus {
+  outline: none;
+}
+
+.editor-stage:focus-visible {
+  outline: 2px solid var(--ide-accent);
+  outline-offset: -2px;
+}
+
 .agent-bubble-user {
   background: var(--ide-panel-raised);
   border: 1px solid var(--ide-border);

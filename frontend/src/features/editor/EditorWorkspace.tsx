@@ -2908,6 +2908,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
   const stageElement = (
     <Box
       aria-label={imageUrl ? `候选 ${candidateIndex} 编辑画布` : "图像编辑画布"}
+      className="editor-stage"
       data-testid="editor-stage"
       onContextMenu={handleStageContextMenu}
       onPointerCancel={handleStagePointerCancel}
@@ -2917,6 +2918,8 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
       onPointerUp={handleStagePointerUp}
       ref={stageRef}
       role="img"
+      // Focusable from code only, so deleting the last mark from the keyboard leaves the focus on the canvas.
+      tabIndex={-1}
       style={{
         alignItems: "center",
         background:
@@ -3049,6 +3052,7 @@ export const EditorWorkspace = forwardRef<EditorWorkspaceHandle, EditorWorkspace
                 debugFaceBox={normalizedDebugFaceBox}
                 debugHrnetBox={normalizedDebugHrnetBox}
                 debugLandmarks={landmarkDebugInfo?.points}
+                emptyFocusTarget={stageRef}
                 eyeRegionScale={recipe.eyes.eyeRegionScale}
                 height={stageHeight}
                 landmarks={currentLandmarks}
