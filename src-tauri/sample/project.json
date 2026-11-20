@@ -116,11 +116,7 @@
     "design_notes": {
       "front_id": "front-1",
       "language": "en",
-      "views": [
-        "front",
-        "turnaround",
-        "eyes"
-      ],
+      "views": ["front", "turnaround", "eyes"],
       "sections": [
         {
           "key": "eyes",
@@ -567,11 +563,7 @@
       ],
       "seq": 27,
       "type": "design_notes",
-      "views": [
-        "front",
-        "turnaround",
-        "eyes"
-      ]
+      "views": ["front", "turnaround", "eyes"]
     },
     {
       "created_at": "2026-11-20T07:57:56.377336+00:00",
