@@ -128,6 +128,33 @@ impl JobStore {
         records
     }
 
+    /// Removes the records of a deleted project's jobs (its
+    /// `character_session_id`): they keep its prompts and point at images
+    /// that are gone. The audit page's totals lose them too. Returns how
+    /// many were removed.
+    pub fn delete_session(&self, session: &str) -> usize {
+        let Ok(entries) = std::fs::read_dir(&self.dir) else {
+            return 0;
+        };
+        let mut removed = 0;
+        for path in entries.filter_map(Result::ok).map(|entry| entry.path()) {
+            if !path.extension().is_some_and(|ext| ext == "json") {
+                continue;
+            }
+            let record = std::fs::read_to_string(&path)
+                .ok()
+                .and_then(|text| serde_json::from_str::<JobRecord>(&text).ok());
+            if record.is_none_or(|record| record.character_session_id != session) {
+                continue;
+            }
+            match std::fs::remove_file(&path) {
+                Ok(()) => removed += 1,
+                Err(error) => log::warn!("cannot remove {}: {error}", path.display()),
+            }
+        }
+        removed
+    }
+
     #[cfg(test)]
     pub fn get(&self, id: &str) -> Option<JobRecord> {
         if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric() || c == '-') {
@@ -418,5 +445,28 @@ mod tests {
         assert_eq!(record.outputs[0].object_key, "s/j/candidate-1.png");
         assert_eq!(reopened.list().len(), 2);
         assert!(reopened.get("../x").is_none());
+    }
+
+    #[test]
+    fn a_deleted_projects_records_go_and_the_others_stay() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = JobStore::open(dir.path());
+        let job = |session: &str| {
+            let request = GenerationRequest::new(session, "ja", Mode::FrontDesign);
+            store
+                .create(&request, &Overrides::default(), "fixture", "")
+                .id()
+        };
+        let gone = [job("session-1"), job("session-1")];
+        let kept = job("session-2");
+        // A file that is not a record is left alone.
+        let stray = dir.path().join(DIR_NAME).join("notes.json");
+        std::fs::write(&stray, "not a record").unwrap();
+
+        assert_eq!(store.delete_session("session-1"), 2);
+        assert!(gone.iter().all(|id| store.get(id).is_none()));
+        assert!(store.get(&kept).is_some());
+        assert!(stray.is_file());
+        assert_eq!(store.delete_session("session-1"), 0);
     }
 }

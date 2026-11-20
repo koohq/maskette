@@ -511,6 +511,7 @@ async fn delete_conversation(
             folders.push(data_dir.join("local-revisions").join(&session));
             folders.push(crate::backend::cli::codex_root(&data_dir).join(&session));
             folders.push(crate::backend::cli::claude_root(&data_dir).join(&session));
+            state.generation.jobs.delete_session(&session);
         }
         for folder in folders {
             if let Err(error) = std::fs::remove_dir_all(&folder)

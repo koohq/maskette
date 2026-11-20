@@ -1494,6 +1494,47 @@ async fn conversations_are_listed_renamed_and_deleted() {
 }
 
 #[tokio::test]
+async fn deleting_a_project_removes_its_images_and_generation_records() {
+    let setup = setup(auto_design).await;
+    let kept = setup.start().await;
+    setup.send(&kept, "帮我做这个角色", 1, &[]).await;
+    let gone = setup.start().await;
+    setup.send(&gone, "帮我做这个角色", 1, &[]).await;
+    let session_of = |id: &str| {
+        let entry = setup.backend.state.agent.store.get(id).unwrap();
+        entry.lock().state.character_session_id.clone()
+    };
+    let (kept_session, gone_session) = (session_of(&kept), session_of(&gone));
+    let jobs = &setup.backend.state.generation.jobs;
+    let sessions = || -> Vec<String> {
+        jobs.list()
+            .into_iter()
+            .map(|record| record.character_session_id)
+            .collect()
+    };
+    assert!(sessions().contains(&gone_session));
+    let images = crate::backend::generation::generated_root(setup.backend.dir.path());
+    assert!(images.join(&gone_session).is_dir());
+
+    let deleted = setup
+        .call(
+            authed(Method::DELETE, &format!("/api/agent/conversations/{gone}"))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await;
+    assert_eq!(json_body(deleted).await, json!({"deleted": true}));
+    assert!(!images.join(&gone_session).exists());
+    let left = sessions();
+    assert!(!left.is_empty());
+    assert!(
+        left.iter().all(|session| *session == kept_session),
+        "{left:?}"
+    );
+    assert!(images.join(&kept_session).is_dir());
+}
+
+#[tokio::test]
 async fn conversations_survive_a_restart() {
     let setup = setup(|_| say("hi")).await;
     let id = setup.start().await;
