@@ -36,8 +36,13 @@ const RETRY_DELAYS: [Duration; 3] = [
     Duration::from_secs(10),
 ];
 pub const MAX_RETRY_DELAY: Duration = Duration::from_secs(60);
-/// How much of an error body is kept in the message.
+/// How much of an error's text is kept in the message.
 const ERROR_TEXT_CHARS: usize = 500;
+/// Fields of an error body that name the user's account (OpenRouter adds
+/// `user_id` to its errors). They are dropped before the body's text is
+/// kept: the message goes into the project's events, and so into an
+/// exported project the user may hand to someone.
+const ACCOUNT_FIELDS: [&str; 1] = ["user_id"];
 
 pub type JsonObject = Map<String, Value>;
 
@@ -55,13 +60,16 @@ pub struct ChatError {
 }
 
 impl ChatError {
+    /// Keeps the error's own message, not the whole body (see
+    /// [`ACCOUNT_FIELDS`]).
     fn http(status: u16, text: &str) -> Self {
+        let detail = error_message(text);
         Self {
-            message: format!("HTTP {status}: {}", truncate(text)),
+            message: format!("HTTP {status}: {detail}"),
             status: Some(status),
             timeout_secs: None,
             in_stream: false,
-            detail: error_message(text),
+            detail,
         }
     }
 
@@ -256,7 +264,7 @@ impl ChatApi {
                 ending: None,
             }),
             _ => {
-                let detail = truncate(&reply.text);
+                let detail = error_message(&reply.text);
                 Err(ChatError {
                     message: format!("unexpected response body: {detail}"),
                     status: Some(reply.status),
@@ -743,14 +751,15 @@ fn mentions_any(text: &str, fields: &JsonObject) -> bool {
         .any(|field| lowered.contains(&field.to_lowercase()))
 }
 
-/// The useful part of an error body.
+/// The useful part of an error body, shortened: the error's message, else
+/// the body without the [`ACCOUNT_FIELDS`].
 pub fn error_message(text: &str) -> String {
     let message = match serde_json::from_str::<Value>(text) {
         Ok(Value::Object(body)) => match body.get("error") {
             Some(error @ Value::Object(_)) => error_text(error),
             _ => body
                 .get("message")
-                .map_or_else(|| Value::Object(body.clone()).to_string(), plain),
+                .map_or_else(|| without_account_fields(&body), plain),
         },
         Ok(other) => other.to_string(),
         Err(_) => text.to_owned(),
@@ -764,10 +773,19 @@ fn error_text(error: &Value) -> String {
         Value::Object(fields) => fields
             .get("message")
             .or_else(|| fields.get("code"))
-            .map_or_else(|| error.to_string(), plain),
+            .map_or_else(|| without_account_fields(fields), plain),
         other => plain(other),
     };
     text.chars().take(ERROR_TEXT_CHARS).collect()
+}
+
+/// An object's JSON text without the fields that name the user's account.
+fn without_account_fields(fields: &JsonObject) -> String {
+    let mut fields = fields.clone();
+    for field in ACCOUNT_FIELDS {
+        fields.remove(field);
+    }
+    Value::Object(fields).to_string()
 }
 
 fn plain(value: &Value) -> String {
@@ -775,10 +793,6 @@ fn plain(value: &Value) -> String {
         Value::String(text) => text.clone(),
         other => other.to_string(),
     }
-}
-
-fn truncate(text: &str) -> String {
-    text.chars().take(ERROR_TEXT_CHARS).collect()
 }
 
 /// reqwest's own message is terse ("error sending request"); the causes say
@@ -808,6 +822,24 @@ mod tests {
             parse_extra_body(r#"{"thinking": {"type": "disabled"}, "model": "x", "messages": []}"#)
                 .unwrap();
         assert_eq!(fields.keys().collect::<Vec<_>>(), ["thinking"]);
+    }
+
+    #[test]
+    fn an_error_keeps_the_apis_message_but_not_the_account() {
+        // OpenRouter's answer to a model it does not know.
+        let body = r#"{"error":{"message":"x/y is not a valid model ID","code":400},"user_id":"user_12345678"}"#;
+        let error = ChatError::http(400, body);
+        assert_eq!(error.message, "HTTP 400: x/y is not a valid model ID");
+        assert_eq!(error.detail, "x/y is not a valid model ID");
+        let failure = error.to_failure("https://openrouter.ai/api/v1", "Agent LLM ");
+        assert_eq!(failure.message, "Agent LLM HTTP 400: x/y is not a valid model ID");
+        assert!(!format!("{failure:?}").contains("user_12345678"));
+
+        // A body with no message of its own is kept, without the account.
+        let error = ChatError::http(418, r#"{"teapot":true,"user_id":"user_12345678"}"#);
+        assert_eq!(error.message, r#"HTTP 418: {"teapot":true}"#);
+        let error = ChatError::http(418, r#"{"error":{"type":"x","user_id":"user_12345678"}}"#);
+        assert_eq!(error.detail, r#"{"type":"x"}"#);
     }
 
     #[test]
