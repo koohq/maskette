@@ -2,6 +2,7 @@
 *.png binary
 *.ico binary
 *.icns binary
+*.bmp binary
 *.onnx binary
 *.tflite binary
 *.wasm binary
