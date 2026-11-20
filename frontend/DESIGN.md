@@ -1,7 +1,7 @@
 ---
 version: "beta"
 name: "Maskette workspace"
-description: "A maker's workspace for designing kigurumi head shells: tools and images on the left, the canvas in the middle, the assistant on the right. Its default colours come from the Maskette mascot: mandarin hair on warm greys."
+description: "A workspace for designing kigurumi head shells: tools and images on the left, the canvas in the middle, the assistant on the right. Its default colours come from the Maskette mascot: mandarin hair on warm greys."
 colors:
   mascot-mandarin: "#F59A4A"
   mascot-green: "#3FBF80"
@@ -17,7 +17,7 @@ typography:
 
 ## Overview
 
-The workspace keeps an editor's arrangement (tools and images on the left, the canvas in the middle, the assistant on the right) because it works, but it must not look or read like a code editor. The app grew out of a project named after Visual Studio and was renamed to avoid Microsoft's product names, so anything that recalls Visual Studio or VS Code is out: edge-line selection markers, capitalised panel headings, editor tabs with a top accent line and an unsaved dot, a status bar, and words such as "Explorer", "Agent", "Workbench" or "Ready". It should feel like a precise maker tool, not a dashboard. Images, masks and landmarks must stay visually exact; chrome stays quiet so the artwork stands out.
+The workspace keeps an editor's arrangement (tools and images on the left, the canvas in the middle, the assistant on the right) because it works, but it must not look or read like a code editor. Nothing should recall Visual Studio or VS Code: no edge-line selection markers, capitalised panel headings, editor tabs with a top accent line and an unsaved dot, status bar, or words such as "Explorer", "Agent", "Workbench" or "Ready". It should feel like a precise design tool, not a dashboard. Images, masks and landmarks must stay visually exact; chrome stays quiet so the artwork stands out.
 
 ## Colors
 
