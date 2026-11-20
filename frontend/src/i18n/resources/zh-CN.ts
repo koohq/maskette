@@ -255,6 +255,7 @@ const zhCN = {
       codex_bridge_removed: "Codex Bridge 已移除。请在设置的“生图后端”中改选 Codex（或 API 密钥的接入方式）。",
       api_unreachable: "无法连接到 {{service}}。请检查网络和设置中的 API URL 后重试。",
       api_unauthorized: "{{service}} 不接受该 API 密钥（HTTP {{status}}）。请检查设置中的密钥。",
+      api_payment_required: "{{service}} 账户的余额不足（HTTP 402）。请充值后再试。",
       api_rate_limited: "{{service}} 正在限制请求，或账户的额度已用完（HTTP 429）。请稍等后重试。",
       api_server_error: "{{service}} 的服务器出错（HTTP {{status}}）。请稍后再试。",
       api_http_error: "{{service}} 返回了错误（HTTP {{status}}）。",

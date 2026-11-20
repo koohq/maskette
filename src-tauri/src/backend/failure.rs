@@ -51,7 +51,8 @@ impl Failure {
     /// A request to a hosted API (`service`, e.g. OpenRouter or the
     /// endpoint's host) that got no answer (`status` `None`) or an error
     /// status, sorted by what the user can do about it. `detail` is the
-    /// API's own message.
+    /// API's own message. 402 is OpenRouter's answer when the account's
+    /// credits have run out, which stops the chat before anything else.
     pub fn api(
         service: &str,
         status: Option<u16>,
@@ -61,6 +62,7 @@ impl Failure {
         let code = match status {
             None => "api_unreachable",
             Some(401 | 403) => "api_unauthorized",
+            Some(402) => "api_payment_required",
             Some(429) => "api_rate_limited",
             Some(500..=599) => "api_server_error",
             Some(_) => "api_http_error",
@@ -171,6 +173,7 @@ mod tests {
         assert_eq!(code(None), Some("api_unreachable"));
         assert_eq!(code(Some(401)), Some("api_unauthorized"));
         assert_eq!(code(Some(403)), Some("api_unauthorized"));
+        assert_eq!(code(Some(402)), Some("api_payment_required"));
         assert_eq!(code(Some(429)), Some("api_rate_limited"));
         assert_eq!(code(Some(500)), Some("api_server_error"));
         assert_eq!(code(Some(503)), Some("api_server_error"));

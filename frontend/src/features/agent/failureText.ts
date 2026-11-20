@@ -22,6 +22,7 @@ export const FAILURE_CODES = new Set([
   "codex_bridge_removed",
   "api_unreachable",
   "api_unauthorized",
+  "api_payment_required",
   "api_rate_limited",
   "api_server_error",
   "api_http_error",

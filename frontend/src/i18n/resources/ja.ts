@@ -270,6 +270,8 @@ const ja: TranslationResource = {
         "{{service}} に接続できませんでした。ネットワーク接続と、設定の API URL を確認して、もう一度試してください。",
       api_unauthorized:
         "{{service}} が API キーを受け付けませんでした（HTTP {{status}}）。設定の API キーを確認してください。",
+      api_payment_required:
+        "{{service}} のアカウントのクレジットが足りません（HTTP 402）。クレジットを追加してから、もう一度試してください。",
       api_rate_limited:
         "{{service}} がリクエストを制限しているか、アカウントのクレジットや利用枠が尽きています（HTTP 429）。少し待ってから試してください。",
       api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間をおいて試してください。",

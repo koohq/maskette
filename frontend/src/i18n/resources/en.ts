@@ -268,6 +268,7 @@ const en: TranslationResource = {
       api_unreachable:
         "Could not reach {{service}}. Check your network and the API URL in the settings, then try again.",
       api_unauthorized: "{{service}} did not accept the API key (HTTP {{status}}). Check the key in the settings.",
+      api_payment_required: "The {{service}} account is out of credits (HTTP 402). Add credits, then try again.",
       api_rate_limited:
         "{{service}} is limiting requests, or the account has run out of credit or quota (HTTP 429). Wait a little and try again.",
       api_server_error: "{{service}} had a server error (HTTP {{status}}). Try again later.",

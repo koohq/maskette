@@ -180,10 +180,17 @@ describe("API and other failures", () => {
     expect(failureText(i18n.t, "api_server_error", { service: "OpenRouter", status: 502 }, "x")).toBe(
       "OpenRouter のサーバーでエラーが起きました（HTTP 502）。時間をおいて試してください。",
     );
+    const noCredits = { service: "openrouter.ai", status: 402, detail: "Insufficient credits" };
+    expect(failureText(i18n.t, "api_payment_required", noCredits, "x")).toBe(
+      "openrouter.ai のアカウントのクレジットが足りません（HTTP 402）。クレジットを追加してから、もう一度試してください。詳細：Insufficient credits",
+    );
     await i18n.changeLanguage("en");
+    expect(failureText(i18n.t, "api_payment_required", noCredits, "x")).toBe(
+      "The openrouter.ai account is out of credits (HTTP 402). Add credits, then try again. Details: Insufficient credits",
+    );
     expect(
-      failureText(i18n.t, "api_http_error", { service: "OpenRouter", status: 402, detail: "no credits" }, "x"),
-    ).toBe("OpenRouter returned an error (HTTP 402). Details: no credits");
+      failureText(i18n.t, "api_http_error", { service: "OpenRouter", status: 404, detail: "no such route" }, "x"),
+    ).toBe("OpenRouter returned an error (HTTP 404). Details: no such route");
     expect(failureText(i18n.t, "api_unreachable", { service: "openrouter.ai" }, "x")).toBe(
       "Could not reach openrouter.ai. Check your network and the API URL in the settings, then try again.",
     );

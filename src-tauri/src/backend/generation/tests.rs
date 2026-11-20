@@ -796,6 +796,7 @@ async fn image_api_failures_are_sorted_by_status() {
     for (status, code) in [
         (401, "api_unauthorized"),
         (403, "api_unauthorized"),
+        (402, "api_payment_required"),
         (429, "api_rate_limited"),
         (500, "api_server_error"),
         (404, "api_http_error"),
@@ -844,6 +845,7 @@ async fn chat_failure(base_url: &str, seconds: u64) -> crate::backend::failure::
 async fn chat_api_failures_are_sorted_by_status() {
     for (status, code) in [
         (401, "api_unauthorized"),
+        (402, "api_payment_required"),
         (429, "api_rate_limited"),
         (503, "api_server_error"),
         (400, "api_http_error"),
