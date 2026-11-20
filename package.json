@@ -9,6 +9,7 @@
     "dev": "tauri dev",
     "tauri": "tauri",
     "bundle": "tauri build && node scripts/copy-installer.ts",
+    "bundle:local": "tauri build --config src-tauri/build-without-update-files.json && node scripts/copy-installer.ts",
     "release:copy": "node scripts/copy-installer.ts",
     "build": "pnpm -r --if-present build",
     "test": "pnpm -r --if-present test",

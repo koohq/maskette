@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../ui/IdeDialog";
 import { errorDetail } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
+import { UpdateSection } from "../update/UpdateSection";
 import { HomeLink } from "../workspace/HomeLink";
 import { ThemeToggle } from "../workspace/ThemeToggle";
 import { AutoFixSection } from "./AutoFixSection";
@@ -447,6 +448,7 @@ export function SettingsPage() {
             <div className="mt-6">
               <PaletteSection />
             </div>
+            <UpdateSection />
           </>
         ) : null}
       </main>

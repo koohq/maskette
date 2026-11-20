@@ -33,7 +33,13 @@ There is no macOS version yet.
    draws the app's screens), the installer adds it, which needs an internet
    connection.
 
-To update, run the new `setup.exe` the same way. When it says “Already
+When a new version is out, Maskette says so above the project list when it
+starts. Press “Update”: Maskette closes, installs the new version and opens
+again when it is done. You can also check from “App updates” in Settings,
+where you can turn off the check at startup. Your projects and settings stay
+as they are.
+
+If the app cannot update itself, run the new `setup.exe` the same way. When it says “Already
 Installed”, press “Next”. The uninstaller then opens: leave “Delete the
 application data” unticked, press “Uninstall”, and press “Close” when it
 finishes. You are back in the installer, so carry on installing. Your
@@ -210,9 +216,25 @@ Other scripts:
 | `pnpm vrt:update` | Accept the current screenshots as the new baselines; look at the changed images before committing them |
 | `pnpm build` | Build the frontend into `frontend/dist` |
 | `pnpm cargo:check` | `cargo check` the Tauri crate |
-| `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`), and copy it to `release/` |
-| `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository) |
+| `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`), sign it for the updater, and copy it to `release/` with the `latest.json` that installed copies read. Needs the signing key (below) |
+| `pnpm bundle:local` | Build the installer without the updater's files, so no signing key is needed. For trying a build on your own PC |
+| `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository); `--notes <file>` puts release notes into `latest.json` |
 | `pnpm lint` | Biome check |
+
+Releasing an update: installed copies of Maskette read
+`latest.json` from the latest GitHub release
+(`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`) and accept only
+installers signed with the key whose public half is `plugins.updater.pubkey`.
+
+1. Raise `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
+2. In the shell that builds, set `TAURI_SIGNING_PRIVATE_KEY` (the path to the
+   private key, or its contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
+   A `.env` file does not work for these.
+3. `pnpm bundle`, then `pnpm release:copy --notes <file>` to add release
+   notes.
+4. Create a GitHub release tagged `v<version>` and attach the installer and
+   `latest.json` from `release/`. The installer's URL in `latest.json`
+   points at that tag.
 
 Layout:
 

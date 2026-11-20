@@ -47,6 +47,8 @@ export const DETAIL_CODES = new Set([
   "dev_backend_not_running",
   "dev_backend_no_answer",
   "backend_unreachable",
+  "update_check_failed",
+  "update_in_progress",
 ]);
 
 /**
@@ -61,6 +63,7 @@ const VALUE_PARAMS: Record<string, "key" | "service" | "detail"> = {
   settings_not_saved: "detail",
   version_not_saved: "detail",
   reference_not_saved: "detail",
+  update_check_failed: "detail",
 };
 
 /** The `detail` of an HTTP error in the user's language when it is a known code, else `null`. */

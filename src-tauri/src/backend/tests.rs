@@ -72,8 +72,17 @@ impl TestBackend {
             audit: super::audit::Audit::default(),
             cli,
             model_lists: Default::default(),
+            updates: Default::default(),
             generation_log: Default::default(),
         })
+    }
+
+    /// The same backend with `updates` in place of none.
+    pub fn replace_updates(mut self, updates: super::update::Updates) -> Self {
+        Arc::get_mut(&mut self.state)
+            .expect("no other handle to a new backend's state")
+            .updates = updates;
+        self
     }
 
     /// The same data folder and credential store, read again as on a restart.
@@ -376,6 +385,8 @@ async fn backend_serves_on_a_random_local_port() {
     let backend = Backend::start(super::BackendConfig {
         data_dir: dir.path().to_owned(),
         secrets: Arc::new(MemorySecrets::default()),
+        updater: None,
+        app_version: env!("CARGO_PKG_VERSION").to_owned(),
     })
     .unwrap();
     let url = format!("{}/api/health", backend.base_url());

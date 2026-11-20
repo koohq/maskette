@@ -26,6 +26,7 @@ import {
 import { apiErrorText } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { SettingsLink } from "../settings/SettingsLink";
+import { UpdateBanner } from "../update/UpdateBanner";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function ProjectsPage() {
@@ -90,6 +91,7 @@ export function ProjectsPage() {
       </header>
 
       <main className="ide-home-main">
+        <UpdateBanner />
         <div className="mb-6 flex items-center gap-3">
           <h1 className="text-xl font-semibold">{t("workspace.projects")}</h1>
           <span className="flex-1" />

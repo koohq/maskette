@@ -21,6 +21,7 @@ const NOT_SHOWN = new Set([
   "version_file_missing",
   "version_not_encoded",
   "project_not_exported", // export is a download link
+  "update_unsupported", // the update button only shows where updates are supported
 ]);
 
 // `import.meta.url` is not a file URL under jsdom; Vitest gives the test file's folder as `import.meta.dirname`.

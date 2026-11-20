@@ -40,6 +40,11 @@ ab_glyph = "0.2.32"
 dejavu = "2.37.0"
 sys-locale = "0.3.2"
 
+# Updates come as the NSIS installer itself, so the archive support (`zip`)
+# is left out, and TLS is the same native one as reqwest above.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+tauri-plugin-updater = { version = "2.14.1", default-features = false, features = ["native-tls", "system-proxy"] }
+
 [dev-dependencies]
 http-body-util = "0.1.5"
 tempfile = "3.27.0"

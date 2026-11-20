@@ -1,4 +1,5 @@
 mod backend;
+mod updater;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -29,6 +30,14 @@ pub fn run() {
                         .build(),
                 )?;
             }
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+            // A debug build would replace the installed app with a release.
+            let updater: Option<Arc<dyn backend::update::Updater>> = if cfg!(debug_assertions) {
+                None
+            } else {
+                Some(Arc::new(updater::TauriUpdater::new(app.handle().clone())))
+            };
 
             // The user's data folder, in place of the old backend's `runtime/`.
             // A new one (the first launch) gets the sample project.
@@ -39,6 +48,8 @@ pub fn run() {
             let backend = Backend::start(BackendConfig {
                 data_dir,
                 secrets: Arc::new(KeyringSecrets::new(secrets::SERVICE)),
+                updater,
+                app_version: app.package_info().version.to_string(),
             })?;
             log::info!("backend listening on {}", backend.base_url());
             #[cfg(debug_assertions)]

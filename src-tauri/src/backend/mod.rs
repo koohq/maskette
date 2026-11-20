@@ -20,6 +20,7 @@ pub mod references;
 mod safety;
 pub mod settings;
 pub mod token;
+pub mod update;
 
 use std::net::{Ipv4Addr, SocketAddr, TcpListener};
 use std::path::PathBuf;
@@ -59,6 +60,10 @@ pub struct BackendConfig {
     pub data_dir: PathBuf,
     /// Where API keys are kept (the OS credential store outside tests).
     pub secrets: Arc<dyn SecretStore>,
+    /// Updates to the app itself; none in debug builds.
+    pub updater: Option<Arc<dyn update::Updater>>,
+    /// The app's version, as `tauri.conf.json` (or a build's `--config`) sets it.
+    pub app_version: String,
 }
 
 pub struct AppState {
@@ -73,6 +78,8 @@ pub struct AppState {
     pub cli: cli::Cli,
     /// The model lists the settings page offers candidates from.
     pub model_lists: settings::models::ModelLists,
+    /// Updates to the app itself.
+    pub updates: update::Updates,
     /// Every generation request, by job id, for the tests to inspect.
     #[cfg(test)]
     pub generation_log: std::sync::Mutex<Vec<(String, generation::GenerationRequest)>>,
@@ -104,6 +111,7 @@ impl Backend {
             audit: audit::Audit::default(),
             cli: cli::Cli::new(),
             model_lists: Default::default(),
+            updates: update::Updates::new(config.updater, config.app_version),
             data_dir: config.data_dir,
             settings: Arc::new(settings),
             chat: ChatApi::new(),
@@ -174,6 +182,7 @@ pub fn router(state: SharedState) -> Router {
         .merge(generation::routes())
         .merge(audit::routes())
         .merge(prompts::routes())
+        .merge(update::routes())
         .fallback(not_found)
         .method_not_allowed_fallback(method_not_allowed)
         .layer(middleware::from_fn_with_state(

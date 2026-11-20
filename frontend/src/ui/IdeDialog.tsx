@@ -27,17 +27,28 @@ export function ConfirmDialog({
   onCancel,
   onConfirm,
   errorMessage,
-}: DialogBaseProps & { message: string; onConfirm: () => Promise<void> | void }) {
+  disabled,
+  children,
+}: DialogBaseProps & {
+  message: string;
+  onConfirm: () => Promise<void> | void;
+  /** Keeps the confirm button off, with the reason shown in `children`. */
+  disabled?: boolean | undefined;
+  /** More below the message (release notes, a note on why the button is off). */
+  children?: ReactNode;
+}) {
   return (
     <DialogShell
       confirmLabel={confirmLabel}
       danger={danger}
+      disabled={disabled ?? false}
       errorMessage={errorMessage}
       onCancel={onCancel}
       onSubmit={onConfirm}
       title={title}
     >
       <p className="text-sm text-(--ide-text-muted)">{message}</p>
+      {children}
     </DialogShell>
   );
 }

@@ -19,8 +19,16 @@
       }
     }
   },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEQ0NTQ1MUQ3QzYwNTFCRTkKUldUcEd3WEcxMUZVMUplTURURVh4MzJFbXJqd05YYVRyZ0F1dC9kakdGRktYbmlYWi9sUHBEWDgK",
+      "endpoints": ["https://github.com/koohq/maskette/releases/latest/download/latest.json"],
+      "windows": { "installMode": "passive" }
+    }
+  },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": ["nsis"],
     "publisher": "Maskette contributors",
     "copyright": "Copyright (C) 2026 Maskette contributors. GPL-3.0-or-later.",

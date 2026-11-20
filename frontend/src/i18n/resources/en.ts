@@ -243,6 +243,8 @@ const en: TranslationResource = {
       dev_backend_no_answer: "The Maskette app did not answer. Check that it is still running.",
       backend_unreachable: "The request got no answer. Restart the app and try again.",
       reference_not_saved: "The reference image could not be saved. Check the free disk space and write permissions.",
+      update_check_failed: "Could not check for a new version. Check your network connection.",
+      update_in_progress: "An update is already under way. Wait for it to finish.",
       load: "Failed to load the chat: {{message}}",
     },
     // Failures the backend sends as a code (`code` / `params`), with the CLI's own words in `detail`.
@@ -296,6 +298,31 @@ const en: TranslationResource = {
       detail: "Details: {{detail}}",
       gap: " ",
     },
+  },
+  update: {
+    section: "App updates",
+    currentVersion: "Current version: {{version}}",
+    checkOnLaunch: "Check for a new version at startup",
+    checkOnLaunchHint:
+      "Asks GitHub, where Maskette is published, for the latest version. No projects or settings are sent.",
+    checkNow: "Check now",
+    checking: "Checking…",
+    upToDate: "You have the latest version.",
+    available: "Version {{version}} is available.",
+    install: "Update",
+    retry: "Try updating again",
+    dismiss: "Dismiss",
+    confirmTitle: "Update to version {{version}}",
+    confirmMessage:
+      "Maskette will close, install the new version and open again when it is done. Your projects and settings stay as they are.",
+    notes: "What's new in this version",
+    published: "Published: {{date}}",
+    running: "A project is still generating. Update once it has finished.",
+    downloading: "Downloading… {{percent}}%",
+    downloadingNoTotal: "Downloading…",
+    installing: "Starting the installer. Maskette will close and open again when it is done.",
+    failed:
+      "The update did not finish. Try again, or download the new version's setup.exe from the releases page and run it.",
   },
   settings: {
     title: "Settings",

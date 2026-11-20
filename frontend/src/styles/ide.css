@@ -975,6 +975,36 @@ body.agent-resizing {
   width: 100%;
 }
 
+/* A new version is out: above the project list, with the mascot peeking in from the left. */
+.ide-update-banner {
+  align-items: center;
+  background: var(--ide-accent-soft);
+  border: 1px solid color-mix(in srgb, var(--ide-accent) 45%, transparent);
+  border-radius: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin-bottom: 24px;
+  padding: 8px 10px 8px 12px;
+}
+
+.ide-update-banner-mascot {
+  height: 36px;
+  width: 36px;
+}
+
+.ide-update-notes {
+  background: var(--ide-panel);
+  border: 1px solid var(--ide-border);
+  border-radius: 6px;
+  font-size: 13px;
+  margin-top: 4px;
+  max-height: 12rem;
+  overflow-y: auto;
+  padding: 8px 10px;
+  white-space: pre-wrap;
+}
+
 .ide-project-grid {
   display: grid;
   gap: 14px;
