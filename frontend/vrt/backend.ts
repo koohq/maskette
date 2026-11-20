@@ -142,12 +142,12 @@ const events = [
     created_at: CREATED_AT,
   },
   { seq: 11, type: "notice", code: "step_limit", created_at: CREATED_AT },
-  // Before the newest image, so the usual shots still end on its approve button; the workspace-order-notes
+  // Before the newest image, so the usual shots still end on its approve button; the workspace-design-notes
   // scene scrolls up to the card.
-  { seq: 12, type: "tool", tool: "write_order_notes", status: "succeeded", progress: 100, created_at: CREATED_AT },
+  { seq: 12, type: "tool", tool: "write_design_notes", status: "succeeded", progress: 100, created_at: CREATED_AT },
   {
     seq: 13,
-    type: "order_notes",
+    type: "design_notes",
     front_id: "front-1",
     language: "ja",
     views: ["front", "turnaround", "eyes"],

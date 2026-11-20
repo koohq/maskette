@@ -22,7 +22,7 @@
 //! carries the character as its reference. `MASKETTE_TRIAL_ANALYSIS`
 //! (default `google/gemini-3.8-flash@medium`, the app's default analysis)
 //! picks the analysis model; `fixture` makes it the fixture, for runs that
-//! only look at what the chat model does (the order notes of the blank
+//! only look at what the chat model does (the design notes of the blank
 //! fixture images would say nothing). Each model writes `<model>/transcript.md` (the
 //! replies, the tool calls with their arguments and the tool results, turn
 //! by turn) and a line in `results.jsonl`: seconds per turn, the tools
@@ -30,15 +30,15 @@
 //! together (the change in the key's spending, so nothing else may use the
 //! key meanwhile).
 //!
-//! `trial_order_notes` sends real pictures of one mask to the analysis
-//! model and keeps the order notes it writes:
+//! `trial_design_notes` sends real pictures of one mask to the analysis
+//! model and keeps the design notes it writes:
 //!
 //! ```text
 //! MASKETTE_TRIAL_PICTURES=<front view>,<four-view sheet>,<eye close-up>
 //! MASKETTE_TRIAL_LANGUAGES=ja,zh-CN   (default ja)
 //! MASKETTE_TRIAL_NOTES=<the user's corrections, for one more run>
 //! MASKETTE_TRIAL_OUT=<folder for notes-<language>.json and results.jsonl>
-//! cargo test --lib trial_order_notes -- --ignored --nocapture
+//! cargo test --lib trial_design_notes -- --ignored --nocapture
 //! ```
 //!
 //! The sheet and the close-up may be left out. With `MASKETTE_TRIAL_NOTES`,
@@ -55,7 +55,7 @@ use serde_json::{Value, json};
 use tower::ServiceExt;
 
 use crate::backend::generation::analysis;
-use crate::backend::generation::order_notes::{self, OrderNotesRequest, Picture, Section};
+use crate::backend::generation::design_notes::{self, DesignNotesRequest, Picture, Section};
 use crate::backend::references;
 use crate::backend::settings::store::service_of;
 use crate::backend::tests::{
@@ -396,7 +396,7 @@ async fn trial_chat_models() {
     }
 }
 
-/// One run of the order notes: the notes, the seconds it took, and what
+/// One run of the design notes: the notes, the seconds it took, and what
 /// OpenRouter billed.
 async fn notes_run(
     backend: &TestBackend,
@@ -408,7 +408,7 @@ async fn notes_run(
 ) -> (Vec<Section>, f64, f64) {
     let analysis_backend = analysis::analysis_backend(&backend.state.settings.settings())
         .expect("an analysis backend");
-    let request = OrderNotesRequest {
+    let request = DesignNotesRequest {
         language: language.to_owned(),
         pictures: pictures
             .iter()
@@ -424,7 +424,7 @@ async fn notes_run(
     };
     let spending = Spending::start(key).await;
     let started = Instant::now();
-    let notes = order_notes::write(&backend.state, &analysis_backend, &request)
+    let notes = design_notes::write(&backend.state, &analysis_backend, &request)
         .await
         .unwrap_or_else(|failure| panic!("the notes failed: {}", failure.message));
     let seconds = (started.elapsed().as_secs_f64() * 10.0).round() / 10.0;
@@ -433,7 +433,7 @@ async fn notes_run(
 
 #[tokio::test(flavor = "multi_thread")]
 #[ignore = "calls OpenRouter and is billed; see the module comment"]
-async fn trial_order_notes() {
+async fn trial_design_notes() {
     let paths: Vec<std::path::PathBuf> = env("MASKETTE_TRIAL_PICTURES")
         .split(',')
         .map(|path| std::path::PathBuf::from(path.trim()))

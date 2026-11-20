@@ -106,7 +106,7 @@ const en: TranslationResource = {
   agent: {
     welcomeTitle: "Upload a character to start a head design",
     welcomeBody:
-      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that. I can also make an eye close-up, and order notes that put the shapes and colours of each part into words.",
+      "Send one or more character references (ideally a front-facing one first) and say what must stay. I will first draw a character design you can fine-tune by hand and approve, then turn it into the head shell front view, and make the four-view sheet once you approve that. I can also make an eye close-up, and design notes that put the shapes and colours of each part into words.",
     placeholder: "Describe what you want, or tell me what to change…",
     attach: "Add reference images",
     send: "Send",
@@ -140,7 +140,7 @@ const en: TranslationResource = {
       approve_front_view: "Approving head shell front view",
       generate_turnaround: "Generating head shell four-view sheet",
       generate_eye_detail: "Generating eye close-up",
-      write_order_notes: "Writing order notes",
+      write_design_notes: "Writing design notes",
       local_revision: "Local generation",
       annotated_revision: "Regenerating from annotations",
     },
@@ -164,16 +164,16 @@ const en: TranslationResource = {
     },
     elapsed: "Elapsed {{duration}}",
     toolReasoning: "~{{count}} tokens reasoned",
-    orderNotes: {
-      title: "Order notes",
-      hint: "When you send them to a mask maker, include the front view, the four-view sheet and the eye close-up.",
+    designNotes: {
+      title: "Design notes",
+      hint: "Notes that put into words the shapes and colours the pictures alone may not get across.",
       stale:
         "These notes are for a front view approved earlier. Ask the assistant to rewrite them for the current one.",
       copy: "Copy",
       copied: "Copied",
       copyFailed: "Could not copy",
       save: "Save as text",
-      fileName: "order-notes",
+      fileName: "design-notes",
       // The rest is written in the notes' own language, which may differ from the screen's.
       sections: {
         eyes: "Eyes",

@@ -20,8 +20,8 @@ import {
   isEyeDetailRole,
   isTurnaroundRole,
 } from "./agentApi";
+import { DesignNotesCard } from "./DesignNotesCard";
 import { failureText } from "./failureText";
-import { OrderNotesCard } from "./OrderNotesCard";
 
 type TimelineProps = {
   events: AgentEvent[];
@@ -47,7 +47,7 @@ const TOOL_KEYS = new Set([
   "approve_front_view",
   "generate_turnaround",
   "generate_eye_detail",
-  "write_order_notes",
+  "write_design_notes",
   "local_revision",
   "annotated_revision",
 ]);
@@ -141,9 +141,9 @@ export function ChatTimeline({
                 onOpenVersion={onOpenVersion}
               />
             );
-          case "order_notes":
+          case "design_notes":
             return (
-              <OrderNotesCard
+              <DesignNotesCard
                 approvedFrontId={conversation?.state.approved_front_id}
                 event={event}
                 key={event.seq}

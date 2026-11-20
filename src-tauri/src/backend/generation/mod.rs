@@ -19,10 +19,10 @@
 
 pub mod analysis;
 pub mod codex;
+pub mod design_notes;
 pub mod hosted;
 pub mod image_api;
 pub mod jobs;
-pub mod order_notes;
 pub mod prompt;
 pub mod usage;
 pub mod watermark;

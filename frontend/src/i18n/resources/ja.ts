@@ -105,7 +105,7 @@ const ja: TranslationResource = {
   agent: {
     welcomeTitle: "キャラクターの画像を追加して、マスクをデザイン",
     welcomeBody:
-      "キャラクターの参考画像（できれば最初は正面）を送って、残したいポイントを教えてください。まず設定画を描くので、必要ならエディターで調整してから確定してください。その設定画からマスクの正面図を作り、正面図を確定したら四面図を作ります。目の拡大図と、各部の形や色を文章で書いた発注メモも作れます。",
+      "キャラクターの参考画像（できれば最初は正面）を送って、残したいポイントを教えてください。まず設定画を描くので、必要ならエディターで調整してから確定してください。その設定画からマスクの正面図を作り、正面図を確定したら四面図を作ります。目の拡大図と、各部の形や色を文章で書いたデザインメモも作れます。",
     placeholder: "要望や修正したい点を入力…",
     attach: "参考画像を追加",
     send: "送信",
@@ -139,7 +139,7 @@ const ja: TranslationResource = {
       approve_front_view: "マスク正面図を確定",
       generate_turnaround: "マスク四面図を生成",
       generate_eye_detail: "目の拡大図を生成",
-      write_order_notes: "発注メモを作成",
+      write_design_notes: "デザインメモを作成",
       local_revision: "部分再生成",
       annotated_revision: "注釈から再生成",
     },
@@ -163,15 +163,15 @@ const ja: TranslationResource = {
     },
     elapsed: "経過時間 {{duration}}",
     toolReasoning: "推論：約 {{count}} トークン",
-    orderNotes: {
-      title: "発注メモ",
-      hint: "工房に送るときは、正面図・四面図・目の拡大図と一緒に添えてください。",
-      stale: "前に確定した正面図の発注メモです。今の正面図に合わせるには、書き直しを頼んでください。",
+    designNotes: {
+      title: "デザインメモ",
+      hint: "画像だけでは伝わりにくい形や色を、文章で補うためのメモです。",
+      stale: "前に確定した正面図のデザインメモです。今の正面図に合わせるには、書き直しを頼んでください。",
       copy: "コピー",
       copied: "コピーしました",
       copyFailed: "コピーできませんでした",
       save: "テキストで保存",
-      fileName: "発注メモ",
+      fileName: "デザインメモ",
       // The rest is written in the notes' own language, which may differ from the screen's.
       sections: {
         eyes: "目",

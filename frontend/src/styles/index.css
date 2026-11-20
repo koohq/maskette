@@ -141,7 +141,7 @@ body,
   --ui-font-family: var(--ui-font-en);
 }
 
-/* Text in another language than the screen's (order notes for a maker abroad) takes its own language's fonts. */
+/* Text in another language than the screen's (design notes for a maker abroad) takes its own language's fonts. */
 body [lang="zh-CN"] {
   font-family: var(--ui-font-zh);
 }

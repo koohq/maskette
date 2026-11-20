@@ -30,7 +30,7 @@ use serde_json::{Map, Value, json};
 use super::SharedState;
 use super::agent::runner;
 use super::cli::codex;
-use super::generation::{analysis, order_notes, prompt};
+use super::generation::{analysis, design_notes, prompt};
 
 pub const FILE_NAME: &str = "prompts.json";
 
@@ -180,8 +180,8 @@ pub const FIELDS: &[(&str, Builtin)] = &[
         Builtin::Text(analysis::REFERENCE_SAFETY_PROMPT),
     ),
     (
-        "analysis.order_notes_prompt",
-        Builtin::Text(order_notes::ORDER_NOTES_PROMPT),
+        "analysis.design_notes_prompt",
+        Builtin::Text(design_notes::DESIGN_NOTES_PROMPT),
     ),
     (
         "constraints.front_design",

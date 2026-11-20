@@ -102,7 +102,7 @@ const zhCN = {
   agent: {
     welcomeTitle: "上传角色图，开始设计头壳",
     welcomeBody:
-      "发一张或几张角色参考图（第一张最好是正脸），说说想保留什么。我会先画一张角色设定图，你可以手动微调后确认；再根据设定图生成头壳正视图，确认后出头壳四视图。还可以做眼部特写，以及用文字写清各部位形状和颜色的定制说明。",
+      "发一张或几张角色参考图（第一张最好是正脸），说说想保留什么。我会先画一张角色设定图，你可以手动微调后确认；再根据设定图生成头壳正视图，确认后出头壳四视图。还可以做眼部特写，以及用文字写清各部位形状和颜色的设计说明。",
     placeholder: "描述你的需求，或者告诉我要怎么改…",
     attach: "添加参考图",
     send: "发送",
@@ -135,7 +135,7 @@ const zhCN = {
       approve_front_view: "确认头壳正视图",
       generate_turnaround: "生成头壳四视图",
       generate_eye_detail: "生成眼部特写",
-      write_order_notes: "写定制说明",
+      write_design_notes: "写设计说明",
       local_revision: "局部生成",
       annotated_revision: "按标注重新生成",
     },
@@ -159,15 +159,15 @@ const zhCN = {
     },
     elapsed: "已用时 {{duration}}",
     toolReasoning: "已思考约 {{count}} tokens",
-    orderNotes: {
-      title: "定制说明",
-      hint: "发给工坊时，请和正视图、四视图、眼部特写一起附上。",
-      stale: "这是之前确认的正视图的定制说明。要配合现在的正视图，请让助手重写。",
+    designNotes: {
+      title: "设计说明",
+      hint: "用文字补充图片不容易表达的形状和颜色。",
+      stale: "这是之前确认的正视图的设计说明。要配合现在的正视图，请让助手重写。",
       copy: "复制",
       copied: "已复制",
       copyFailed: "复制失败",
       save: "保存为文本",
-      fileName: "定制说明",
+      fileName: "设计说明",
       // The rest is written in the notes' own language, which may differ from the screen's.
       sections: {
         eyes: "眼睛",

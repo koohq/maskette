@@ -300,8 +300,8 @@ const SCENES: Scene[] = [
     },
   },
   {
-    // The order notes card, in the notes' language (Japanese) whatever the screen's.
-    name: "workspace-order-notes",
+    // The design notes card, in the notes' language (Japanese) whatever the screen's.
+    name: "workspace-design-notes",
     screen: WORKSPACE,
     act: async (page) => {
       const card = page.locator(".agent-notes-card");

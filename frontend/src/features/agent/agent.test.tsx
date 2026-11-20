@@ -124,12 +124,12 @@ describe("ChatTimeline", () => {
     expect(screen.queryByRole("button", { name: /确认/ })).toBeNull();
   });
 
-  it("shows order notes in their own language and copies them for the maker", async () => {
+  it("shows design notes in their own language and copies them for the maker", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
     const notes: AgentEvent = {
       seq: 6,
-      type: "order_notes",
+      type: "design_notes",
       front_id: "front-1",
       language: "ja",
       views: ["front", "turnaround", "eyes"],
@@ -142,15 +142,15 @@ describe("ChatTimeline", () => {
     render(
       <ChatTimeline
         conversation={conversation("front-1")}
-        events={[{ seq: 5, type: "tool", tool: "write_order_notes", status: "succeeded" }, notes]}
+        events={[{ seq: 5, type: "tool", tool: "write_design_notes", status: "succeeded" }, notes]}
         onApprove={vi.fn()}
         onOpenImage={vi.fn()}
         running={false}
       />,
     );
     // The screen speaks the user's language; the notes and their labels the maker's.
-    expect(screen.getByText("写定制说明")).toBeTruthy();
-    expect(screen.getByText("定制说明")).toBeTruthy();
+    expect(screen.getByText("写设计说明")).toBeTruthy();
+    expect(screen.getByText("设计说明")).toBeTruthy();
     expect(screen.getByText("日本語")).toBeTruthy();
     expect(screen.getByText("目")).toBeTruthy();
     expect(screen.queryByText("耳・角")).toBeNull();
@@ -173,10 +173,10 @@ describe("ChatTimeline", () => {
     expect(screen.getByText("已复制")).toBeTruthy();
   });
 
-  it("marks order notes written for an earlier front view", () => {
+  it("marks design notes written for an earlier front view", () => {
     const notes: AgentEvent = {
       seq: 6,
-      type: "order_notes",
+      type: "design_notes",
       front_id: "front-1",
       language: "en",
       views: ["front"],

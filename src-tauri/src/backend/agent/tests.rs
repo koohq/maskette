@@ -19,7 +19,7 @@ use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use crate::backend::generation::{GenerationRequest, Mode, order_notes};
+use crate::backend::generation::{GenerationRequest, Mode, design_notes};
 use crate::backend::tests::{TestBackend, authed, json_body};
 
 // --- The stand-in model -------------------------------------------------------
@@ -876,30 +876,30 @@ async fn the_eye_close_up_is_drawn_from_the_approved_front_view() {
     );
 }
 
-/// The analysis request of the order notes: one user message with the
+/// The analysis request of the design notes: one user message with the
 /// pictures, where the chat sends a system prompt first.
 fn is_analysis(messages: &[Value]) -> bool {
     messages.len() == 1 && messages[0]["content"].is_array()
 }
 
 #[tokio::test]
-async fn the_order_notes_follow_the_approved_front_view() {
+async fn the_design_notes_follow_the_approved_front_view() {
     let setup = setup(auto_front).await;
     let id = setup.start().await;
     setup.send(&id, "", 1, &[]).await;
     setup.llm.set(|messages| {
         if last_is_user(messages) {
-            call("", "write_order_notes", json!({}))
+            call("", "write_design_notes", json!({}))
         } else {
             say("好了。")
         }
     });
     // Nothing to describe before an approval.
-    let body = setup.send(&id, "写定制说明", 0, &[]).await;
-    let refused = tool_event(&body, "write_order_notes");
+    let body = setup.send(&id, "写设计说明", 0, &[]).await;
+    let refused = tool_event(&body, "write_design_notes");
     assert_eq!(refused["status"], "failed");
     assert!(refused["error"].as_str().unwrap().contains("approved"));
-    assert!(events(&body, "order_notes").is_empty());
+    assert!(events(&body, "design_notes").is_empty());
 
     // The fixture analysis writes them in the conversation's language.
     let body = setup
@@ -910,7 +910,7 @@ async fn the_order_notes_follow_the_approved_front_view() {
             &[("action", "approve_front"), ("image_id", "front-1")],
         )
         .await;
-    let notes = events(&body, "order_notes");
+    let notes = events(&body, "design_notes");
     assert_eq!(notes.len(), 1);
     assert_eq!(notes[0]["front_id"], "front-1");
     assert_eq!(notes[0]["language"], "zh-CN");
@@ -920,7 +920,7 @@ async fn the_order_notes_follow_the_approved_front_view() {
         .iter()
         .map(|section| section["key"].as_str().unwrap())
         .collect();
-    assert_eq!(keys, order_notes::SECTIONS);
+    assert_eq!(keys, design_notes::SECTIONS);
     assert!(sections[0]["text"].as_str().unwrap().contains("眼睛"));
 
     // A real analysis model gets the picture, the earlier notes and the
@@ -937,7 +937,7 @@ async fn the_order_notes_follow_the_approved_front_view() {
         } else if last_is_user(messages) {
             call(
                 "",
-                "write_order_notes",
+                "write_design_notes",
                 json!({"language": "ja", "instructions": "前髪は眉の上。目の形は絵のとおりに"}),
             )
         } else {
@@ -945,7 +945,7 @@ async fn the_order_notes_follow_the_approved_front_view() {
         }
     });
     let body = setup.send(&id, "用日语，刘海在眉毛上面", 0, &[]).await;
-    let notes = events(&body, "order_notes");
+    let notes = events(&body, "design_notes");
     assert_eq!(notes.len(), 2);
     assert_eq!(notes[1]["language"], "ja");
     assert_eq!(
@@ -984,13 +984,13 @@ async fn the_order_notes_follow_the_approved_front_view() {
         if is_analysis(messages) {
             say(r#"{"eyes": "丸い目です。", "hair": "前髪は眉の上です。"}"#)
         } else if last_is_user(messages) {
-            call("", "write_order_notes", json!({}))
+            call("", "write_design_notes", json!({}))
         } else {
             say("好了。")
         }
     });
     let body = setup.send(&id, "再写一次", 0, &[]).await;
-    let notes = events(&body, "order_notes");
+    let notes = events(&body, "design_notes");
     assert_eq!(notes[2]["language"], "ja");
 }
 
@@ -2518,7 +2518,7 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
         )
         .await;
     // After the turnaround, the next message makes the eye close-up, and
-    // the one after writes the order notes.
+    // the one after writes the design notes.
     setup.send(&id, "继续", 0, &[]).await;
     let body = setup.send(&id, "继续", 0, &[]).await;
 
@@ -2533,7 +2533,7 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             succeeded("generate_front_view"),
             succeeded("generate_turnaround"),
             succeeded("generate_eye_detail"),
-            succeeded("write_order_notes"),
+            succeeded("write_design_notes"),
         ]
     );
     let eyes = images(&body)
@@ -2541,7 +2541,7 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
         .find(|image| image["role"] == "eyes")
         .unwrap();
     assert_eq!(eyes["parent_id"], front.as_str());
-    let notes = events(&body, "order_notes");
+    let notes = events(&body, "design_notes");
     assert_eq!(notes.len(), 1);
     assert_eq!(notes[0]["front_id"], front.as_str());
     assert_eq!(notes[0]["views"], json!(["front", "turnaround", "eyes"]));
@@ -2554,8 +2554,8 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             generated,
             generated,
             "已生成头壳四视图示例。再次发送会生成眼部特写示例。",
-            "已生成眼部特写示例。再次发送会写定制说明示例。",
-            "已写好定制说明示例。再次发送会重新生成四视图。",
+            "已生成眼部特写示例。再次发送会写设计说明示例。",
+            "已写好设计说明示例。再次发送会重新生成四视图。",
         ]
     );
 }

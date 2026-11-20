@@ -137,10 +137,10 @@ pub struct AgentState {
     pub current_front_id: Option<String>,
     #[serde(default)]
     pub approved_front_id: Option<String>,
-    /// The newest order notes: the words that go to the mask maker with
-    /// the approved front view, as the `order_notes` event shows them.
+    /// The newest design notes: the words that go to the mask maker with
+    /// the approved front view, as the `design_notes` event shows them.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub order_notes: Option<Value>,
+    pub design_notes: Option<Value>,
     #[serde(default)]
     pub last_user_seq: u64,
 }
@@ -156,7 +156,7 @@ impl AgentState {
             approved_design_id: None,
             current_front_id: None,
             approved_front_id: None,
-            order_notes: None,
+            design_notes: None,
             last_user_seq: 0,
         }
     }

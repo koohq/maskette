@@ -17,7 +17,7 @@ use crate::backend::SharedState;
 use crate::backend::chat_api::JsonObject;
 use crate::backend::failure::Failure;
 use crate::backend::generation::analysis::{self, AnalysisError, AnalysisRequest};
-use crate::backend::generation::order_notes::{self, OrderNotesRequest, Picture, Section};
+use crate::backend::generation::design_notes::{self, DesignNotesRequest, Picture, Section};
 use crate::backend::generation::{
     self, EyeDetail, GenerationRequest, LocalEdit, Mode, ReferenceDescription,
 };
@@ -160,14 +160,14 @@ pub fn tool_specs() -> Vec<ToolSpec> {
             parameters: json!({"type": "object", "properties": {}, "required": []}),
         },
         ToolSpec {
-            name: "write_order_notes",
-            description: "Stage 2. Write the order notes that go to the mask maker with the pictures: the shapes and colours of the eyes, brows, mouth, skin, hair, ears and accessories of the approved head shell front view, read from it, its turnaround and its eye close-up by the image-reading analysis model. They are shown to the user as a card they can copy or save. Call it when the user said yes to your offer or asks for the notes, again to correct them or to add a request for the maker (instructions), or to write them in another language (language). Costs one analysis call.",
+            name: "write_design_notes",
+            description: "Stage 2. Write the design notes: the shapes and colours of the eyes, brows, mouth, skin, hair, ears and accessories of the approved head shell front view in words, to go with the pictures, read from it, its turnaround and its eye close-up by the image-reading analysis model. They are shown to the user as a card they can copy or save. Call it when the user said yes to your offer or asks for the notes, again to correct them or to add a request for the maker (instructions), or to write them in another language (language). Costs one analysis call.",
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "language": {
                         "type": "string",
-                        "enum": order_notes::LANGUAGES,
+                        "enum": design_notes::LANGUAGES,
                         "description": "The language the mask maker reads. Omit it for the user's language, or to keep the language of notes written before.",
                     },
                     "instructions": {
@@ -249,7 +249,7 @@ pub async fn run_tool(name: &str, arguments: &JsonObject, context: &ToolContext)
         "approve_front_view" => approve_front_view(arguments, context),
         "generate_turnaround" => generate_turnaround(arguments, context).await,
         "generate_eye_detail" => generate_eye_detail(context).await,
-        "write_order_notes" => write_order_notes(arguments, context).await,
+        "write_design_notes" => write_design_notes(arguments, context).await,
         other => Err(format!("Unknown tool '{other}'").into()),
     }
 }
@@ -692,7 +692,7 @@ async fn generate_eye_detail(context: &ToolContext) -> ToolResult {
 
 /// The words for the mask maker that go with the approved front view and
 /// the pictures made from it.
-async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
+async fn write_design_notes(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
     let asked = arg_text(arguments, "language");
     let user_notes = clean_text(&arg_text(arguments, "instructions"));
     let (request, front_id, views) = {
@@ -721,7 +721,7 @@ async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> Too
         }
         // Notes for this front view are kept, and so is their language
         // unless another one is asked for.
-        let earlier = state.order_notes.as_ref().filter(|notes| {
+        let earlier = state.design_notes.as_ref().filter(|notes| {
             notes.get("front_id").and_then(Value::as_str) == Some(approved.id.as_str())
         });
         let language = [asked.as_str()]
@@ -732,7 +732,7 @@ async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> Too
                     .and_then(Value::as_str),
             )
             .chain([conversation.locale.as_str()])
-            .find(|language| order_notes::LANGUAGES.contains(language))
+            .find(|language| design_notes::LANGUAGES.contains(language))
             .unwrap_or("en")
             .to_owned();
         let previous = earlier
@@ -741,7 +741,7 @@ async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> Too
             .unwrap_or_default();
         let views: Vec<&str> = pictures.iter().map(|picture| picture.view).collect();
         (
-            OrderNotesRequest {
+            DesignNotesRequest {
                 language,
                 pictures,
                 user_notes,
@@ -755,7 +755,7 @@ async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> Too
     };
     let backend = analysis::analysis_backend(&context.state.settings.settings())?;
     context.progress(10, "writing_notes");
-    let sections = order_notes::write(&context.state, &backend, &request).await?;
+    let sections = design_notes::write(&context.state, &backend, &request).await?;
     if context.cancelled.load(Ordering::SeqCst) {
         return Err(Failure::cancelled());
     }
@@ -766,8 +766,8 @@ async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> Too
         "sections": sections,
     });
     let mut conversation = context.entry.lock();
-    conversation.state.order_notes = Some(notes.clone());
-    context.entry.emit(&mut conversation, "order_notes", notes);
+    conversation.state.design_notes = Some(notes.clone());
+    context.entry.emit(&mut conversation, "design_notes", notes);
     Ok(json!({
         "ok": true,
         "shown_to_user": true,

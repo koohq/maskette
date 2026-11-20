@@ -34,7 +34,7 @@ pub fn turn(settings: &Settings, conversation: &Conversation) -> Result<Assistan
         return Ok(say(lines.failed));
     }
     let called = called_tools(this_turn);
-    if called.iter().any(|name| name == "write_order_notes") {
+    if called.iter().any(|name| name == "write_design_notes") {
         return Ok(say(lines.notes));
     }
     if let Some(done) = called
@@ -83,7 +83,7 @@ fn next_tool(state: &AgentState, text: &str) -> Option<(&'static str, JsonObject
                 .any(|image| image.role == role && image.parent_id.as_deref() == Some(front))
         };
         let has_notes = state
-            .order_notes
+            .design_notes
             .as_ref()
             .is_some_and(|notes| notes.get("front_id").and_then(Value::as_str) == Some(front));
         if !made_from("turnaround") {
@@ -93,7 +93,7 @@ fn next_tool(state: &AgentState, text: &str) -> Option<(&'static str, JsonObject
         } else if !has_notes {
             // The text is no correction to notes not written yet.
             arguments.clear();
-            "write_order_notes"
+            "write_design_notes"
         } else {
             "generate_turnaround"
         }
@@ -172,24 +172,24 @@ impl Lines {
                 need_reference: "テスト用サンプルの返事です。参考画像を添えて送ると、設定画のサンプルを作ります。",
                 generated: "サンプルの画像を作りました。承認すると次の段階に進みます。文字を送ると、それを指示にして作り直します。",
                 turnaround: "マスク四面図のサンプルを作りました。もう一度送ると、目の拡大図のサンプルを作ります。",
-                eyes: "目の拡大図のサンプルを作りました。もう一度送ると、発注メモのサンプルを書きます。",
-                notes: "発注メモのサンプルを書きました。もう一度送ると、四面図を作り直します。",
+                eyes: "目の拡大図のサンプルを作りました。もう一度送ると、デザインメモのサンプルを書きます。",
+                notes: "デザインメモのサンプルを書きました。もう一度送ると、四面図を作り直します。",
                 failed: "うまくいきませんでした。上のエラーを確かめてください。",
             },
             "zh-CN" => Self {
                 need_reference: "这是测试用示例的回复。附上参考图发送后，会生成示例设定图。",
                 generated: "已生成示例图。批准后进入下一阶段；发送文字则按文字重新生成。",
                 turnaround: "已生成头壳四视图示例。再次发送会生成眼部特写示例。",
-                eyes: "已生成眼部特写示例。再次发送会写定制说明示例。",
-                notes: "已写好定制说明示例。再次发送会重新生成四视图。",
+                eyes: "已生成眼部特写示例。再次发送会写设计说明示例。",
+                notes: "已写好设计说明示例。再次发送会重新生成四视图。",
                 failed: "没有成功，请查看上面的错误。",
             },
             _ => Self {
                 need_reference: "This is the test sample replying. Send a reference image and it makes a sample design.",
                 generated: "Here is a sample image. Approve it to go on to the next stage, or send text to redo it with that as the change.",
                 turnaround: "Here is a sample head shell turnaround. Send again for a sample eye close-up.",
-                eyes: "Here is a sample eye close-up. Send again for sample order notes.",
-                notes: "Here are sample order notes. Send again to redo the turnaround.",
+                eyes: "Here is a sample eye close-up. Send again for sample design notes.",
+                notes: "Here are sample design notes. Send again to redo the turnaround.",
                 failed: "That did not work. See the error above.",
             },
         }
