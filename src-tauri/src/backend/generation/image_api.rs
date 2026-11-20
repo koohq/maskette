@@ -1394,21 +1394,21 @@ mod tests {
         let request = eye_front(dir.path(), None);
         let ratios = ratios(&GPT_RATIOS);
         let prepared = prepare(dir.path(), &request, 4, None, Some(&ratios)).unwrap();
-        // The band (120, 396)-(680, 660) is 560x264, widened to 2:1 and
-        // enlarged to 1536 wide; both eyes are inside it.
+        // The band (120, 396)-(680, 748) is 560x352, grown to 3:2 (560x373,
+        // from 386 down) and enlarged to 1536 wide; both eyes are inside it.
         assert_eq!(prepared.images.len(), 1);
-        assert_eq!(prepared.images[0].dimensions(), (1536, 768));
-        let ratio = f64::from(1536) / f64::from(768);
+        assert_eq!(prepared.images[0].dimensions(), (1536, 1023));
+        let ratio = 560.0 / 373.0;
         assert_eq!(
-            nearest_aspect_ratio(1536, 768, &ratios).as_deref(),
-            Some("2:1")
+            nearest_aspect_ratio(1536, 1023, &ratios).as_deref(),
+            Some("3:2")
         );
         let green = |image: &RgbImage, x: u32, y: u32| image.get_pixel(x, y).0[1] > 100;
         let sent = &prepared.images[0];
-        // (300, 530) and (500, 530) on the front view: 120 and 388 off.
+        // (300, 530) and (500, 530) on the front view: 120 and 386 off.
         let scale = 1536.0 / 560.0;
         for x in [300.0, 500.0] {
-            let (sent_x, sent_y) = ((x - 120.0) * scale, (530.0 - 388.0) * scale);
+            let (sent_x, sent_y) = ((x - 120.0) * scale, (530.0 - 386.0) * scale);
             assert!(green(sent, round_u32(sent_x), round_u32(sent_y)), "{x}");
         }
         assert!(!prepared.prompt.contains("Image 2"));

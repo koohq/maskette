@@ -171,8 +171,11 @@ pub const EYE_DETAIL_SIZE: (u32, u32) = (2400, 1200);
 /// Where a head shell front view has its eyes and eyebrows when no region
 /// is given: left, top, right, bottom as fractions of the image. The front
 /// view prompt centres the face, so the band is wide enough for the eyes of
-/// a small or a large head.
-pub const EYE_BAND: [f64; 4] = [0.15, 0.36, 0.85, 0.60];
+/// a small or a large head. Models frame the head differently: Nano Banana
+/// 2.1 put the eyes of the sample character at 44-52% of the height, and
+/// GPT Image 2.6 at 49-58% and 53-64% in two runs, so the band reaches well
+/// below the middle.
+pub const EYE_BAND: [f64; 4] = [0.15, 0.36, 0.85, 0.68];
 
 /// The inputs of an eye close-up: the eyes of `base_image_path` (the
 /// approved front view), cut out and drawn larger and sharper. The user's
