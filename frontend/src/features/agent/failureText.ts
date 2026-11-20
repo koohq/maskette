@@ -21,8 +21,10 @@ export const FAILURE_CODES = new Set([
   "codex_no_image",
   "codex_bridge_removed",
   "api_unreachable",
+  "api_bad_request",
   "api_unauthorized",
   "api_payment_required",
+  "api_not_found",
   "api_rate_limited",
   "api_server_error",
   "api_http_error",
@@ -65,4 +67,14 @@ export function failureText(t: TFunction, code: unknown, params: unknown, fallba
   const detail = values["detail"];
   if (typeof detail === "string" && detail.trim()) parts.push(t("agent.failures.detail", { detail }));
   return parts.join(t("agent.failures.gap"));
+}
+
+/**
+ * The text of a turn's `error` event. A failure with a known code is already a sentence that says what went wrong, so
+ * it stands alone; the backend's English text alone is introduced as an error ("Something went wrong: …").
+ */
+export function errorEventText(t: TFunction, code: unknown, params: unknown, message: string): string {
+  return typeof code === "string" && FAILURE_CODES.has(code)
+    ? failureText(t, code, params, message)
+    : t("agent.errors.generic", { message });
 }

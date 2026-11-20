@@ -77,7 +77,7 @@ describe("CLI failures", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "エラーが発生しました：Claude Code の利用上限に達しました。時間をおいて試すか、設定で API キー方式に切り替えてください。",
+        "Claude Code の利用上限に達しました。時間をおいて試すか、設定で API キー方式に切り替えてください。",
       ),
     ).toBeTruthy();
     expect(screen.queryByText(/was not found/)).toBeNull();
@@ -112,6 +112,15 @@ describe("CLI failures", () => {
     expect(failureText(i18n.t, "something_new", {}, "as sent")).toBe("as sent");
   });
 
+  it("are introduced as an error only when the text is the backend's own", async () => {
+    await i18n.changeLanguage("ja");
+    renderTimeline([
+      { seq: 1, type: "user_message", text: "正面図を作って" },
+      { seq: 2, type: "error", message: "background work failed: panic" },
+    ]);
+    expect(screen.getByText("エラーが発生しました：background work failed: panic")).toBeTruthy();
+  });
+
   it("have a translation for every code in each language", async () => {
     for (const language of ["ja", "en", "zh-CN"]) {
       await i18n.changeLanguage(language);
@@ -140,7 +149,7 @@ const apiTurn: AgentEvent[] = [
     type: "error",
     message: "Agent LLM stream failed: no answer within 180s",
     code: "api_timeout",
-    params: { service: "openrouter.ai", seconds: 180 },
+    params: { service: "OpenRouter", seconds: 180 },
   },
 ];
 
@@ -153,11 +162,7 @@ describe("API and other failures", () => {
         "OpenRouter が API キーを受け付けませんでした（HTTP 401）。設定の API キーを確認してください。詳細：No auth credentials found",
       ),
     ).toBeTruthy();
-    expect(
-      screen.getByText(
-        "エラーが発生しました：openrouter.ai が 180 秒以内に応答しませんでした。もう一度試してください。",
-      ),
-    ).toBeTruthy();
+    expect(screen.getByText("OpenRouter が 180 秒以内に応答しませんでした。もう一度試してください。")).toBeTruthy();
     expect(screen.queryByText(/trace_id/)).toBeNull();
   });
 
@@ -169,7 +174,7 @@ describe("API and other failures", () => {
         "OpenRouter did not accept the API key (HTTP 401). Check the key in the settings. Details: No auth credentials found",
       ),
     ).toBeTruthy();
-    expect(screen.getByText(/openrouter\.ai did not answer within 180 seconds\. Try again\./)).toBeTruthy();
+    expect(screen.getByText("OpenRouter did not answer within 180 seconds. Try again.")).toBeTruthy();
   });
 
   it("sort HTTP errors by what the user can do", async () => {
@@ -180,31 +185,43 @@ describe("API and other failures", () => {
     expect(failureText(i18n.t, "api_server_error", { service: "OpenRouter", status: 502 }, "x")).toBe(
       "OpenRouter のサーバーでエラーが起きました（HTTP 502）。時間をおいて試してください。",
     );
-    const noCredits = { service: "openrouter.ai", status: 402, detail: "Insufficient credits" };
+    const noCredits = { service: "OpenRouter", status: 402, detail: "Insufficient credits" };
     expect(failureText(i18n.t, "api_payment_required", noCredits, "x")).toBe(
-      "openrouter.ai のアカウントのクレジットが足りません（HTTP 402）。クレジットを追加してから、もう一度試してください。詳細：Insufficient credits",
+      "OpenRouter のアカウントのクレジットが足りません（HTTP 402）。クレジットを追加してから、もう一度試してください。詳細：Insufficient credits",
+    );
+    // OpenRouter's answer to a model name it does not know.
+    const unknownModel = { service: "OpenRouter", status: 400, detail: "x/y is not a valid model ID" };
+    expect(failureText(i18n.t, "api_bad_request", unknownModel, "x")).toBe(
+      "OpenRouter がリクエストを受け付けませんでした（HTTP 400）。設定のモデル名が正しいか確認してください。詳細：x/y is not a valid model ID",
+    );
+    expect(failureText(i18n.t, "api_not_found", { service: "OpenAI", status: 404 }, "x")).toBe(
+      "OpenAI がリクエストを受け付けませんでした（HTTP 404）。設定の API URL とモデル名が正しいか確認してください。",
     );
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "api_payment_required", noCredits, "x")).toBe(
-      "The openrouter.ai account is out of credits (HTTP 402). Add credits, then try again. Details: Insufficient credits",
+      "The OpenRouter account is out of credits (HTTP 402). Add credits, then try again. Details: Insufficient credits",
     );
-    expect(
-      failureText(i18n.t, "api_http_error", { service: "OpenRouter", status: 404, detail: "no such route" }, "x"),
-    ).toBe("OpenRouter returned an error (HTTP 404). Details: no such route");
-    expect(failureText(i18n.t, "api_unreachable", { service: "openrouter.ai" }, "x")).toBe(
-      "Could not reach openrouter.ai. Check your network and the API URL in the settings, then try again.",
+    expect(failureText(i18n.t, "api_bad_request", unknownModel, "x")).toBe(
+      "OpenRouter did not accept the request (HTTP 400). Check that the model name in the settings is right. Details: x/y is not a valid model ID",
+    );
+    expect(failureText(i18n.t, "api_http_error", { service: "OpenRouter", status: 409, detail: "conflict" }, "x")).toBe(
+      "OpenRouter returned an error (HTTP 409). Details: conflict",
+    );
+    // An API URL that is none of the presets is named by its host.
+    expect(failureText(i18n.t, "api_unreachable", { service: "llm.example.test" }, "x")).toBe(
+      "Could not reach llm.example.test. Check your network and the API URL in the settings, then try again.",
     );
   });
 
   it("say when the API failed partway through its answer", async () => {
-    const params = { service: "openrouter.ai", detail: "Provider returned error" };
+    const params = { service: "OpenRouter", detail: "Provider returned error" };
     await i18n.changeLanguage("ja");
     expect(failureText(i18n.t, "api_stream_failed", params, "x")).toBe(
-      "openrouter.ai が応答の途中でエラーを返しました。もう一度試してください。詳細：Provider returned error",
+      "OpenRouter が応答の途中でエラーを返しました。もう一度試してください。詳細：Provider returned error",
     );
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "api_stream_failed", params, "x")).toBe(
-      "openrouter.ai sent an error partway through its answer. Try again. Details: Provider returned error",
+      "OpenRouter sent an error partway through its answer. Try again. Details: Provider returned error",
     );
   });
 

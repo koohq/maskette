@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import en from "../../i18n/resources/en";
 import {
   analysisBackend,
   matchingPreset,
@@ -14,8 +15,19 @@ import {
 
 // `import.meta.url` is not a file URL under jsdom; Vitest gives the test file's folder as `import.meta.dirname`.
 const STORE = join(import.meta.dirname, "../../../../src-tauri/src/backend/settings/store.rs");
+const CHAT_API = join(import.meta.dirname, "../../../../src-tauri/src/backend/chat_api.rs");
 
 describe("settings API helpers", () => {
+  it("give the backend each preset's host and name, so a failure names the service as the page does", () => {
+    const chatApi = readFileSync(CHAT_API, "utf8");
+    for (const preset of URL_PRESETS) {
+      const name = en.settings.urlPresets[preset.id];
+      for (const url of [preset.url, preset.international]) {
+        if (url) expect(chatApi).toContain(`("${serviceOf(url)}", "${name}"),`);
+      }
+    }
+  });
+
   it("presets the backend's own default URLs", () => {
     const store = readFileSync(STORE, "utf8");
     const url = (id: string) => URL_PRESETS.find((preset) => preset.id === id)?.url;

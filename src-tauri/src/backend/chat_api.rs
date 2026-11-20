@@ -113,13 +113,33 @@ impl ChatError {
     }
 }
 
-/// The endpoint as the user knows it: its host (`openrouter.ai`), else the
-/// URL as set.
+/// The hosts of the API URL presets on the settings page, by the name the
+/// page gives them in English. The image APIs use the same names, so a
+/// failure names OpenRouter the same way whichever role met it.
+/// `settingsApi.test.ts` checks that every preset is here.
+const PRESET_SERVICES: [(&str, &str); 7] = [
+    ("openrouter.ai", "OpenRouter"),
+    ("api.openai.com", "OpenAI"),
+    ("generativelanguage.googleapis.com", "Google Gemini"),
+    ("ark.cn-beijing.volces.com", "Volcengine Ark"),
+    ("ark.ap-southeast.bytepluses.com", "Volcengine Ark"),
+    ("api.siliconflow.cn", "SiliconFlow"),
+    ("api.siliconflow.com", "SiliconFlow"),
+];
+
+/// The endpoint as the user knows it: a preset's name (`OpenRouter`), else
+/// the host they typed in, else the URL as set.
 pub fn service_name(base_url: &str) -> String {
-    reqwest::Url::parse(base_url.trim())
+    let Some(host) = reqwest::Url::parse(base_url.trim())
         .ok()
         .and_then(|url| url.host_str().map(str::to_owned))
-        .unwrap_or_else(|| base_url.trim().to_owned())
+    else {
+        return base_url.trim().to_owned();
+    };
+    PRESET_SERVICES
+        .iter()
+        .find(|(preset, _)| *preset == host)
+        .map_or(host, |(_, name)| (*name).to_owned())
 }
 
 impl std::fmt::Display for ChatError {
@@ -832,7 +852,11 @@ mod tests {
         assert_eq!(error.message, "HTTP 400: x/y is not a valid model ID");
         assert_eq!(error.detail, "x/y is not a valid model ID");
         let failure = error.to_failure("https://openrouter.ai/api/v1", "Agent LLM ");
-        assert_eq!(failure.message, "Agent LLM HTTP 400: x/y is not a valid model ID");
+        assert_eq!(
+            failure.message,
+            "Agent LLM HTTP 400: x/y is not a valid model ID"
+        );
+        assert_eq!(failure.code, Some("api_bad_request"));
         assert!(!format!("{failure:?}").contains("user_12345678"));
 
         // A body with no message of its own is kept, without the account.
@@ -938,8 +962,28 @@ mod tests {
         );
         assert_eq!(
             Value::Object(failure.params),
-            serde_json::json!({"service": "openrouter.ai", "detail": "Provider returned error"})
+            serde_json::json!({"service": "OpenRouter", "detail": "Provider returned error"})
         );
+    }
+
+    #[test]
+    fn a_service_is_named_as_the_settings_page_names_it() {
+        assert_eq!(service_name("https://openrouter.ai/api/v1"), "OpenRouter");
+        assert_eq!(
+            service_name(" https://OpenRouter.ai/api/v1/ "),
+            "OpenRouter"
+        );
+        assert_eq!(
+            service_name("https://ark.ap-southeast.bytepluses.com/api/v3"),
+            "Volcengine Ark"
+        );
+        // An API URL of the user's own is named by its host.
+        assert_eq!(service_name("http://127.0.0.1:1234/v1"), "127.0.0.1");
+        assert_eq!(
+            service_name("https://openrouter.ai.example.test/v1"),
+            "openrouter.ai.example.test"
+        );
+        assert_eq!(service_name("not a url"), "not a url");
     }
 
     #[test]

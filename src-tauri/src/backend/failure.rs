@@ -53,6 +53,8 @@ impl Failure {
     /// status, sorted by what the user can do about it. `detail` is the
     /// API's own message. 402 is OpenRouter's answer when the account's
     /// credits have run out, which stops the chat before anything else.
+    /// 400 is OpenRouter's answer to a model name it does not know; 404 is
+    /// OpenAI's and Google's, and also a wrong API URL.
     pub fn api(
         service: &str,
         status: Option<u16>,
@@ -61,8 +63,10 @@ impl Failure {
     ) -> Self {
         let code = match status {
             None => "api_unreachable",
+            Some(400) => "api_bad_request",
             Some(401 | 403) => "api_unauthorized",
             Some(402) => "api_payment_required",
+            Some(404) => "api_not_found",
             Some(429) => "api_rate_limited",
             Some(500..=599) => "api_server_error",
             Some(_) => "api_http_error",
@@ -177,8 +181,10 @@ mod tests {
         assert_eq!(code(Some(429)), Some("api_rate_limited"));
         assert_eq!(code(Some(500)), Some("api_server_error"));
         assert_eq!(code(Some(503)), Some("api_server_error"));
-        assert_eq!(code(Some(400)), Some("api_http_error"));
-        assert_eq!(code(Some(404)), Some("api_http_error"));
+        assert_eq!(code(Some(400)), Some("api_bad_request"));
+        assert_eq!(code(Some(404)), Some("api_not_found"));
+        assert_eq!(code(Some(409)), Some("api_http_error"));
+        assert_eq!(code(Some(422)), Some("api_http_error"));
         let failure = Failure::api("OpenRouter", Some(402), "HTTP 402", " no credits ");
         assert_eq!(
             Value::Object(failure.params),

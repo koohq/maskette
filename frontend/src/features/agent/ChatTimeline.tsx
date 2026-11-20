@@ -21,7 +21,7 @@ import {
   isTurnaroundRole,
 } from "./agentApi";
 import { DesignNotesCard } from "./DesignNotesCard";
-import { failureText } from "./failureText";
+import { errorEventText, failureText } from "./failureText";
 
 type TimelineProps = {
   events: AgentEvent[];
@@ -155,9 +155,7 @@ export function ChatTimeline({
               <li className="agent-notice agent-notice-error" key={event.seq}>
                 <IconAlertTriangle className="shrink-0" size={14} />
                 <span className="min-w-0 wrap-break-word">
-                  {t("agent.errors.generic", {
-                    message: failureText(t, event["code"], event["params"], event["message"] as string),
-                  })}
+                  {errorEventText(t, event["code"], event["params"], event["message"] as string)}
                 </span>
               </li>
             );

@@ -268,10 +268,14 @@ const ja: TranslationResource = {
         "Codex Bridge は廃止されました。設定の「画像生成」で「Codex CLI」か、API キー方式のサービスを選んでください。",
       api_unreachable:
         "{{service}} に接続できませんでした。ネットワーク接続と、設定の API URL を確認して、もう一度試してください。",
+      api_bad_request:
+        "{{service}} がリクエストを受け付けませんでした（HTTP 400）。設定のモデル名が正しいか確認してください。",
       api_unauthorized:
         "{{service}} が API キーを受け付けませんでした（HTTP {{status}}）。設定の API キーを確認してください。",
       api_payment_required:
         "{{service}} のアカウントのクレジットが足りません（HTTP 402）。クレジットを追加してから、もう一度試してください。",
+      api_not_found:
+        "{{service}} がリクエストを受け付けませんでした（HTTP 404）。設定の API URL とモデル名が正しいか確認してください。",
       api_rate_limited:
         "{{service}} がリクエストを制限しているか、アカウントのクレジットや利用枠が尽きています（HTTP 429）。少し待ってから試してください。",
       api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間をおいて試してください。",

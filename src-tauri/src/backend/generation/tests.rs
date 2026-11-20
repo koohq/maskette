@@ -359,7 +359,7 @@ async fn openrouter_retries_failed_generations_and_reuses_the_model_list() {
         "{error}"
     );
     // The screen gets the status and the API's own words.
-    assert_eq!(error.code, Some("api_http_error"));
+    assert_eq!(error.code, Some("api_bad_request"));
     assert_eq!(
         Value::Object(error.params),
         json!({"service": "OpenRouter", "status": 400, "detail": "bad prompt"})
@@ -799,7 +799,9 @@ async fn image_api_failures_are_sorted_by_status() {
         (402, "api_payment_required"),
         (429, "api_rate_limited"),
         (500, "api_server_error"),
-        (404, "api_http_error"),
+        (400, "api_bad_request"),
+        (404, "api_not_found"),
+        (409, "api_http_error"),
     ] {
         // Retryable statuses are sent again; every try gets the same answer.
         let answers = vec![Answer::Json(status, json!({"error": {"message": "nope"}})); 4];
@@ -848,7 +850,9 @@ async fn chat_api_failures_are_sorted_by_status() {
         (402, "api_payment_required"),
         (429, "api_rate_limited"),
         (503, "api_server_error"),
-        (400, "api_http_error"),
+        (400, "api_bad_request"),
+        (404, "api_not_found"),
+        (409, "api_http_error"),
     ] {
         let fake = fake(
             Value::Null,
