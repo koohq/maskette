@@ -1,16 +1,9 @@
 import { ThemeProvider } from "@mui/material/styles";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import {
-  ApiError,
-  type AuditGenerationJob,
-  getAuditGenerationJobs,
-  getAuditSession,
-  getAuditSummary,
-  loginAudit,
-} from "../api/client";
+import { type AuditGenerationJob, getAuditGenerationJobs, getAuditSummary } from "../api/client";
 import { kigTheme } from "../app/theme";
 import i18n from "../i18n";
 import { literalTranslations } from "../i18n/literalTranslations";
@@ -22,9 +15,7 @@ vi.mock("../api/client", async (importOriginal) => {
   return {
     ...actual,
     getAuditGenerationJobs: vi.fn(),
-    getAuditSession: vi.fn(),
     getAuditSummary: vi.fn(),
-    loginAudit: vi.fn(),
   };
 });
 
@@ -103,7 +94,7 @@ function job(overrides: Partial<AuditGenerationJob>): AuditGenerationJob {
   };
 }
 
-function renderPage({ authenticated }: { authenticated: boolean }) {
+function renderPage() {
   Object.defineProperty(window, "matchMedia", {
     value: vi.fn().mockImplementation((query: string) => ({
       matches: false,
@@ -116,7 +107,6 @@ function renderPage({ authenticated }: { authenticated: boolean }) {
       dispatchEvent: vi.fn(),
     })),
   });
-  vi.mocked(getAuditSession).mockResolvedValue({ authenticated });
   vi.mocked(getAuditGenerationJobs).mockResolvedValue([
     job({
       id: "job-done",
@@ -208,7 +198,7 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
   });
 
   it("translates the dashboard, the job records and the usage limits", async () => {
-    const { container } = renderPage({ authenticated: true });
+    const { container } = renderPage();
     await screen.findByTestId("audit-generation-job-detail");
     await screen.findByTestId("audit-overview-charts");
 
@@ -217,41 +207,4 @@ describe.each(["ja", "en"] as const)("AdminAuditPage in %s", (locale) => {
     expect(container.textContent).toContain(locale === "ja" ? "Maskette 監査" : "Maskette Audit");
     if (locale === "ja") expect(container.textContent).not.toMatch(/配額|配额/);
   }, 15_000);
-
-  it("translates the sign-in panel", async () => {
-    const { container } = renderPage({ authenticated: false });
-    await screen.findByLabelText(locale === "ja" ? "アクセスパスワード" : "Access password");
-
-    expect(untranslated(visibleStrings(container), locale)).toEqual([]);
-    if (locale === "ja") expect(container.textContent).not.toMatch(/配額|配额/);
-  });
-  // The message is a Chinese literal that the Alert translates through literalTranslations.
-  it.each([
-    // In the desktop app any password is accepted; a 401 comes from the per-launch token.
-    [
-      "the server refuses the app",
-      new ApiError("API request failed: 401", 401, "token_rejected"),
-      "连接已断开，请重新启动应用。",
-    ],
-    // The desktop backend has no retry limit; a 429 would be an ordinary failure.
-    ["too many tries", new ApiError("API request failed: 429", 429, null), "登录失败，请重试。"],
-    ["the server fails", new ApiError("API request failed: 500", 500, "boom"), "登录失败，请重试。"],
-    ["the request never arrives", new TypeError("Failed to fetch"), "登录失败，请重试。"],
-  ])("translates the sign-in failure when %s", async (_case, error, chinese) => {
-    vi.mocked(loginAudit).mockRejectedValue(error);
-    const { container } = renderPage({ authenticated: false });
-    const input = await screen.findByLabelText(locale === "ja" ? "アクセスパスワード" : "Access password");
-    fireEvent.change(input, { target: { value: "anything" } });
-    fireEvent.click(screen.getByRole("button", { name: locale === "ja" ? "ログイン" : "Log in" }));
-
-    const alert = await screen.findByRole("alert");
-    expect(alert.textContent).toBe(literalTranslations[locale][chinese]);
-    expect(untranslated(visibleStrings(container), locale)).toEqual([]);
-  });
-
-  it("says the same as the other screens when the backend refuses the app's token", () => {
-    const chinese = "连接已断开，请重新启动应用。";
-    expect(i18n.t("agent.errors.token_rejected", { lng: "zh-CN" })).toBe(chinese);
-    expect(literalTranslations[locale][chinese]).toBe(i18n.t("agent.errors.token_rejected", { lng: locale }));
-  });
 });

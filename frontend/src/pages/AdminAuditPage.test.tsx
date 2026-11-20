@@ -3,7 +3,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { getAuditGenerationJobs, getAuditSession, getAuditSummary, updateQuotaPolicy } from "../api/client";
+import { getAuditGenerationJobs, getAuditSummary, updateQuotaPolicy } from "../api/client";
 import { kigTheme } from "../app/theme";
 import { AdminAuditPage } from "./AdminAuditPage";
 
@@ -12,14 +12,12 @@ vi.mock("../api/client", async (importOriginal) => {
   return {
     ...actual,
     getAuditGenerationJobs: vi.fn(),
-    getAuditSession: vi.fn(),
     getAuditSummary: vi.fn(),
     updateQuotaPolicy: vi.fn(),
   };
 });
 
 const getAuditGenerationJobsMock = vi.mocked(getAuditGenerationJobs);
-const getAuditSessionMock = vi.mocked(getAuditSession);
 const getAuditSummaryMock = vi.mocked(getAuditSummary);
 const updateQuotaPolicyMock = vi.mocked(updateQuotaPolicy);
 
@@ -134,7 +132,6 @@ describe("AdminAuditPage", () => {
       total_calls: 11,
       total_users: 5,
     });
-    getAuditSessionMock.mockResolvedValue({ authenticated: true });
     updateQuotaPolicyMock.mockResolvedValue({
       window_hours: 6,
       normal_window_limit: 10,

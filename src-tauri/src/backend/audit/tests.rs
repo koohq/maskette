@@ -71,39 +71,6 @@ fn save(backend: &TestBackend, record: &Value) {
 }
 
 #[tokio::test]
-async fn the_session_is_always_signed_in() {
-    let backend = TestBackend::new(true);
-    let app = backend.app();
-    let (status, body) = call(&app, Method::GET, "/api/audit/session", None).await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!({"authenticated": true}));
-
-    let (status, body) = call(
-        &app,
-        Method::POST,
-        "/api/audit/login",
-        Some(json!({"password": "anything"})),
-    )
-    .await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!({"authenticated": true}));
-    let (status, _) = call(
-        &app,
-        Method::POST,
-        "/api/audit/login",
-        Some(json!({"password": ""})),
-    )
-    .await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    let (status, _) = call(&app, Method::POST, "/api/audit/login", Some(json!({}))).await;
-    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-
-    let (status, body) = call(&app, Method::POST, "/api/audit/logout", None).await;
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, json!({"ok": true, "authenticated": false}));
-}
-
-#[tokio::test]
 async fn the_summary_counts_jobs_projects_and_token_usage() {
     let backend = TestBackend::new(true);
     let mut done = record("job-1", "session-a", "succeeded", &["2026-01-01T00:00:00Z"]);

@@ -290,10 +290,6 @@ export const auditGenerationJobSchema = z.object({
 
 const auditGenerationJobsSchema = z.array(auditGenerationJobSchema);
 
-const auditSessionSchema = z.object({
-  authenticated: z.boolean(),
-});
-
 const jsonRecordSchema: z.ZodType<Record<string, unknown>> = z.record(z.string(), z.unknown());
 
 export const albumItemSchema = z.object({
@@ -701,24 +697,6 @@ export function getAuditSummary(): Promise<AuditSummary> {
 
 export function getAuditGenerationJobs(): Promise<AuditGenerationJob[]> {
   return requestJson("/audit/generation-jobs", auditGenerationJobsSchema);
-}
-
-export function getAuditSession(): Promise<z.infer<typeof auditSessionSchema>> {
-  return requestJson("/audit/session", auditSessionSchema);
-}
-
-export function loginAudit(password: string): Promise<z.infer<typeof auditSessionSchema>> {
-  return requestJson("/audit/login", auditSessionSchema, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ password }),
-  });
-}
-
-export function logoutAudit(): Promise<{ ok: boolean }> {
-  return requestJson("/audit/logout", z.object({ ok: z.boolean() }), {
-    method: "POST",
-  });
 }
 
 export function updateQuotaPolicy(policy: QuotaPolicy): Promise<QuotaPolicy> {

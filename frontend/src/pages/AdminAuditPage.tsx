@@ -2,8 +2,6 @@ import {
   IconArrowLeft,
   IconChevronRight,
   IconDeviceFloppy,
-  IconLock,
-  IconLogout,
   IconPhoto,
   IconRefresh,
   IconShieldCheck,
@@ -12,14 +10,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
-  ApiError,
   type AuditGenerationJob,
   type AuditSummary,
   getAuditGenerationJobs,
-  getAuditSession,
   getAuditSummary,
-  loginAudit,
-  logoutAudit,
   type QuotaPolicy,
   updateQuotaPolicy,
 } from "../api/client";
@@ -39,7 +33,6 @@ import {
   Stack,
   Switch,
   Text,
-  TextInput,
   Title,
 } from "../ui/mui";
 import { AuditOverviewCharts } from "./AuditOverviewCharts";
@@ -146,17 +139,6 @@ function getTokenUsage(summary?: AuditSummary | null): TokenUsageSummary {
 function getImageUsage(summary?: AuditSummary | null): ImageUsageSummary {
   return ((summary as (AuditSummary & { image_usage?: ImageUsageSummary }) | undefined)?.image_usage ??
     {}) as ImageUsageSummary;
-}
-
-/**
- * The desktop backend accepts any password and has no retry limit, so the only 401 is the per-launch token being
- * refused (`token_rejected`, the same text as `agent.errors.token_rejected`). Anything else is a plain failure.
- */
-function loginErrorMessage(error: unknown) {
-  if (error instanceof ApiError && error.status === 401) {
-    return "连接已断开，请重新启动应用。";
-  }
-  return "登录失败，请重试。";
 }
 
 function MetricBlock({
@@ -410,90 +392,17 @@ function GenerationJobRecords({
   );
 }
 
-function AuditLoginPanel({ onAuthenticated }: { onAuthenticated: () => void }) {
-  const [password, setPassword] = useState("");
-  const loginMutation = useMutation({
-    mutationFn: loginAudit,
-    onSuccess: () => {
-      setPassword("");
-      onAuthenticated();
-    },
-  });
-
-  return (
-    <Container py={{ base: "lg", md: "xl" }} size="sm">
-      <Paper className="grunge-card" p={{ base: "lg", md: "xl" }} radius={0}>
-        <Stack gap="md">
-          <Group gap="sm" wrap="nowrap">
-            <Badge color="cyan" leftSection={<IconLock size={14} />} radius="sm" variant="light">
-              Admin
-            </Badge>
-            <Box>
-              <Title c="var(--kb-ink)" order={1} size="h3">
-                审计面板
-              </Title>
-              <Text c="var(--kb-concrete-grey)" size="sm">
-                请输入管理密码查看生成服务统计和配额设置。
-              </Text>
-            </Box>
-          </Group>
-
-          <TextInput
-            autoComplete="current-password"
-            label="访问密码"
-            onChange={(event: React.ChangeEvent<HTMLInputElement>) => setPassword(event.currentTarget.value)}
-            onKeyDown={(event: React.KeyboardEvent<HTMLInputElement>) => {
-              if (event.key === "Enter" && password.trim()) {
-                loginMutation.mutate(password);
-              }
-            }}
-            type="password"
-            value={password}
-          />
-
-          {loginMutation.isError ? (
-            <Alert color="red" radius="sm" variant="light">
-              {loginErrorMessage(loginMutation.error)}
-            </Alert>
-          ) : null}
-
-          <Group justify="space-between">
-            <Button component={Link} leftSection={<IconArrowLeft size={16} />} to="/" variant="subtle">
-              返回
-            </Button>
-            <Button
-              disabled={!password.trim()}
-              loading={loginMutation.isPending}
-              onClick={() => loginMutation.mutate(password)}
-            >
-              登录
-            </Button>
-          </Group>
-        </Stack>
-      </Paper>
-    </Container>
-  );
-}
-
 export function AdminAuditPage() {
   const queryClient = useQueryClient();
   const [draftPolicy, setDraftPolicy] = useState<QuotaPolicy>(defaultPolicy);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
   const [selectedGenerationJobId, setSelectedGenerationJobId] = useState<string | null>(null);
-  const sessionQuery = useQuery({
-    queryKey: ["audit-session"],
-    queryFn: getAuditSession,
-    retry: false,
-  });
-  const isAuthenticated = Boolean(sessionQuery.data?.authenticated);
   const summaryQuery = useQuery({
-    enabled: isAuthenticated,
     queryKey: ["audit-summary"],
     queryFn: getAuditSummary,
   });
   const summary = summaryQuery.data;
   const generationJobsQuery = useQuery({
-    enabled: isAuthenticated,
     queryKey: ["audit-generation-jobs"],
     queryFn: getAuditGenerationJobs,
   });
@@ -502,15 +411,6 @@ export function AdminAuditPage() {
     generationJobs.find((job) => job.id === selectedGenerationJobId) ?? generationJobs[0] ?? null;
   const tokenUsage = getTokenUsage(summary);
   const imageUsage = getImageUsage(summary);
-  const logoutMutation = useMutation({
-    mutationFn: logoutAudit,
-    onSuccess: () => {
-      queryClient.setQueryData(["audit-session"], { authenticated: false });
-      queryClient.removeQueries({ queryKey: ["audit-summary"] });
-      queryClient.removeQueries({ queryKey: ["audit-generation-jobs"] });
-      setSelectedGenerationJobId(null);
-    },
-  });
   const saveMutation = useMutation({
     mutationFn: updateQuotaPolicy,
     onSuccess: (policy) => {
@@ -559,263 +459,241 @@ export function AdminAuditPage() {
       </AppShell.Header>
 
       <AppShell.Main className="audit-page-surface" style={{ minHeight: "100vh" }}>
-        {sessionQuery.isLoading ? (
-          <Container py="xl" size="sm">
-            <Text c="var(--kb-concrete-grey)">正在检查登录状态...</Text>
-          </Container>
-        ) : !isAuthenticated ? (
-          <AuditLoginPanel
-            onAuthenticated={() => {
-              queryClient.setQueryData(["audit-session"], { authenticated: true });
-              void queryClient.invalidateQueries({ queryKey: ["audit-summary"] });
-              void queryClient.invalidateQueries({ queryKey: ["audit-generation-jobs"] });
-            }}
-          />
-        ) : (
-          <Container py={{ base: "md", md: "xl" }} size="xl">
-            <Stack gap="lg">
-              <Group align="flex-end" justify="space-between">
-                <Box>
-                  <Title c="var(--kb-ink)" order={1} size="h2">
-                    审计面板
-                  </Title>
-                  <Text c="var(--kb-concrete-grey)" mt={6}>
-                    查看生成调用、成功率、队列占用、图片产出、token 用量和访问配额。
-                  </Text>
-                </Box>
-                <Group gap="sm">
-                  <Badge color={summaryQuery.isFetching ? "yellow" : "teal"} radius={0} variant="light">
-                    {summaryQuery.isFetching ? "刷新中" : "实时数据"}
+        <Container py={{ base: "md", md: "xl" }} size="xl">
+          <Stack gap="lg">
+            <Group align="flex-end" justify="space-between">
+              <Box>
+                <Title c="var(--kb-ink)" order={1} size="h2">
+                  审计面板
+                </Title>
+                <Text c="var(--kb-concrete-grey)" mt={6}>
+                  查看生成调用、成功率、队列占用、图片产出、token 用量和访问配额。
+                </Text>
+              </Box>
+              <Group gap="sm">
+                <Badge color={summaryQuery.isFetching ? "yellow" : "teal"} radius={0} variant="light">
+                  {summaryQuery.isFetching ? "刷新中" : "实时数据"}
+                </Badge>
+              </Group>
+            </Group>
+
+            {summaryQuery.isError ? (
+              <Alert color="red" radius="sm" variant="light">
+                审计数据加载失败，请确认后端服务正在运行。
+              </Alert>
+            ) : null}
+
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
+              <MetricBlock
+                hint={`活跃用户 ${summary?.active_users ?? 0}`}
+                label="总用户"
+                testId="audit-total-users"
+                value={summary?.total_users ?? 0}
+              />
+              <MetricBlock label="总调用" testId="audit-total-calls" value={summary?.total_calls ?? 0} />
+              <MetricBlock
+                hint={`失败率 ${formatPercent(summary?.failure_rate)}`}
+                label="成功率"
+                testId="audit-success-rate"
+                value={formatPercent(summary?.success_rate)}
+              />
+              <MetricBlock label="队列长度" testId="audit-queue-length" value={summary?.queue_length ?? 0} />
+              <MetricBlock
+                hint={`${formatInteger(imageUsage.jobs_with_outputs)} 个任务有输出`}
+                label="生成图片"
+                testId="audit-generated-images"
+                value={formatInteger(imageUsage.generated_images)}
+              />
+              <MetricBlock
+                hint={`上限 ${draftPolicy.parallel_generation_limit}`}
+                label="并行占用"
+                testId="audit-parallel-slots"
+                value={summary?.parallel_slots_used ?? 0}
+              />
+            </SimpleGrid>
+
+            {summary ? <AuditOverviewCharts jobs={generationJobs} summary={summary} /> : null}
+
+            <Paper className="grunge-card" p={{ base: "md", md: "lg" }} radius={0}>
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <Box>
+                    <Title c="var(--kb-ink)" order={2} size="h3">
+                      Token 用量
+                    </Title>
+                    <Text c="var(--kb-concrete-grey)" size="sm">
+                      统计生成服务上报的输入、缓存输入、输出、推理 token，并按图片均摊。
+                    </Text>
+                  </Box>
+                  <Badge color="cyan" variant="light">
+                    {formatInteger(tokenUsage.jobs_with_usage)} 个任务
                   </Badge>
+                </Group>
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="md">
+                  <MetricBlock
+                    hint="输入、输出与推理 token 总和"
+                    label="总 Token"
+                    testId="audit-total-tokens"
+                    value={formatInteger(tokenUsage.total_tokens)}
+                  />
+                  <MetricBlock
+                    label="输入 Token"
+                    testId="audit-input-tokens"
+                    value={formatInteger(tokenUsage.input_tokens)}
+                  />
+                  <MetricBlock
+                    label="缓存输入"
+                    testId="audit-cached-input-tokens"
+                    value={formatInteger(tokenUsage.cached_input_tokens)}
+                  />
+                  <MetricBlock
+                    label="输出 Token"
+                    testId="audit-output-tokens"
+                    value={formatInteger(tokenUsage.output_tokens)}
+                  />
+                  <MetricBlock
+                    label="推理 Token"
+                    testId="audit-reasoning-output-tokens"
+                    value={formatInteger(tokenUsage.reasoning_output_tokens)}
+                  />
+                </SimpleGrid>
+                <Divider color="var(--kb-line)" />
+                <Group justify="space-between">
+                  <Box>
+                    <Title c="var(--kb-ink)" order={3} size="h4">
+                      每张图 Token
+                    </Title>
+                    <Text c="var(--kb-concrete-grey)" size="sm">
+                      按带 token 记录的输出图均摊；无 token 记录时显示 0。
+                    </Text>
+                  </Box>
+                  <Badge color="teal" variant="light">
+                    {formatInteger(imageUsage.images_with_token_usage)} 张图有 token
+                  </Badge>
+                </Group>
+                <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="md">
+                  <MetricBlock
+                    hint="总 token / 图片"
+                    label="每图总 Token"
+                    testId="audit-total-tokens-per-image"
+                    value={formatDecimal(imageUsage.total_tokens_per_image)}
+                  />
+                  <MetricBlock
+                    label="每图输入"
+                    testId="audit-input-tokens-per-image"
+                    value={formatDecimal(imageUsage.input_tokens_per_image)}
+                  />
+                  <MetricBlock
+                    label="每图缓存输入"
+                    testId="audit-cached-input-tokens-per-image"
+                    value={formatDecimal(imageUsage.cached_input_tokens_per_image)}
+                  />
+                  <MetricBlock
+                    label="每图输出"
+                    testId="audit-output-tokens-per-image"
+                    value={formatDecimal(imageUsage.output_tokens_per_image)}
+                  />
+                  <MetricBlock
+                    label="每图推理"
+                    testId="audit-reasoning-output-tokens-per-image"
+                    value={formatDecimal(imageUsage.reasoning_output_tokens_per_image)}
+                  />
+                </SimpleGrid>
+              </Stack>
+            </Paper>
+
+            <GenerationJobRecords
+              jobs={generationJobs}
+              loading={generationJobsQuery.isFetching}
+              selectedJob={selectedGenerationJob}
+              onRefresh={() => void generationJobsQuery.refetch()}
+              onSelect={setSelectedGenerationJobId}
+            />
+
+            <Paper className="grunge-card" p={{ base: "md", md: "lg" }} radius={0}>
+              <Stack gap="md">
+                <Group justify="space-between">
+                  <Box>
+                    <Title c="var(--kb-ink)" order={2} size="h3">
+                      配额策略
+                    </Title>
+                    <Text c="var(--kb-concrete-grey)" size="sm">
+                      控制普通用户窗口配额和生成并发上限。
+                    </Text>
+                  </Box>
+                  <Badge color={draftPolicy.premium_unlimited ? "green" : "gray"} variant="light">
+                    {draftPolicy.premium_unlimited ? "高级用户无限制" : "高级用户同限额"}
+                  </Badge>
+                </Group>
+
+                <Divider color="rgba(148, 163, 184, 0.16)" />
+
+                <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
+                  <NumberInput
+                    data-testid="quota-window-hours"
+                    label="统计窗口（小时）"
+                    onChange={(value) =>
+                      setDraftPolicy((current) => ({
+                        ...current,
+                        window_hours: toNumberInputValue(value, current.window_hours),
+                      }))
+                    }
+                    value={draftPolicy.window_hours}
+                  />
+                  <NumberInput
+                    data-testid="quota-normal-window-limit"
+                    label="普通用户窗口配额"
+                    onChange={(value) =>
+                      setDraftPolicy((current) => ({
+                        ...current,
+                        normal_window_limit: toNumberInputValue(value, current.normal_window_limit),
+                      }))
+                    }
+                    value={draftPolicy.normal_window_limit}
+                  />
+                  <NumberInput
+                    data-testid="quota-parallel-generation-limit"
+                    label="并发生成上限"
+                    onChange={(value) =>
+                      setDraftPolicy((current) => ({
+                        ...current,
+                        parallel_generation_limit: toNumberInputValue(value, current.parallel_generation_limit),
+                      }))
+                    }
+                    value={draftPolicy.parallel_generation_limit}
+                  />
+                </SimpleGrid>
+
+                <Group justify="space-between">
+                  <Switch
+                    checked={draftPolicy.premium_unlimited}
+                    label="高级用户不受普通配额限制"
+                    onChange={(event) => {
+                      const checked = event.currentTarget.checked;
+                      setDraftPolicy((current) => ({
+                        ...current,
+                        premium_unlimited: checked,
+                      }));
+                    }}
+                  />
                   <Button
-                    leftSection={<IconLogout size={16} />}
-                    loading={logoutMutation.isPending}
-                    onClick={() => logoutMutation.mutate()}
-                    variant="subtle"
+                    leftSection={<IconDeviceFloppy size={16} />}
+                    loading={saveMutation.isPending}
+                    onClick={() => saveMutation.mutate(draftPolicy)}
                   >
-                    退出
+                    保存策略
                   </Button>
                 </Group>
-              </Group>
 
-              {summaryQuery.isError ? (
-                <Alert color="red" radius="sm" variant="light">
-                  审计数据加载失败，请确认后端服务和登录状态。
-                </Alert>
-              ) : null}
-
-              <SimpleGrid cols={{ base: 1, sm: 2, lg: 4 }} spacing="md">
-                <MetricBlock
-                  hint={`活跃用户 ${summary?.active_users ?? 0}`}
-                  label="总用户"
-                  testId="audit-total-users"
-                  value={summary?.total_users ?? 0}
-                />
-                <MetricBlock label="总调用" testId="audit-total-calls" value={summary?.total_calls ?? 0} />
-                <MetricBlock
-                  hint={`失败率 ${formatPercent(summary?.failure_rate)}`}
-                  label="成功率"
-                  testId="audit-success-rate"
-                  value={formatPercent(summary?.success_rate)}
-                />
-                <MetricBlock label="队列长度" testId="audit-queue-length" value={summary?.queue_length ?? 0} />
-                <MetricBlock
-                  hint={`${formatInteger(imageUsage.jobs_with_outputs)} 个任务有输出`}
-                  label="生成图片"
-                  testId="audit-generated-images"
-                  value={formatInteger(imageUsage.generated_images)}
-                />
-                <MetricBlock
-                  hint={`上限 ${draftPolicy.parallel_generation_limit}`}
-                  label="并行占用"
-                  testId="audit-parallel-slots"
-                  value={summary?.parallel_slots_used ?? 0}
-                />
-              </SimpleGrid>
-
-              {summary ? <AuditOverviewCharts jobs={generationJobs} summary={summary} /> : null}
-
-              <Paper className="grunge-card" p={{ base: "md", md: "lg" }} radius={0}>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <Box>
-                      <Title c="var(--kb-ink)" order={2} size="h3">
-                        Token 用量
-                      </Title>
-                      <Text c="var(--kb-concrete-grey)" size="sm">
-                        统计生成服务上报的输入、缓存输入、输出、推理 token，并按图片均摊。
-                      </Text>
-                    </Box>
-                    <Badge color="cyan" variant="light">
-                      {formatInteger(tokenUsage.jobs_with_usage)} 个任务
-                    </Badge>
-                  </Group>
-                  <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="md">
-                    <MetricBlock
-                      hint="输入、输出与推理 token 总和"
-                      label="总 Token"
-                      testId="audit-total-tokens"
-                      value={formatInteger(tokenUsage.total_tokens)}
-                    />
-                    <MetricBlock
-                      label="输入 Token"
-                      testId="audit-input-tokens"
-                      value={formatInteger(tokenUsage.input_tokens)}
-                    />
-                    <MetricBlock
-                      label="缓存输入"
-                      testId="audit-cached-input-tokens"
-                      value={formatInteger(tokenUsage.cached_input_tokens)}
-                    />
-                    <MetricBlock
-                      label="输出 Token"
-                      testId="audit-output-tokens"
-                      value={formatInteger(tokenUsage.output_tokens)}
-                    />
-                    <MetricBlock
-                      label="推理 Token"
-                      testId="audit-reasoning-output-tokens"
-                      value={formatInteger(tokenUsage.reasoning_output_tokens)}
-                    />
-                  </SimpleGrid>
-                  <Divider color="var(--kb-line)" />
-                  <Group justify="space-between">
-                    <Box>
-                      <Title c="var(--kb-ink)" order={3} size="h4">
-                        每张图 Token
-                      </Title>
-                      <Text c="var(--kb-concrete-grey)" size="sm">
-                        按带 token 记录的输出图均摊；无 token 记录时显示 0。
-                      </Text>
-                    </Box>
-                    <Badge color="teal" variant="light">
-                      {formatInteger(imageUsage.images_with_token_usage)} 张图有 token
-                    </Badge>
-                  </Group>
-                  <SimpleGrid cols={{ base: 1, sm: 2, lg: 5 }} spacing="md">
-                    <MetricBlock
-                      hint="总 token / 图片"
-                      label="每图总 Token"
-                      testId="audit-total-tokens-per-image"
-                      value={formatDecimal(imageUsage.total_tokens_per_image)}
-                    />
-                    <MetricBlock
-                      label="每图输入"
-                      testId="audit-input-tokens-per-image"
-                      value={formatDecimal(imageUsage.input_tokens_per_image)}
-                    />
-                    <MetricBlock
-                      label="每图缓存输入"
-                      testId="audit-cached-input-tokens-per-image"
-                      value={formatDecimal(imageUsage.cached_input_tokens_per_image)}
-                    />
-                    <MetricBlock
-                      label="每图输出"
-                      testId="audit-output-tokens-per-image"
-                      value={formatDecimal(imageUsage.output_tokens_per_image)}
-                    />
-                    <MetricBlock
-                      label="每图推理"
-                      testId="audit-reasoning-output-tokens-per-image"
-                      value={formatDecimal(imageUsage.reasoning_output_tokens_per_image)}
-                    />
-                  </SimpleGrid>
-                </Stack>
-              </Paper>
-
-              <GenerationJobRecords
-                jobs={generationJobs}
-                loading={generationJobsQuery.isFetching}
-                selectedJob={selectedGenerationJob}
-                onRefresh={() => void generationJobsQuery.refetch()}
-                onSelect={setSelectedGenerationJobId}
-              />
-
-              <Paper className="grunge-card" p={{ base: "md", md: "lg" }} radius={0}>
-                <Stack gap="md">
-                  <Group justify="space-between">
-                    <Box>
-                      <Title c="var(--kb-ink)" order={2} size="h3">
-                        配额策略
-                      </Title>
-                      <Text c="var(--kb-concrete-grey)" size="sm">
-                        控制普通用户窗口配额和生成并发上限。
-                      </Text>
-                    </Box>
-                    <Badge color={draftPolicy.premium_unlimited ? "green" : "gray"} variant="light">
-                      {draftPolicy.premium_unlimited ? "高级用户无限制" : "高级用户同限额"}
-                    </Badge>
-                  </Group>
-
-                  <Divider color="rgba(148, 163, 184, 0.16)" />
-
-                  <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="md">
-                    <NumberInput
-                      data-testid="quota-window-hours"
-                      label="统计窗口（小时）"
-                      onChange={(value) =>
-                        setDraftPolicy((current) => ({
-                          ...current,
-                          window_hours: toNumberInputValue(value, current.window_hours),
-                        }))
-                      }
-                      value={draftPolicy.window_hours}
-                    />
-                    <NumberInput
-                      data-testid="quota-normal-window-limit"
-                      label="普通用户窗口配额"
-                      onChange={(value) =>
-                        setDraftPolicy((current) => ({
-                          ...current,
-                          normal_window_limit: toNumberInputValue(value, current.normal_window_limit),
-                        }))
-                      }
-                      value={draftPolicy.normal_window_limit}
-                    />
-                    <NumberInput
-                      data-testid="quota-parallel-generation-limit"
-                      label="并发生成上限"
-                      onChange={(value) =>
-                        setDraftPolicy((current) => ({
-                          ...current,
-                          parallel_generation_limit: toNumberInputValue(value, current.parallel_generation_limit),
-                        }))
-                      }
-                      value={draftPolicy.parallel_generation_limit}
-                    />
-                  </SimpleGrid>
-
-                  <Group justify="space-between">
-                    <Switch
-                      checked={draftPolicy.premium_unlimited}
-                      label="高级用户不受普通配额限制"
-                      onChange={(event) => {
-                        const checked = event.currentTarget.checked;
-                        setDraftPolicy((current) => ({
-                          ...current,
-                          premium_unlimited: checked,
-                        }));
-                      }}
-                    />
-                    <Button
-                      leftSection={<IconDeviceFloppy size={16} />}
-                      loading={saveMutation.isPending}
-                      onClick={() => saveMutation.mutate(draftPolicy)}
-                    >
-                      保存策略
-                    </Button>
-                  </Group>
-
-                  {saveMessage || saveMutation.isError ? (
-                    <Alert color={saveMutation.isError ? "red" : "green"} radius="sm" variant="light">
-                      {saveMutation.isError ? "策略保存失败，请重试。" : saveMessage}
-                    </Alert>
-                  ) : null}
-                </Stack>
-              </Paper>
-            </Stack>
-          </Container>
-        )}
+                {saveMessage || saveMutation.isError ? (
+                  <Alert color={saveMutation.isError ? "red" : "green"} radius="sm" variant="light">
+                    {saveMutation.isError ? "策略保存失败，请重试。" : saveMessage}
+                  </Alert>
+                ) : null}
+              </Stack>
+            </Paper>
+          </Stack>
+        </Container>
       </AppShell.Main>
     </AppShell>
   );

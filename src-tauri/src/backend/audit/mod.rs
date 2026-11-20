@@ -6,9 +6,9 @@
 //!
 //! The old page was an admin area of a shared server, behind a password and
 //! a session cookie. Here only the app's own window can call the API (the
-//! per-launch token), so the session is always signed in, sign-in accepts
-//! any password and signing out only tells the page so. The quota policy is
-//! kept in memory, as before; nothing enforces it in the desktop app.
+//! per-launch token), so the page has no sign-in: the session, sign-in and
+//! sign-out routes are gone. The quota policy is kept in memory, as before;
+//! nothing enforces it in the desktop app.
 
 #[cfg(test)]
 mod tests;
@@ -19,10 +19,10 @@ use std::sync::Mutex;
 use axum::extract::State;
 use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
-use axum::routing::{get, patch, post};
+use axum::routing::{get, patch};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
-use serde_json::{Value, json};
+use serde_json::Value;
 
 use super::SharedState;
 use super::error::ApiError;
@@ -31,9 +31,6 @@ use super::references;
 
 pub fn routes() -> Router<SharedState> {
     Router::new()
-        .route("/api/audit/session", get(session))
-        .route("/api/audit/login", post(login))
-        .route("/api/audit/logout", post(logout))
         .route("/api/audit/summary", get(summary))
         .route("/api/audit/generation-jobs", get(generation_jobs))
         .route("/api/audit/quota-policy", patch(update_quota_policy))
@@ -97,36 +94,6 @@ impl QuotaPolicy {
         }
         Ok(())
     }
-}
-
-/// `GET /api/audit/session`.
-async fn session() -> Json<Value> {
-    Json(json!({"authenticated": true}))
-}
-
-#[derive(Deserialize)]
-struct LoginRequest {
-    password: String,
-}
-
-/// `POST /api/audit/login`: any password will do (see the module notes).
-async fn login(
-    payload: Result<Json<LoginRequest>, JsonRejection>,
-) -> Result<Json<Value>, ApiError> {
-    let Json(payload) = payload?;
-    if payload.password.is_empty() {
-        return Err(ApiError::new(
-            StatusCode::UNPROCESSABLE_ENTITY,
-            "password must not be empty",
-        ));
-    }
-    Ok(Json(json!({"authenticated": true})))
-}
-
-/// `POST /api/audit/logout`. The page reads `ok`; the old backend answered
-/// only `authenticated`.
-async fn logout() -> Json<Value> {
-    Json(json!({"ok": true, "authenticated": false}))
 }
 
 /// `PATCH /api/audit/quota-policy`: replaces the whole policy (missing
