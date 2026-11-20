@@ -1,71 +1,77 @@
 {
-  "id": "e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c",
-  "created_at": "2026-11-15T01:19:57.312301+00:00",
+  "id": "46c06dfa-aa15-4c60-87c2-bd488db0eebd",
+  "created_at": "2026-11-20T07:37:24.095831+00:00",
   "title": "Sample: cat-eared girl",
   "locale": "en",
   "status": "idle",
   "state": {
-    "character_session_id": "e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c",
+    "character_session_id": "46c06dfa-aa15-4c60-87c2-bd488db0eebd",
     "references": [
       {
-        "id": "ref-1-5dd507",
-        "key": "references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/uploads/ref-1-5dd507-cat-girl.webp",
+        "id": "ref-1-dd7e68",
+        "key": "references/agent/46c06dfa-aa15-4c60-87c2-bd488db0eebd/uploads/ref-1-dd7e68-cat-girl.webp",
         "kind": "front",
-        "url": "/api/references/references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/uploads/ref-1-5dd507-cat-girl.webp",
+        "url": "/api/references/references/agent/46c06dfa-aa15-4c60-87c2-bd488db0eebd/uploads/ref-1-dd7e68-cat-girl.webp",
         "file_name": "cat-girl.webp",
         "note": ""
       }
     ],
     "analysis": {
-      "id": "85dacc88-5804-470b-9bec-d8b226b6093d",
-      "focus_note": "",
       "features": [
         {
-          "id": "feature-hair",
-          "kind": "hair",
-          "label": "Hair",
-          "description": "Bright orange, softly wavy bob that falls just past the jaw, with full straight bangs down to the brows."
-        },
-        {
-          "id": "feature-braid",
-          "kind": "hair",
-          "label": "Braid",
-          "description": "A thin braid on the right of the image (the character's left) runs from the parting down beside the face and is tied with a small green star."
-        },
-        {
+          "description": "Triangular cat-like ears attached to the top sides of the head, featuring warm orange-peach outer fur matching the hair and pale cream inner fluff. Both sides stay present and symmetric in every generated view, at exactly the size and height drawn.",
           "id": "feature-ears",
           "kind": "ears",
-          "label": "Cat ears",
-          "description": "Orange cat ears with pale inner fur on top of the head. Both stay present and symmetric in every generated view, at exactly the size and height drawn."
+          "label": "Animal Ears"
         },
         {
+          "description": "Short, voluminous warm ginger-orange hair cut into a wavy bob ending around the neck, with rounded curls at the tips, soft face-framing strands, and smooth parted front bangs layered across the forehead.",
+          "id": "feature-hair-style",
+          "kind": "hair",
+          "label": "Wavy Short Bob with Bangs"
+        },
+        {
+          "description": "A slender three-strand braid woven down the character's left side (viewer's right) beneath the cat ear, blending into the curled side locks.",
+          "id": "feature-hair-braid",
+          "kind": "hair",
+          "label": "Side Braid"
+        },
+        {
+          "description": "Large, round anime-style eyes with vivid emerald-to-lime green irises, detailed circular highlights, dark upper lash lines with delicate corner lashes, and gentle thin brown eyebrows. Both eyes must be generated as an equal, mirrored pair sitting at exactly the same height with the same size and shape.",
           "id": "feature-eyes",
           "kind": "eyes",
-          "label": "Eyes",
-          "description": "Large round green eyes with a yellow-green gradient, several white highlights and dark upper lashes. Both eyes are an equal, mirrored pair at exactly the same height with the same size and shape."
+          "label": "Emerald Green Eyes"
         },
         {
+          "description": "Soft and friendly closed-mouth smile paired with an open, pleasant, and calm facial expression.",
           "id": "feature-expression",
           "kind": "expression",
-          "label": "Expression",
-          "description": "Gentle closed-mouth smile with a soft pink blush."
+          "label": "Gentle Smile"
         },
         {
-          "id": "feature-hairpin",
-          "kind": "accessory",
-          "label": "Star hairpin",
-          "description": "Yellow five-pointed star hairpin on the bangs, on the left of the image (the character's right)."
+          "description": "A faceted three-dimensional yellow star-shaped hair clip pinned on the character's upper right side (viewer's left) just above the temple.",
+          "id": "feature-yellow-star-clip",
+          "kind": "headwear",
+          "label": "Yellow Star Hair Clip"
+        },
+        {
+          "description": "A small faceted light green star-shaped clip fastened near the lower end of the side braid on the character's left (viewer's right).",
+          "id": "feature-green-star-accessory",
+          "kind": "headwear",
+          "label": "Green Star Braid Clip"
         }
       ],
+      "focus_note": "",
+      "id": "1b893542-c73b-4eee-b347-22c1da166e32",
       "warnings": []
     },
     "images": [
       {
         "id": "front-1",
         "role": "front",
-        "job_id": "ade5e459-cc00-4731-b86d-a98dc8b55699",
-        "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/ade5e459-cc00-4731-b86d-a98dc8b55699/candidate-1.webp",
-        "reference_key": "references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/front-1.webp",
+        "job_id": "f9717312-b909-4d5a-bcec-acb2e7d5b035",
+        "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/f9717312-b909-4d5a-bcec-acb2e7d5b035/candidate-1.webp",
+        "reference_key": "references/agent/46c06dfa-aa15-4c60-87c2-bd488db0eebd/front-1.webp",
         "width": 800,
         "height": 1100,
         "instructions": "",
@@ -77,13 +83,27 @@
       {
         "id": "turnaround-1",
         "role": "turnaround",
-        "job_id": "35b1c0bf-9118-4523-906b-5add51f6493c",
-        "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/35b1c0bf-9118-4523-906b-5add51f6493c/candidate-1.webp",
-        "reference_key": "references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/turnaround-1.webp",
-        "width": 2528,
-        "height": 1696,
+        "job_id": "c8aaa078-ab28-4570-9b08-053fc916c16c",
+        "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/c8aaa078-ab28-4570-9b08-053fc916c16c/candidate-1.webp",
+        "reference_key": "references/agent/46c06dfa-aa15-4c60-87c2-bd488db0eebd/turnaround-1.webp",
+        "width": 1536,
+        "height": 1024,
         "instructions": "",
-        "created_seq": 13,
+        "created_seq": 15,
+        "parent_id": "front-1",
+        "source": "agent",
+        "recipe": null
+      },
+      {
+        "id": "eyes-1",
+        "role": "eyes",
+        "job_id": "fb425e96-b312-4af7-9772-0e57278836ac",
+        "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/fb425e96-b312-4af7-9772-0e57278836ac/candidate-1.webp",
+        "reference_key": "references/agent/46c06dfa-aa15-4c60-87c2-bd488db0eebd/eyes-1.webp",
+        "width": 1536,
+        "height": 1024,
+        "instructions": "",
+        "created_seq": 21,
         "parent_id": "front-1",
         "source": "agent",
         "recipe": null
@@ -93,211 +113,477 @@
     "approved_design_id": null,
     "current_front_id": "front-1",
     "approved_front_id": "front-1",
-    "last_user_seq": 9
+    "design_notes": {
+      "front_id": "front-1",
+      "language": "en",
+      "views": [
+        "front",
+        "turnaround",
+        "eyes"
+      ],
+      "sections": [
+        {
+          "key": "eyes",
+          "text": "The eyes are a mirrored pair of large, rounded anime eyes. The irises feature a dark teal top that blends into emerald and vibrant yellow-green at the bottom with layered concentric curved patterns and dark pupils. Highlights consist of a prominent round white circle near the top center, two smaller round white dots along the lower corners, and faint tiny specks; they are framed by thick dark brown upper lash lines with an outer spike, fine lower lashes, and a subtle reddish-brown eyelid crease."
+        },
+        {
+          "key": "brows",
+          "text": "The eyebrows are thin, smoothly arched reddish-brown lines positioned above the eyes and partially visible beneath the bangs."
+        },
+        {
+          "key": "mouth",
+          "text": "The mouth is closed in a gentle, subtle smile marked by a thin curved line, with no visible teeth or fangs."
+        },
+        {
+          "key": "skin",
+          "text": "The skin is a smooth, fair pale-peach tone with faint soft blush on the cheeks and a tiny dot defining the tip of the nose."
+        },
+        {
+          "key": "hair",
+          "text": "The hair is a bright warm-orange chin-length bob with full, layered bangs tapering across the forehead to the brows, textured wavy layers, and flared, curled tips around the sides and back. A single vertical three-strand braid runs down the hair on the viewer's right from near the ear to the chin."
+        },
+        {
+          "key": "ears",
+          "text": "A pair of upright triangular animal ears sits atop the head, covered in orange fur on the back and outer rim with plush white fur inside."
+        },
+        {
+          "key": "accessories",
+          "text": "A faceted five-pointed yellow-gold star clip is pinned in the hair on the viewer's left, and a smaller faceted green star bead is attached at the bottom of the braid on the viewer's right."
+        },
+        {
+          "key": "requests",
+          "text": ""
+        }
+      ]
+    },
+    "last_user_seq": 24
   },
   "llm_messages": [
     {
-      "role": "user",
-      "content": "[uploaded reference images: ref-1-5dd507 (front)]\nPlease make a head shell of this girl straight from this picture, without a character design."
+      "content": "[uploaded reference images: ref-1-dd7e68 (front)]\nPlease make a head shell of this girl straight from this picture, without a character design.",
+      "role": "user"
     },
     {
-      "role": "assistant",
       "content": "",
+      "role": "assistant",
       "tool_calls": [
         {
-          "id": "call_a7b931032ce9cc69",
-          "type": "function",
           "function": {
-            "name": "analyze_references",
-            "arguments": "{}"
-          }
+            "arguments": "{}",
+            "name": "analyze_references"
+          },
+          "id": "call_15394025495132961066",
+          "type": "function"
         }
       ]
     },
     {
-      "role": "tool",
-      "tool_call_id": "call_a7b931032ce9cc69",
+      "content": "{\"features\":[{\"description\":\"Triangular cat-like ears attached to the top sides of the head, featuring warm orange-peach outer fur matching the hair and pale cream inner fluff. Both sides stay present and symmetric in every generated view, at exactly the size and height drawn.\",\"kind\":\"ears\",\"label\":\"Animal Ears\"},{\"description\":\"Short, voluminous warm ginger-orange hair cut into a wavy bob ending around the neck, with rounded curls at the tips, soft face-framing strands, and smooth parted front bangs layered across the forehead.\",\"kind\":\"hair\",\"label\":\"Wavy Short Bob with Bangs\"},{\"description\":\"A slender three-strand braid woven down the character's left side (viewer's right) beneath the cat ear, blending into the curled side locks.\",\"kind\":\"hair\",\"label\":\"Side Braid\"},{\"description\":\"Large, round anime-style eyes with vivid emerald-to-lime green irises, detailed circular highlights, dark upper lash lines with delicate corner lashes, and gentle thin brown eyebrows. Both eyes must be generated as an equal, mirrored pair sitting at exactly the same height with the same size and shape.\",\"kind\":\"eyes\",\"label\":\"Emerald Green Eyes\"},{\"description\":\"Soft and friendly closed-mouth smile paired with an open, pleasant, and calm facial expression.\",\"kind\":\"expression\",\"label\":\"Gentle Smile\"},{\"description\":\"A faceted three-dimensional yellow star-shaped hair clip pinned on the character's upper right side (viewer's left) just above the temple.\",\"kind\":\"headwear\",\"label\":\"Yellow Star Hair Clip\"},{\"description\":\"A small faceted light green star-shaped clip fastened near the lower end of the side braid on the character's left (viewer's right).\",\"kind\":\"headwear\",\"label\":\"Green Star Braid Clip\"}],\"ok\":true,\"warnings\":[]}",
       "name": "analyze_references",
-      "content": "{\"features\":[{\"description\":\"Bright orange, softly wavy bob that falls just past the jaw, with full straight bangs down to the brows.\",\"kind\":\"hair\",\"label\":\"Hair\"},{\"description\":\"A thin braid on the right of the image (the character's left) runs from the parting down beside the face and is tied with a small green star.\",\"kind\":\"hair\",\"label\":\"Braid\"},{\"description\":\"Orange cat ears with pale inner fur on top of the head. Both stay present and symmetric in every generated view, at exactly the size and height drawn.\",\"kind\":\"ears\",\"label\":\"Cat ears\"},{\"description\":\"Large round green eyes with a yellow-green gradient, several white highlights and dark upper lashes. Both eyes are an equal, mirrored pair at exactly the same height with the same size and shape.\",\"kind\":\"eyes\",\"label\":\"Eyes\"},{\"description\":\"Gentle closed-mouth smile with a soft pink blush.\",\"kind\":\"expression\",\"label\":\"Expression\"},{\"description\":\"Yellow five-pointed star hairpin on the bangs, on the left of the image (the character's right).\",\"kind\":\"accessory\",\"label\":\"Star hairpin\"}],\"ok\":true,\"warnings\":[]}"
+      "role": "tool",
+      "tool_call_id": "call_15394025495132961066"
     },
     {
-      "role": "assistant",
       "content": "There is only a front picture, so the sides and back of the hair will be guessed. Adding a picture tagged Side or Back would pin them down.",
+      "role": "assistant",
       "tool_calls": [
         {
-          "id": "call_426aa6ab635f29af",
-          "type": "function",
           "function": {
-            "name": "generate_front_view",
-            "arguments": "{\"skip_design\":true}"
-          }
+            "arguments": "{\"skip_design\":true}",
+            "name": "generate_front_view"
+          },
+          "id": "call_1069049132388918607",
+          "type": "function"
         }
       ]
     },
     {
-      "role": "tool",
-      "tool_call_id": "call_426aa6ab635f29af",
+      "content": "{\"image_id\":\"front-1\",\"ok\":true,\"role\":\"front\",\"shown_to_user\":true,\"size\":\"800x1100\"}",
       "name": "generate_front_view",
-      "content": "{\"image_id\":\"front-1\",\"ok\":true,\"role\":\"front\",\"shown_to_user\":true,\"size\":\"800x1100\"}"
+      "role": "tool",
+      "tool_call_id": "call_1069049132388918607"
     },
     {
-      "role": "assistant",
-      "content": "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor."
+      "content": "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor.",
+      "role": "assistant"
     },
     {
-      "role": "user",
-      "content": "[clicked approve on head shell front view front-1; it is now approved]"
+      "content": "[clicked approve on head shell front view front-1; it is now approved]",
+      "role": "user"
     },
     {
-      "role": "assistant",
       "content": "",
+      "role": "assistant",
       "tool_calls": [
         {
-          "id": "call_9ab6e4c00cca661f",
-          "type": "function",
           "function": {
-            "name": "generate_turnaround",
-            "arguments": "{}"
-          }
+            "arguments": "{\"image_id\":\"front-1\"}",
+            "name": "approve_front_view"
+          },
+          "id": "call_17037027650627395058",
+          "type": "function"
         }
       ]
     },
     {
+      "content": "{\"approved_image_id\":\"front-1\",\"ok\":true}",
+      "name": "approve_front_view",
       "role": "tool",
-      "tool_call_id": "call_9ab6e4c00cca661f",
-      "name": "generate_turnaround",
-      "content": "{\"image_id\":\"turnaround-1\",\"ok\":true,\"role\":\"turnaround\",\"shown_to_user\":true,\"size\":\"2528x1696\"}"
+      "tool_call_id": "call_17037027650627395058"
     },
     {
+      "content": "",
       "role": "assistant",
-      "content": "The four-view sheet is ready. Let me know if you'd like any changes."
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{}",
+            "name": "generate_turnaround"
+          },
+          "id": "call_4240513301995184381",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "content": "{\"image_id\":\"turnaround-1\",\"ok\":true,\"role\":\"turnaround\",\"shown_to_user\":true,\"size\":\"1536x1024\"}",
+      "name": "generate_turnaround",
+      "role": "tool",
+      "tool_call_id": "call_4240513301995184381"
+    },
+    {
+      "content": "The four-view sheet is ready. Let me know if you'd like any changes.\n\nSome mask makers also ask for an eye close-up, as the eyes are too small to read in the front view. Shall I make one? It takes one more image generation.",
+      "role": "assistant"
+    },
+    {
+      "content": "Yes, please.",
+      "role": "user"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{}",
+            "name": "generate_eye_detail"
+          },
+          "id": "call_15716407427475782687",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "content": "{\"image_id\":\"eyes-1\",\"ok\":true,\"role\":\"eyes\",\"shown_to_user\":true,\"size\":\"1536x1024\"}",
+      "name": "generate_eye_detail",
+      "role": "tool",
+      "tool_call_id": "call_15716407427475782687"
+    },
+    {
+      "content": "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, which some mask makers ask for with AI-made pictures.",
+      "role": "assistant"
+    },
+    {
+      "content": "Yes, the design notes too, please.",
+      "role": "user"
+    },
+    {
+      "content": "",
+      "role": "assistant",
+      "tool_calls": [
+        {
+          "function": {
+            "arguments": "{}",
+            "name": "write_design_notes"
+          },
+          "id": "call_10309549764915582071",
+          "type": "function"
+        }
+      ]
+    },
+    {
+      "content": "{\"language\":\"en\",\"notes\":{\"accessories\":\"A faceted five-pointed yellow-gold star clip is pinned in the hair on the viewer's left, and a smaller faceted green star bead is attached at the bottom of the braid on the viewer's right.\",\"brows\":\"The eyebrows are thin, smoothly arched reddish-brown lines positioned above the eyes and partially visible beneath the bangs.\",\"ears\":\"A pair of upright triangular animal ears sits atop the head, covered in orange fur on the back and outer rim with plush white fur inside.\",\"eyes\":\"The eyes are a mirrored pair of large, rounded anime eyes. The irises feature a dark teal top that blends into emerald and vibrant yellow-green at the bottom with layered concentric curved patterns and dark pupils. Highlights consist of a prominent round white circle near the top center, two smaller round white dots along the lower corners, and faint tiny specks; they are framed by thick dark brown upper lash lines with an outer spike, fine lower lashes, and a subtle reddish-brown eyelid crease.\",\"hair\":\"The hair is a bright warm-orange chin-length bob with full, layered bangs tapering across the forehead to the brows, textured wavy layers, and flared, curled tips around the sides and back. A single vertical three-strand braid runs down the hair on the viewer's right from near the ear to the chin.\",\"mouth\":\"The mouth is closed in a gentle, subtle smile marked by a thin curved line, with no visible teeth or fangs.\",\"requests\":\"\",\"skin\":\"The skin is a smooth, fair pale-peach tone with faint soft blush on the cheeks and a tiny dot defining the tip of the nose.\"},\"ok\":true,\"shown_to_user\":true}",
+      "name": "write_design_notes",
+      "role": "tool",
+      "tool_call_id": "call_10309549764915582071"
+    },
+    {
+      "content": "The design notes are ready. You can copy them or save them as text. If anything should change, or you have a request for the maker, let me know.",
+      "role": "assistant"
     }
   ],
   "events": [
     {
-      "seq": 1,
-      "type": "user_message",
-      "created_at": "2026-11-15T01:20:03.512301+00:00",
-      "text": "Please make a head shell of this girl straight from this picture, without a character design.",
       "action": null,
-      "image_id": null,
       "attachments": [
         {
-          "id": "ref-1-5dd507",
-          "url": "/api/references/references/agent/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/uploads/ref-1-5dd507-cat-girl.webp",
-          "kind": "front"
+          "id": "ref-1-dd7e68",
+          "kind": "front",
+          "url": "/api/references/references/agent/46c06dfa-aa15-4c60-87c2-bd488db0eebd/uploads/ref-1-dd7e68-cat-girl.webp"
         }
+      ],
+      "created_at": "2026-11-20T07:37:53.221068+00:00",
+      "image_id": null,
+      "seq": 1,
+      "text": "Please make a head shell of this girl straight from this picture, without a character design.",
+      "type": "user_message"
+    },
+    {
+      "created_at": "2026-11-20T07:37:53.225135+00:00",
+      "seq": 2,
+      "status": "running",
+      "type": "run_state"
+    },
+    {
+      "created_at": "2026-11-20T07:37:56.049216+00:00",
+      "phase": "analyzing",
+      "progress": 100,
+      "seq": 3,
+      "status": "succeeded",
+      "tool": "analyze_references",
+      "type": "tool"
+    },
+    {
+      "created_at": "2026-11-20T07:38:18.697282+00:00",
+      "seq": 4,
+      "text": "There is only a front picture, so the sides and back of the hair will be guessed. Adding a picture tagged Side or Back would pin them down.",
+      "type": "assistant_message"
+    },
+    {
+      "created_at": "2026-11-20T07:38:18.699376+00:00",
+      "phase": "saving_outputs",
+      "progress": 100,
+      "seq": 5,
+      "status": "succeeded",
+      "tool": "generate_front_view",
+      "type": "tool"
+    },
+    {
+      "created_at": "2026-11-20T07:38:34.748680+00:00",
+      "height": 1100,
+      "image_id": "front-1",
+      "instructions": "",
+      "parent_id": null,
+      "role": "front",
+      "seq": 6,
+      "source": "agent",
+      "type": "image",
+      "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/f9717312-b909-4d5a-bcec-acb2e7d5b035/candidate-1.webp",
+      "width": 800
+    },
+    {
+      "created_at": "2026-11-20T07:38:36.695343+00:00",
+      "seq": 7,
+      "text": "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor.",
+      "type": "assistant_message"
+    },
+    {
+      "created_at": "2026-11-20T07:38:36.701363+00:00",
+      "seq": 8,
+      "status": "idle",
+      "type": "run_state"
+    },
+    {
+      "action": "approve_front",
+      "attachments": [],
+      "created_at": "2026-11-20T07:38:57.517319+00:00",
+      "image_id": "front-1",
+      "seq": 9,
+      "text": "",
+      "type": "user_message"
+    },
+    {
+      "created_at": "2026-11-20T07:38:57.520051+00:00",
+      "image_id": "front-1",
+      "seq": 10,
+      "type": "front_approved"
+    },
+    {
+      "created_at": "2026-11-20T07:38:57.526516+00:00",
+      "seq": 11,
+      "status": "running",
+      "type": "run_state"
+    },
+    {
+      "created_at": "2026-11-20T07:38:59.199597+00:00",
+      "phase": "",
+      "progress": 100,
+      "seq": 12,
+      "status": "succeeded",
+      "tool": "approve_front_view",
+      "type": "tool"
+    },
+    {
+      "created_at": "2026-11-20T07:38:59.208064+00:00",
+      "image_id": "front-1",
+      "seq": 13,
+      "type": "front_approved",
+      "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/f9717312-b909-4d5a-bcec-acb2e7d5b035/candidate-1.webp"
+    },
+    {
+      "created_at": "2026-11-20T07:39:05.917343+00:00",
+      "phase": "saving_outputs",
+      "progress": 100,
+      "seq": 14,
+      "status": "succeeded",
+      "tool": "generate_turnaround",
+      "type": "tool"
+    },
+    {
+      "created_at": "2026-11-20T07:39:29.905438+00:00",
+      "height": 1024,
+      "image_id": "turnaround-1",
+      "instructions": "",
+      "parent_id": "front-1",
+      "role": "turnaround",
+      "seq": 15,
+      "source": "agent",
+      "type": "image",
+      "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/c8aaa078-ab28-4570-9b08-053fc916c16c/candidate-1.webp",
+      "width": 1536
+    },
+    {
+      "created_at": "2026-11-20T07:39:32.209313+00:00",
+      "seq": 16,
+      "text": "The four-view sheet is ready. Let me know if you'd like any changes.\n\nSome mask makers also ask for an eye close-up, as the eyes are too small to read in the front view. Shall I make one? It takes one more image generation.",
+      "type": "assistant_message"
+    },
+    {
+      "created_at": "2026-11-20T07:39:32.215672+00:00",
+      "seq": 17,
+      "status": "idle",
+      "type": "run_state"
+    },
+    {
+      "action": null,
+      "attachments": [],
+      "created_at": "2026-11-20T07:39:51.688973+00:00",
+      "image_id": null,
+      "seq": 18,
+      "text": "Yes, please.",
+      "type": "user_message"
+    },
+    {
+      "created_at": "2026-11-20T07:39:51.697024+00:00",
+      "seq": 19,
+      "status": "running",
+      "type": "run_state"
+    },
+    {
+      "created_at": "2026-11-20T07:56:46.629786+00:00",
+      "phase": "saving_outputs",
+      "progress": 100,
+      "seq": 20,
+      "status": "succeeded",
+      "tool": "generate_eye_detail",
+      "type": "tool"
+    },
+    {
+      "created_at": "2026-11-20T07:57:11.690231+00:00",
+      "height": 1024,
+      "image_id": "eyes-1",
+      "instructions": "",
+      "parent_id": "front-1",
+      "role": "eyes",
+      "seq": 21,
+      "source": "agent",
+      "type": "image",
+      "url": "/api/generated/46c06dfa-aa15-4c60-87c2-bd488db0eebd/fb425e96-b312-4af7-9772-0e57278836ac/candidate-1.webp",
+      "width": 1536
+    },
+    {
+      "created_at": "2026-11-20T07:57:13.234215+00:00",
+      "seq": 22,
+      "text": "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, which some mask makers ask for with AI-made pictures.",
+      "type": "assistant_message"
+    },
+    {
+      "created_at": "2026-11-20T07:57:13.240515+00:00",
+      "seq": 23,
+      "status": "idle",
+      "type": "run_state"
+    },
+    {
+      "action": null,
+      "attachments": [],
+      "created_at": "2026-11-20T07:57:35.645886+00:00",
+      "image_id": null,
+      "seq": 24,
+      "text": "Yes, the design notes too, please.",
+      "type": "user_message"
+    },
+    {
+      "created_at": "2026-11-20T07:57:35.653651+00:00",
+      "seq": 25,
+      "status": "running",
+      "type": "run_state"
+    },
+    {
+      "created_at": "2026-11-20T07:57:37.142939+00:00",
+      "phase": "writing_notes",
+      "progress": 100,
+      "seq": 26,
+      "status": "succeeded",
+      "tool": "write_design_notes",
+      "type": "tool"
+    },
+    {
+      "created_at": "2026-11-20T07:57:51.405054+00:00",
+      "front_id": "front-1",
+      "language": "en",
+      "sections": [
+        {
+          "key": "eyes",
+          "text": "The eyes are a mirrored pair of large, rounded anime eyes. The irises feature a dark teal top that blends into emerald and vibrant yellow-green at the bottom with layered concentric curved patterns and dark pupils. Highlights consist of a prominent round white circle near the top center, two smaller round white dots along the lower corners, and faint tiny specks; they are framed by thick dark brown upper lash lines with an outer spike, fine lower lashes, and a subtle reddish-brown eyelid crease."
+        },
+        {
+          "key": "brows",
+          "text": "The eyebrows are thin, smoothly arched reddish-brown lines positioned above the eyes and partially visible beneath the bangs."
+        },
+        {
+          "key": "mouth",
+          "text": "The mouth is closed in a gentle, subtle smile marked by a thin curved line, with no visible teeth or fangs."
+        },
+        {
+          "key": "skin",
+          "text": "The skin is a smooth, fair pale-peach tone with faint soft blush on the cheeks and a tiny dot defining the tip of the nose."
+        },
+        {
+          "key": "hair",
+          "text": "The hair is a bright warm-orange chin-length bob with full, layered bangs tapering across the forehead to the brows, textured wavy layers, and flared, curled tips around the sides and back. A single vertical three-strand braid runs down the hair on the viewer's right from near the ear to the chin."
+        },
+        {
+          "key": "ears",
+          "text": "A pair of upright triangular animal ears sits atop the head, covered in orange fur on the back and outer rim with plush white fur inside."
+        },
+        {
+          "key": "accessories",
+          "text": "A faceted five-pointed yellow-gold star clip is pinned in the hair on the viewer's left, and a smaller faceted green star bead is attached at the bottom of the braid on the viewer's right."
+        },
+        {
+          "key": "requests",
+          "text": ""
+        }
+      ],
+      "seq": 27,
+      "type": "design_notes",
+      "views": [
+        "front",
+        "turnaround",
+        "eyes"
       ]
     },
     {
-      "seq": 2,
-      "type": "run_state",
-      "created_at": "2026-11-15T01:20:03.543301+00:00",
-      "status": "running"
+      "created_at": "2026-11-20T07:57:56.377336+00:00",
+      "seq": 28,
+      "text": "The design notes are ready. You can copy them or save them as text. If anything should change, or you have a request for the maker, let me know.",
+      "type": "assistant_message"
     },
     {
-      "seq": 3,
-      "type": "tool",
-      "created_at": "2026-11-15T01:20:05.716301+00:00",
-      "tool": "analyze_references",
-      "status": "succeeded",
-      "progress": 100,
-      "phase": "analyzing"
-    },
-    {
-      "seq": 4,
-      "type": "assistant_message",
-      "created_at": "2026-11-15T01:20:17.830301+00:00",
-      "text": "There is only a front picture, so the sides and back of the hair will be guessed. Adding a picture tagged Side or Back would pin them down."
-    },
-    {
-      "seq": 5,
-      "type": "tool",
-      "created_at": "2026-11-15T01:20:17.848301+00:00",
-      "tool": "generate_front_view",
-      "status": "succeeded",
-      "progress": 100,
-      "phase": "generating"
-    },
-    {
-      "seq": 6,
-      "type": "image",
-      "created_at": "2026-11-15T01:20:36.583301+00:00",
-      "image_id": "front-1",
-      "role": "front",
-      "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/ade5e459-cc00-4731-b86d-a98dc8b55699/candidate-1.webp",
-      "width": 800,
-      "height": 1100,
-      "instructions": "",
-      "parent_id": null,
-      "source": "agent"
-    },
-    {
-      "seq": 7,
-      "type": "assistant_message",
-      "created_at": "2026-11-15T01:20:39.154301+00:00",
-      "text": "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor."
-    },
-    {
-      "seq": 8,
-      "type": "run_state",
-      "created_at": "2026-11-15T01:20:39.171301+00:00",
-      "status": "idle"
-    },
-    {
-      "seq": 9,
-      "type": "user_message",
-      "created_at": "2026-11-15T01:21:35.930301+00:00",
-      "text": "",
-      "action": "approve_front",
-      "image_id": "front-1",
-      "attachments": []
-    },
-    {
-      "seq": 10,
-      "type": "front_approved",
-      "created_at": "2026-11-15T01:21:35.939301+00:00",
-      "image_id": "front-1"
-    },
-    {
-      "seq": 11,
-      "type": "run_state",
-      "created_at": "2026-11-15T01:21:35.958301+00:00",
-      "status": "running"
-    },
-    {
-      "seq": 12,
-      "type": "tool",
-      "created_at": "2026-11-15T01:21:38.293301+00:00",
-      "tool": "generate_turnaround",
-      "status": "succeeded",
-      "progress": 100,
-      "phase": "generating"
-    },
-    {
-      "seq": 13,
-      "type": "image",
-      "created_at": "2026-11-15T01:22:07.417301+00:00",
-      "image_id": "turnaround-1",
-      "role": "turnaround",
-      "url": "/api/generated/e7293da1-5aa5-48d9-8b2f-dbc6252e8e0c/35b1c0bf-9118-4523-906b-5add51f6493c/candidate-1.webp",
-      "width": 2528,
-      "height": 1696,
-      "instructions": "",
-      "parent_id": "front-1",
-      "source": "agent"
-    },
-    {
-      "seq": 14,
-      "type": "assistant_message",
-      "created_at": "2026-11-15T01:22:09.745301+00:00",
-      "text": "The four-view sheet is ready. Let me know if you'd like any changes."
-    },
-    {
-      "seq": 15,
-      "type": "run_state",
-      "created_at": "2026-11-15T01:22:09.763301+00:00",
-      "status": "idle"
+      "created_at": "2026-11-20T07:57:56.386634+00:00",
+      "seq": 29,
+      "status": "idle",
+      "type": "run_state"
     }
   ]
 }
