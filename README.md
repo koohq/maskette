@@ -219,6 +219,7 @@ Other scripts:
 | `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`), sign it for the updater, and copy it to `release/` with the `latest.json` that installed copies read. Needs the signing key (below) |
 | `pnpm bundle:local` | Build the installer without the updater's files, so no signing key is needed. For trying a build on your own PC |
 | `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository); `--notes <file>` puts release notes into `latest.json` |
+| `pnpm release:publish` | Publish the signed build as a GitHub release, after checking it (below) |
 | `pnpm lint` | Biome check |
 
 Releasing an update: installed copies of Maskette read
@@ -226,15 +227,20 @@ Releasing an update: installed copies of Maskette read
 (`plugins.updater.endpoints` in `src-tauri/tauri.conf.json`) and accept only
 installers signed with the key whose public half is `plugins.updater.pubkey`.
 
-1. Raise `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`.
+1. Raise `version` in `src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`,
+   commit, and push `main`.
 2. In the shell that builds, set `TAURI_SIGNING_PRIVATE_KEY` (the path to the
    private key, or its contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
    A `.env` file does not work for these.
-3. `pnpm bundle`, then `pnpm release:copy --notes <file>` to add release
-   notes.
-4. Create a GitHub release tagged `v<version>` and attach the installer and
-   `latest.json` from `release/`. The installer's URL in `latest.json`
-   points at that tag.
+3. `pnpm bundle`.
+4. Write the release notes in a text file, outside the repository or in
+   `release/`, and run `pnpm release:publish --notes <file>`. It writes
+   `latest.json`, checks that the two versions agree, that `main` is pushed
+   and committed, that the installer was built after the last commit to the
+   app and that its signature checks out with `plugins.updater.pubkey`. Then
+   it shows what it will publish and asks before it creates the GitHub
+   release `v<version>` with the installer, its `.sig` and `latest.json`
+   (through `gh`). `--dry-run` stops before publishing.
 
 Layout:
 

@@ -6,7 +6,17 @@
 // Options:
 //   --notes <file>   release notes for latest.json (shown in the app's update dialog), as plain text
 import { execFileSync } from "node:child_process";
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  utimesSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
@@ -44,12 +54,17 @@ const outDir = join(root, "release");
 mkdirSync(outDir, { recursive: true });
 const target = join(outDir, newest.name);
 copyFileSync(join(nsisDir, newest.name), target);
+// Keep the build's time: `pnpm release:publish` compares it with the last commit to the app.
+utimesSync(target, new Date(), new Date(newest.time));
 console.log(`Installer copied to ${shown(target)}`);
 
 // The signature `tauri build` writes next to the installer when the signing key is set
 // (TAURI_SIGNING_PRIVATE_KEY). One older than the installer belongs to an earlier build of the same version.
 const signature = join(nsisDir, `${newest.name}.sig`);
 if (!existsSync(signature) || statSync(signature).mtimeMs < newest.time) {
+  // Files from an earlier signed build must not be published with this one.
+  rmSync(join(outDir, "latest.json"), { force: true });
+  rmSync(`${target}.sig`, { force: true });
   console.warn("No signature for this installer, so latest.json was not written (the build had no signing key).");
   process.exit(0);
 }

@@ -2,7 +2,9 @@
   "$schema": "https://www.schemastore.org/tsconfig",
   "extends": ["@tsconfig/node26/tsconfig.json", "@tsconfig/strictest/tsconfig.json"],
   "compilerOptions": {
-    "noEmit": true
+    "noEmit": true,
+    // Node runs the scripts as they are, so they import each other by their .ts names.
+    "allowImportingTsExtensions": true
   },
   "include": ["scripts/**/*.ts"]
 }
