@@ -332,7 +332,7 @@ const ja: TranslationResource = {
       contrast: "ハイコントラスト",
     },
     subscriptionCliNote:
-      "ChatGPT や Claude の有料プランでログインした CLI を使います。各サービスの利用規約に配慮して、自分の PC で自分ひとりが使う場合に限ってください。ほかの人にも使わせる場合は、API キー方式（おすすめの印が付いたもの）を選んでください。",
+      "ChatGPT や Claude の有料プランでログインした CLI を使います。各サービスの利用規約に従って、自分の PC で自分だけが使用してください。ほかの人にも使わせる場合は、API キー方式（おすすめの印が付いたもの）を選んでください。",
     agentSection: "チャットアシスタント",
     agentHint: "会話を進め、参考画像の分析や画像の生成をいつ行うかを決めます。",
     analysisSection: "参考画像の分析",

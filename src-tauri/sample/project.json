@@ -248,7 +248,7 @@
       "tool_call_id": "call_4240513301995184381"
     },
     {
-      "content": "The four-view sheet is ready. Let me know if you'd like any changes.\n\nSome mask makers also ask for an eye close-up, as the eyes are too small to read in the front view. Shall I make one? It takes one more image generation.",
+      "content": "The four-view sheet is ready. Let me know if you'd like any changes.\n\nThe eyes are too small to read in the front view, so I can also make an eye close-up. Shall I make one? It takes one more image generation.",
       "role": "assistant"
     },
     {
@@ -276,7 +276,7 @@
       "tool_call_id": "call_15716407427475782687"
     },
     {
-      "content": "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, which some mask makers ask for with AI-made pictures.",
+      "content": "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, to back up what the pictures alone may not get across.",
       "role": "assistant"
     },
     {
@@ -304,7 +304,7 @@
       "tool_call_id": "call_10309549764915582071"
     },
     {
-      "content": "The design notes are ready. You can copy them or save them as text. If anything should change, or you have a request for the maker, let me know.",
+      "content": "The design notes are ready. You can copy them or save them as text. If anything should change, or you'd like to add something, let me know.",
       "role": "assistant"
     }
   ],
@@ -441,7 +441,7 @@
     {
       "created_at": "2026-11-20T07:39:32.209313+00:00",
       "seq": 16,
-      "text": "The four-view sheet is ready. Let me know if you'd like any changes.\n\nSome mask makers also ask for an eye close-up, as the eyes are too small to read in the front view. Shall I make one? It takes one more image generation.",
+      "text": "The four-view sheet is ready. Let me know if you'd like any changes.\n\nThe eyes are too small to read in the front view, so I can also make an eye close-up. Shall I make one? It takes one more image generation.",
       "type": "assistant_message"
     },
     {
@@ -490,7 +490,7 @@
     {
       "created_at": "2026-11-20T07:57:13.234215+00:00",
       "seq": 22,
-      "text": "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, which some mask makers ask for with AI-made pictures.",
+      "text": "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, to back up what the pictures alone may not get across.",
       "type": "assistant_message"
     },
     {
@@ -568,7 +568,7 @@
     {
       "created_at": "2026-11-20T07:57:56.377336+00:00",
       "seq": 28,
-      "text": "The design notes are ready. You can copy them or save them as text. If anything should change, or you have a request for the maker, let me know.",
+      "text": "The design notes are ready. You can copy them or save them as text. If anything should change, or you'd like to add something, let me know.",
       "type": "assistant_message"
     },
     {

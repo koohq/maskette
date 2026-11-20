@@ -111,11 +111,11 @@ const ENGLISH: Texts = Texts {
     request: "Please make a head shell of this girl straight from this picture, without a character design.",
     guessed_views: "There is only a front picture, so the sides and back of the hair will be guessed. Adding a picture tagged Side or Back would pin them down.",
     front_ready: "Here is the head shell front view. Is it OK, or is there anything to change? You can also fine-tune it by hand in the editor.",
-    turnaround_ready: "The four-view sheet is ready. Let me know if you'd like any changes.\n\nSome mask makers also ask for an eye close-up, as the eyes are too small to read in the front view. Shall I make one? It takes one more image generation.",
+    turnaround_ready: "The four-view sheet is ready. Let me know if you'd like any changes.\n\nThe eyes are too small to read in the front view, so I can also make an eye close-up. Shall I make one? It takes one more image generation.",
     eyes_yes: "Yes, please.",
-    eyes_ready: "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, which some mask makers ask for with AI-made pictures.",
+    eyes_ready: "Here is the eye close-up. Would you also like design notes? They put the shapes and colours of each part into words, to back up what the pictures alone may not get across.",
     notes_yes: "Yes, the design notes too, please.",
-    notes_ready: "The design notes are ready. You can copy them or save them as text. If anything should change, or you have a request for the maker, let me know.",
+    notes_ready: "The design notes are ready. You can copy them or save them as text. If anything should change, or you'd like to add something, let me know.",
     notes: [
         "The eyes are a mirrored pair of large, rounded anime eyes. The irises feature a dark teal top that blends into emerald and vibrant yellow-green at the bottom with layered concentric curved patterns and dark pupils. Highlights consist of a prominent round white circle near the top center, two smaller round white dots along the lower corners, and faint tiny specks; they are framed by thick dark brown upper lash lines with an outer spike, fine lower lashes, and a subtle reddish-brown eyelid crease.",
         "The eyebrows are thin, smoothly arched reddish-brown lines positioned above the eyes and partially visible beneath the bangs.",
@@ -136,11 +136,11 @@ const JAPANESE: Texts = Texts {
     request: "この子のマスクを作ってください。設定画は省いて、この絵から直接お願いします。",
     guessed_views: "正面の絵だけなので、髪の横と後ろは推測で作ります。用途を「横」「後ろ」にした絵を足すと、その形に合わせられます。",
     front_ready: "マスクの正面図ができました。このままでよいか、直したいところがあれば教えてください。エディターで手直しすることもできます。",
-    turnaround_ready: "四面図ができました。直したいところがあれば教えてください。\n\n正面図では目が小さく読み取りにくいため、目の拡大図を求める工房もあります。作りますか？画像の生成が 1 回増えます。",
+    turnaround_ready: "四面図ができました。直したいところがあれば教えてください。\n\n正面図では目が小さく読み取りにくいため、目の拡大図も作れます。作りますか？画像の生成が 1 回増えます。",
     eyes_yes: "はい、お願いします。",
-    eyes_ready: "目の拡大図ができました。デザインメモも作りますか？各部の形や色を文章で書いたもので、AI で生成した画像には文章も添えるよう求める工房もあります。",
+    eyes_ready: "目の拡大図ができました。デザインメモも作りますか？画像だけでは伝わりにくい各部の形や色を、文章で補うメモです。",
     notes_yes: "はい、デザインメモもお願いします。",
-    notes_ready: "デザインメモができました。コピーするか、テキストで保存できます。直したいところや、工房へのお願いがあれば教えてください。",
+    notes_ready: "デザインメモができました。コピーするか、テキストで保存できます。直したいところや、書き足したいことがあれば教えてください。",
     notes: [
         "左右対称の大きな丸いアニメ目です。虹彩は上部の暗い青緑からエメラルド、下部の鮮やかな黄緑色へと変化するグラデーションに同心円状の模様と暗い瞳孔が描かれています。上部中央寄りに大きな丸い白ハイライトが1つ、下部に小さな丸が2つと細かな光の粒があり、目尻に突起のある太い焦げ茶色の上まつげ、細い下まつげ、薄い赤茶色の二重線で縁取られています。",
         "眉は緩やかなアーチを描く細い赤茶色のラインで、前髪の下から部分的に透けて見えています。",
@@ -154,18 +154,18 @@ const JAPANESE: Texts = Texts {
 };
 
 /// In the UI's words: 头壳, 设定图, 正视图, 四视图, 眼部特写, 设计说明, the tags
-/// “侧面”“背面”; 工坊 for the makers, as in the Chinese README. The notes are
-/// the analysis model's, written in Chinese in the same run.
+/// “侧面”“背面”. The notes are the analysis model's, written in Chinese in
+/// the same run.
 const CHINESE: Texts = Texts {
     title: "示例：猫耳女孩",
     request: "请帮我做这个女孩的头壳，不用设定图，直接照这张图做。",
     guessed_views: "只有正面的图，头发的侧面和背面会靠推测来做。添加用途设为“侧面”“背面”的图，就能照着它们做。",
     front_ready: "头壳正视图做好了。这样可以吗？有想改的地方请告诉我。也可以在编辑器里手动微调。",
-    turnaround_ready: "四视图做好了。如果有想改的地方，请告诉我。\n\n正视图里的眼睛太小，细节不容易看清，所以有些工坊会要眼部特写。要做一张吗？需要多生成一张图片。",
+    turnaround_ready: "四视图做好了。如果有想改的地方，请告诉我。\n\n正视图里的眼睛太小，细节不容易看清，我也可以做一张眼部特写。要做一张吗？需要多生成一张图片。",
     eyes_yes: "好的，麻烦了。",
-    eyes_ready: "眼部特写做好了。要不要也写一份设计说明？它用文字写清各部位的形状和颜色。对于 AI 生成的图片，有些工坊会要求再附上文字说明。",
+    eyes_ready: "眼部特写做好了。要不要也写一份设计说明？它用文字补充图片不容易表达的各部位形状和颜色。",
     notes_yes: "好的，设计说明也麻烦了。",
-    notes_ready: "设计说明写好了。可以复制，也可以保存为文本。如果有想改的地方，或者有对工坊的要求，请告诉我。",
+    notes_ready: "设计说明写好了。可以复制，也可以保存为文本。如果有想改或想补充的地方，请告诉我。",
     notes: [
         "左右对称的大圆形动漫眼。虹膜从顶部的深青绿色渐变为中部的翠绿、再到底部的明亮黄绿色，内部带有同心圆弧纹路与深色瞳孔。高光包括虹膜偏上方的一颗醒目大白圆点、下方的两颗小白圆点以及数颗细小光斑；眼眶由粗厚的深焦茶色上眼线及眼尾小突起、纤细的下睫毛和浅红褐色的双眼皮弧线构成。",
         "双眉呈柔和微拱的纤细红褐色线条，从刘海后方隐约透出。",

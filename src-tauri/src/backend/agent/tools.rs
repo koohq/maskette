@@ -156,23 +156,23 @@ pub fn tool_specs() -> Vec<ToolSpec> {
         },
         ToolSpec {
             name: "generate_eye_detail",
-            description: "Stage 2. Draw the eyes and eyebrows of the approved head shell front view large and sharp, for the mask maker, who cannot read the eye design in the small front view. It keeps the design as it is. Costs one image generation and takes about a minute. Only call it when the user asked for it or said yes to your offer.",
+            description: "Stage 2. Draw the eyes and eyebrows of the approved head shell front view large and sharp, because the eye design is hard to read in the small front view. It keeps the design as it is. Costs one image generation and takes about a minute. Only call it when the user asked for it or said yes to your offer.",
             parameters: json!({"type": "object", "properties": {}, "required": []}),
         },
         ToolSpec {
             name: "write_design_notes",
-            description: "Stage 2. Write the design notes: the shapes and colours of the eyes, brows, mouth, skin, hair, ears and accessories of the approved head shell front view in words, to go with the pictures, read from it, its turnaround and its eye close-up by the image-reading analysis model. They are shown to the user as a card they can copy or save. Call it when the user said yes to your offer or asks for the notes, again to correct them or to add a request for the maker (instructions), or to write them in another language (language). Costs one analysis call.",
+            description: "Stage 2. Write the design notes: the shapes and colours of the eyes, brows, mouth, skin, hair, ears and accessories of the approved head shell front view in words, to go with the pictures, read from it, its turnaround and its eye close-up by the image-reading analysis model. They are shown to the user as a card they can copy or save. Call it when the user said yes to your offer or asks for the notes, again to correct them or to add something the user wants written (instructions), or to write them in another language (language). Costs one analysis call.",
             parameters: json!({
                 "type": "object",
                 "properties": {
                     "language": {
                         "type": "string",
                         "enum": design_notes::LANGUAGES,
-                        "description": "The language the mask maker reads. Omit it for the user's language, or to keep the language of notes written before.",
+                        "description": "The language to write the notes in. Omit it for the user's language, or to keep the language of notes written before.",
                     },
                     "instructions": {
                         "type": "string",
-                        "description": "Optional: the user's corrections to the notes, or requests for the maker that the pictures cannot show, in their words.",
+                        "description": "Optional: the user's corrections to the notes, or requests the pictures cannot show (such as a part that should come off), in their words.",
                     },
                 },
                 "required": [],
