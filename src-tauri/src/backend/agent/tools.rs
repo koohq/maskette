@@ -17,6 +17,7 @@ use crate::backend::SharedState;
 use crate::backend::chat_api::JsonObject;
 use crate::backend::failure::Failure;
 use crate::backend::generation::analysis::{self, AnalysisError, AnalysisRequest};
+use crate::backend::generation::order_notes::{self, OrderNotesRequest, Picture, Section};
 use crate::backend::generation::{
     self, EyeDetail, GenerationRequest, LocalEdit, Mode, ReferenceDescription,
 };
@@ -158,6 +159,25 @@ pub fn tool_specs() -> Vec<ToolSpec> {
             description: "Stage 2. Draw the eyes and eyebrows of the approved head shell front view large and sharp, for the mask maker, who cannot read the eye design in the small front view. It keeps the design as it is. Costs one image generation and takes about a minute. Only call it when the user asked for it or said yes to your offer.",
             parameters: json!({"type": "object", "properties": {}, "required": []}),
         },
+        ToolSpec {
+            name: "write_order_notes",
+            description: "Stage 2. Write the order notes that go to the mask maker with the pictures: the shapes and colours of the eyes, brows, mouth, skin, hair, ears and accessories of the approved head shell front view, read from it, its turnaround and its eye close-up by the image-reading analysis model. They are shown to the user as a card they can copy or save. Call it when the user said yes to your offer or asks for the notes, again to correct them or to add a request for the maker (instructions), or to write them in another language (language). Costs one analysis call.",
+            parameters: json!({
+                "type": "object",
+                "properties": {
+                    "language": {
+                        "type": "string",
+                        "enum": order_notes::LANGUAGES,
+                        "description": "The language the mask maker reads. Omit it for the user's language, or to keep the language of notes written before.",
+                    },
+                    "instructions": {
+                        "type": "string",
+                        "description": "Optional: the user's corrections to the notes, or requests for the maker that the pictures cannot show, in their words.",
+                    },
+                },
+                "required": [],
+            }),
+        },
     ]
 }
 
@@ -229,6 +249,7 @@ pub async fn run_tool(name: &str, arguments: &JsonObject, context: &ToolContext)
         "approve_front_view" => approve_front_view(arguments, context),
         "generate_turnaround" => generate_turnaround(arguments, context).await,
         "generate_eye_detail" => generate_eye_detail(context).await,
+        "write_order_notes" => write_order_notes(arguments, context).await,
         other => Err(format!("Unknown tool '{other}'").into()),
     }
 }
@@ -667,6 +688,95 @@ async fn generate_eye_detail(context: &ToolContext) -> ToolResult {
     };
     let image = run_generation(context, request, "eyes", "", Some(&approved), "agent").await?;
     Ok(image_result(&image))
+}
+
+/// The words for the mask maker that go with the approved front view and
+/// the pictures made from it.
+async fn write_order_notes(arguments: &JsonObject, context: &ToolContext) -> ToolResult {
+    let asked = arg_text(arguments, "language");
+    let user_notes = clean_text(&arg_text(arguments, "instructions"));
+    let (request, front_id, views) = {
+        let conversation = context.entry.lock();
+        let state = &conversation.state;
+        let Some(approved) = state.image(state.approved_front_id.as_deref()) else {
+            return Err("No approved front view. Show the front view to the user and wait for their approval first.".into());
+        };
+        // The newest of each kind made from it.
+        let newest = |role: &str| {
+            state.images.iter().rev().find(|image| {
+                image.role == role && image.parent_id.as_deref() == Some(approved.id.as_str())
+            })
+        };
+        let mut pictures = vec![Picture {
+            view: "front",
+            key: approved.reference_key.clone(),
+        }];
+        for view in ["turnaround", "eyes"] {
+            if let Some(image) = newest(view) {
+                pictures.push(Picture {
+                    view,
+                    key: image.reference_key.clone(),
+                });
+            }
+        }
+        // Notes for this front view are kept, and so is their language
+        // unless another one is asked for.
+        let earlier = state.order_notes.as_ref().filter(|notes| {
+            notes.get("front_id").and_then(Value::as_str) == Some(approved.id.as_str())
+        });
+        let language = [asked.as_str()]
+            .into_iter()
+            .chain(
+                earlier
+                    .and_then(|notes| notes.get("language"))
+                    .and_then(Value::as_str),
+            )
+            .chain([conversation.locale.as_str()])
+            .find(|language| order_notes::LANGUAGES.contains(language))
+            .unwrap_or("en")
+            .to_owned();
+        let previous = earlier
+            .and_then(|notes| notes.get("sections"))
+            .and_then(|sections| serde_json::from_value::<Vec<Section>>(sections.clone()).ok())
+            .unwrap_or_default();
+        let views: Vec<&str> = pictures.iter().map(|picture| picture.view).collect();
+        (
+            OrderNotesRequest {
+                language,
+                pictures,
+                user_notes,
+                previous,
+                character_session_id: state.character_session_id.clone(),
+                notes_id: ids::short_hex(12),
+            },
+            approved.id.clone(),
+            json!(views),
+        )
+    };
+    let backend = analysis::analysis_backend(&context.state.settings.settings())?;
+    context.progress(10, "writing_notes");
+    let sections = order_notes::write(&context.state, &backend, &request).await?;
+    if context.cancelled.load(Ordering::SeqCst) {
+        return Err(Failure::cancelled());
+    }
+    let notes = json!({
+        "front_id": front_id,
+        "language": request.language,
+        "views": views,
+        "sections": sections,
+    });
+    let mut conversation = context.entry.lock();
+    conversation.state.order_notes = Some(notes.clone());
+    context.entry.emit(&mut conversation, "order_notes", notes);
+    Ok(json!({
+        "ok": true,
+        "shown_to_user": true,
+        "language": request.language,
+        "notes": sections
+            .iter()
+            .map(|section| (section.key.clone(), Value::from(section.text.clone())))
+            .collect::<JsonObject>(),
+    }))
 }
 
 async fn run_generation(

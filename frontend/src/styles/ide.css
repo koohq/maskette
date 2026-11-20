@@ -1259,6 +1259,77 @@ li:hover > div > .agent-message-actions,
   padding: 6px 8px;
 }
 
+.agent-notes-head {
+  align-items: center;
+  border-bottom: 1px solid var(--ide-border);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.agent-notes-stale {
+  background: color-mix(in srgb, var(--ide-warning) 14%, transparent);
+  color: var(--ide-text);
+  font-size: 11px;
+  padding: 4px 8px;
+}
+
+.agent-notes-body {
+  display: flex;
+  flex-direction: column;
+  font-size: 12px;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 8px 4px;
+}
+
+.agent-notes-section dt {
+  color: var(--ide-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.agent-notes-section dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.agent-notes-fixed {
+  color: var(--ide-text-muted);
+  font-size: 11px;
+  list-style: disc;
+  margin: 0;
+  padding: 0 8px 8px 22px;
+}
+
+.agent-notes-hint {
+  border-top: 1px solid var(--ide-border);
+  font-size: 11px;
+  padding: 6px 8px 0;
+}
+
+.agent-notes-status {
+  color: var(--ide-text-muted);
+  font-size: 11px;
+  padding: 4px 8px 0;
+}
+
+.agent-notes-status:empty {
+  display: none;
+}
+
+.agent-notes-status[data-failed] {
+  color: var(--ide-danger);
+}
+
+/* The hint above the buttons already draws the line. */
+.agent-notes-card .agent-image-card-footer {
+  border-top: 0;
+}
+
 .agent-badge {
   align-items: center;
   background: color-mix(in srgb, var(--ide-success) 18%, transparent);

@@ -142,9 +142,39 @@ const events = [
     created_at: CREATED_AT,
   },
   { seq: 11, type: "notice", code: "step_limit", created_at: CREATED_AT },
-  { seq: 12, type: "tool", tool: "generate_front_view", status: "succeeded", progress: 100, created_at: CREATED_AT },
+  // Before the newest image, so the usual shots still end on its approve button; the workspace-order-notes
+  // scene scrolls up to the card.
+  { seq: 12, type: "tool", tool: "write_order_notes", status: "succeeded", progress: 100, created_at: CREATED_AT },
   {
     seq: 13,
+    type: "order_notes",
+    front_id: "front-1",
+    language: "ja",
+    views: ["front", "turnaround", "eyes"],
+    sections: [
+      {
+        key: "eyes",
+        text: "大きな丸い目です。虹彩は上が深い緑、下が明るい黄緑のグラデーションで、瞳孔は縦長です。ハイライトは上に大小 2 つ、下に小さな丸が 2 つです。",
+      },
+      { key: "brows", text: "細いオレンジブラウンのアーチ眉で、前髪のすき間から見えます。" },
+      { key: "mouth", text: "口を閉じて口角を少し上げた笑顔です。" },
+      { key: "skin", text: "明るい肌色で、両頬に淡いオレンジピンクのチークがあります。" },
+      {
+        key: "hair",
+        text: "明るいオレンジの、肩までのウェーブボブです。前髪は眉にかかり、向かって右の側頭部から三つ編みが 1 本下がります。",
+      },
+      { key: "ears", text: "頭の上の左右に、髪と同じ色のふわふわした三角の猫耳があります。" },
+      {
+        key: "accessories",
+        text: "向かって左の前髪に黄色い星のヘアクリップ、向かって右の三つ編みの先に緑の星の飾りがあります。",
+      },
+      { key: "requests", text: "星の髪飾りは 2 つとも取り外せるようにしてください。" },
+    ],
+    created_at: CREATED_AT,
+  },
+  { seq: 14, type: "tool", tool: "generate_front_view", status: "succeeded", progress: 100, created_at: CREATED_AT },
+  {
+    seq: 15,
     type: "image",
     role: "front",
     image_id: "front-1",

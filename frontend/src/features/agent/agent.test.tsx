@@ -124,6 +124,78 @@ describe("ChatTimeline", () => {
     expect(screen.queryByRole("button", { name: /确认/ })).toBeNull();
   });
 
+  it("shows order notes in their own language and copies them for the maker", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", { configurable: true, value: { writeText } });
+    const notes: AgentEvent = {
+      seq: 6,
+      type: "order_notes",
+      front_id: "front-1",
+      language: "ja",
+      views: ["front", "turnaround", "eyes"],
+      sections: [
+        { key: "eyes", text: "丸い目です。" },
+        { key: "ears", text: "" },
+        { key: "hair", text: "オレンジの長い髪です。" },
+      ],
+    };
+    render(
+      <ChatTimeline
+        conversation={conversation("front-1")}
+        events={[{ seq: 5, type: "tool", tool: "write_order_notes", status: "succeeded" }, notes]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running={false}
+      />,
+    );
+    // The screen speaks the user's language; the notes and their labels the maker's.
+    expect(screen.getByText("写定制说明")).toBeTruthy();
+    expect(screen.getByText("定制说明")).toBeTruthy();
+    expect(screen.getByText("日本語")).toBeTruthy();
+    expect(screen.getByText("目")).toBeTruthy();
+    expect(screen.queryByText("耳・角")).toBeNull();
+    expect(screen.getByText("左右は、正面図を見たときの向き（向かって左・右）で書いています。")).toBeTruthy();
+    expect(screen.queryByText(/之前确认的正视图/)).toBeNull();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "复制" }));
+    });
+    expect(writeText).toHaveBeenCalledWith(
+      [
+        "【目】丸い目です。",
+        "【髪】オレンジの長い髪です。",
+        "",
+        "・左右は、正面図を見たときの向き（向かって左・右）で書いています。",
+        "・画像どうしが食い違うときは、形は正面図、横と後ろは四面図、目は目の拡大図を優先してください。",
+        "・色は画面で見た色です。素材での見え方はご相談ください。",
+      ].join("\n"),
+    );
+    expect(screen.getByText("已复制")).toBeTruthy();
+  });
+
+  it("marks order notes written for an earlier front view", () => {
+    const notes: AgentEvent = {
+      seq: 6,
+      type: "order_notes",
+      front_id: "front-1",
+      language: "en",
+      views: ["front"],
+      sections: [{ key: "eyes", text: "Round eyes." }],
+    };
+    render(
+      <ChatTimeline
+        conversation={conversation("front-2")}
+        events={[notes]}
+        onApprove={vi.fn()}
+        onOpenImage={vi.fn()}
+        running={false}
+      />,
+    );
+    expect(screen.getByText(/之前确认的正视图/)).toBeTruthy();
+    // Only the front view went in, so it is the only picture the priority line names.
+    expect(screen.getByText("Where the pictures disagree, follow the front view for the shapes.")).toBeTruthy();
+  });
+
   it("renders tool progress and failures", () => {
     render(
       <ChatTimeline

@@ -15,7 +15,7 @@ use crate::backend::generation::analysis::{self, AnalysisRequest};
 use crate::backend::generation::prompt::{
     self, HEAD_SHELL_LOOK, HEAD_SHELL_LOOK_COMPACT, Role, build_image_prompt, system_constraints,
 };
-use crate::backend::generation::{GenerationRequest, Mode};
+use crate::backend::generation::{GenerationRequest, Mode, order_notes};
 use crate::backend::tests::{TestBackend, authed, json_body};
 
 const MODES: [Mode; 7] = [
@@ -168,6 +168,10 @@ fn every_listed_key_reaches_a_prompt() {
         };
         sent.push(analysis::detail_analysis_prompt(&analysis, &overrides));
         sent.push(analysis::reference_safety_prompt(&analysis, &overrides));
+        sent.push(order_notes::order_notes_prompt(
+            &order_notes::OrderNotesRequest::default(),
+            &overrides,
+        ));
         sent.push(system_prompt("en", &overrides));
         sent.push(crate::backend::cli::codex::image_prompt(
             &overrides, "shared", false,

@@ -300,6 +300,16 @@ const SCENES: Scene[] = [
     },
   },
   {
+    // The order notes card, in the notes' language (Japanese) whatever the screen's.
+    name: "workspace-order-notes",
+    screen: WORKSPACE,
+    act: async (page) => {
+      const card = page.locator(".agent-notes-card");
+      await card.evaluate((element) => element.scrollIntoView({ block: "end" }));
+      await expect(card).toBeVisible();
+    },
+  },
+  {
     name: "workspace-image",
     screen: WORKSPACE,
     act: async (page) => {

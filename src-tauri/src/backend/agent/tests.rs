@@ -19,7 +19,7 @@ use http_body_util::BodyExt;
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
-use crate::backend::generation::{GenerationRequest, Mode};
+use crate::backend::generation::{GenerationRequest, Mode, order_notes};
 use crate::backend::tests::{TestBackend, authed, json_body};
 
 // --- The stand-in model -------------------------------------------------------
@@ -874,6 +874,124 @@ async fn the_eye_close_up_is_drawn_from_the_approved_front_view() {
             .replace('\\', "/")
             .contains("/references/agent/")
     );
+}
+
+/// The analysis request of the order notes: one user message with the
+/// pictures, where the chat sends a system prompt first.
+fn is_analysis(messages: &[Value]) -> bool {
+    messages.len() == 1 && messages[0]["content"].is_array()
+}
+
+#[tokio::test]
+async fn the_order_notes_follow_the_approved_front_view() {
+    let setup = setup(auto_front).await;
+    let id = setup.start().await;
+    setup.send(&id, "", 1, &[]).await;
+    setup.llm.set(|messages| {
+        if last_is_user(messages) {
+            call("", "write_order_notes", json!({}))
+        } else {
+            say("好了。")
+        }
+    });
+    // Nothing to describe before an approval.
+    let body = setup.send(&id, "写定制说明", 0, &[]).await;
+    let refused = tool_event(&body, "write_order_notes");
+    assert_eq!(refused["status"], "failed");
+    assert!(refused["error"].as_str().unwrap().contains("approved"));
+    assert!(events(&body, "order_notes").is_empty());
+
+    // The fixture analysis writes them in the conversation's language.
+    let body = setup
+        .send(
+            &id,
+            "",
+            0,
+            &[("action", "approve_front"), ("image_id", "front-1")],
+        )
+        .await;
+    let notes = events(&body, "order_notes");
+    assert_eq!(notes.len(), 1);
+    assert_eq!(notes[0]["front_id"], "front-1");
+    assert_eq!(notes[0]["language"], "zh-CN");
+    assert_eq!(notes[0]["views"], json!(["front"]));
+    let sections = notes[0]["sections"].as_array().unwrap();
+    let keys: Vec<&str> = sections
+        .iter()
+        .map(|section| section["key"].as_str().unwrap())
+        .collect();
+    assert_eq!(keys, order_notes::SECTIONS);
+    assert!(sections[0]["text"].as_str().unwrap().contains("眼睛"));
+
+    // A real analysis model gets the picture, the earlier notes and the
+    // user's words, and the notes take the language asked for.
+    setup
+        .backend
+        .state
+        .settings
+        .update(&[("llm_provider".to_owned(), Some("same_as_agent".to_owned()))])
+        .unwrap();
+    setup.llm.set(|messages| {
+        if is_analysis(messages) {
+            say(r#"{"eyes": "丸い目です。", "hair": "前髪は眉の上で切りそろえます。", "requests": "目の形は絵のとおりにしてください。"}"#)
+        } else if last_is_user(messages) {
+            call(
+                "",
+                "write_order_notes",
+                json!({"language": "ja", "instructions": "前髪は眉の上。目の形は絵のとおりに"}),
+            )
+        } else {
+            say("好了。")
+        }
+    });
+    let body = setup.send(&id, "用日语，刘海在眉毛上面", 0, &[]).await;
+    let notes = events(&body, "order_notes");
+    assert_eq!(notes.len(), 2);
+    assert_eq!(notes[1]["language"], "ja");
+    assert_eq!(
+        notes[1]["sections"][4]["text"],
+        "前髪は眉の上で切りそろえます。"
+    );
+    assert_eq!(notes[1]["sections"][5]["text"], "");
+    let request = setup
+        .llm
+        .bodies
+        .lock()
+        .unwrap()
+        .iter()
+        .rev()
+        .find(|body| is_analysis(body["messages"].as_array().unwrap()))
+        .cloned()
+        .unwrap();
+    let content = request["messages"][0]["content"].as_array().unwrap();
+    let prompt = content[0]["text"].as_str().unwrap();
+    assert_eq!(content.len(), 2, "the text and the front view");
+    assert!(prompt.contains("in Japanese"));
+    assert!(prompt.contains("前髪は眉の上。目の形は絵のとおりに"));
+    assert!(prompt.contains("眼睛又大又圆"), "the earlier notes");
+    // The assistant reads the notes too.
+    let transcript = setup.transcript(&id);
+    let result = transcript
+        .iter()
+        .rev()
+        .find(|message| message["role"] == "tool")
+        .unwrap();
+    let result: Value = serde_json::from_str(result["content"].as_str().unwrap()).unwrap();
+    assert_eq!(result["notes"]["eyes"], "丸い目です。");
+
+    // Asked again without a language, they stay in Japanese.
+    setup.llm.set(|messages| {
+        if is_analysis(messages) {
+            say(r#"{"eyes": "丸い目です。", "hair": "前髪は眉の上です。"}"#)
+        } else if last_is_user(messages) {
+            call("", "write_order_notes", json!({}))
+        } else {
+            say("好了。")
+        }
+    });
+    let body = setup.send(&id, "再写一次", 0, &[]).await;
+    let notes = events(&body, "order_notes");
+    assert_eq!(notes[2]["language"], "ja");
 }
 
 #[tokio::test]
@@ -2399,7 +2517,9 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             &[("action", "approve_front"), ("image_id", &front)],
         )
         .await;
-    // After the turnaround, the next message makes the eye close-up.
+    // After the turnaround, the next message makes the eye close-up, and
+    // the one after writes the order notes.
+    setup.send(&id, "继续", 0, &[]).await;
     let body = setup.send(&id, "继续", 0, &[]).await;
 
     assert_eq!(body["status"], "idle");
@@ -2413,6 +2533,7 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             succeeded("generate_front_view"),
             succeeded("generate_turnaround"),
             succeeded("generate_eye_detail"),
+            succeeded("write_order_notes"),
         ]
     );
     let eyes = images(&body)
@@ -2420,6 +2541,10 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
         .find(|image| image["role"] == "eyes")
         .unwrap();
     assert_eq!(eyes["parent_id"], front.as_str());
+    let notes = events(&body, "order_notes");
+    assert_eq!(notes.len(), 1);
+    assert_eq!(notes[0]["front_id"], front.as_str());
+    assert_eq!(notes[0]["views"], json!(["front", "turnaround", "eyes"]));
     let generated = "已生成示例图。批准后进入下一阶段；发送文字则按文字重新生成。";
     assert_eq!(
         replies(&body),
@@ -2429,7 +2554,8 @@ async fn the_fixture_assistant_takes_the_flow_a_step_on_per_message() {
             generated,
             generated,
             "已生成头壳四视图示例。再次发送会生成眼部特写示例。",
-            "已生成眼部特写示例。再次发送会重新生成四视图。",
+            "已生成眼部特写示例。再次发送会写定制说明示例。",
+            "已写好定制说明示例。再次发送会重新生成四视图。",
         ]
     );
 }

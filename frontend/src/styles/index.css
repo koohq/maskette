@@ -123,19 +123,35 @@ body,
   selected locale (see i18n/index.ts). */
 :root {
   --ui-font-latin: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial;
-  --ui-font-family:
+  --ui-font-zh:
     var(--ui-font-latin), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei UI", "Microsoft YaHei", "Noto Sans SC",
     "Noto Sans CJK SC", system-ui, sans-serif;
+  --ui-font-ja:
+    var(--ui-font-latin), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo UI", "Meiryo",
+    "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+  --ui-font-en: var(--ui-font-latin), system-ui, sans-serif;
+  --ui-font-family: var(--ui-font-zh);
 }
 
 :root:lang(ja) {
-  --ui-font-family:
-    var(--ui-font-latin), "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo UI", "Meiryo",
-    "Noto Sans JP", "Noto Sans CJK JP", system-ui, sans-serif;
+  --ui-font-family: var(--ui-font-ja);
 }
 
 :root:lang(en) {
-  --ui-font-family: var(--ui-font-latin), system-ui, sans-serif;
+  --ui-font-family: var(--ui-font-en);
+}
+
+/* Text in another language than the screen's (order notes for a maker abroad) takes its own language's fonts. */
+body [lang="zh-CN"] {
+  font-family: var(--ui-font-zh);
+}
+
+body [lang="ja"] {
+  font-family: var(--ui-font-ja);
+}
+
+body [lang="en"] {
+  font-family: var(--ui-font-en);
 }
 
 body {

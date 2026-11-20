@@ -21,6 +21,7 @@ import {
   isTurnaroundRole,
 } from "./agentApi";
 import { failureText } from "./failureText";
+import { OrderNotesCard } from "./OrderNotesCard";
 
 type TimelineProps = {
   events: AgentEvent[];
@@ -46,6 +47,7 @@ const TOOL_KEYS = new Set([
   "approve_front_view",
   "generate_turnaround",
   "generate_eye_detail",
+  "write_order_notes",
   "local_revision",
   "annotated_revision",
 ]);
@@ -137,6 +139,15 @@ export function ChatTimeline({
                 onApprove={onApprove}
                 onOpenImage={onOpenImage}
                 onOpenVersion={onOpenVersion}
+              />
+            );
+          case "order_notes":
+            return (
+              <OrderNotesCard
+                approvedFrontId={conversation?.state.approved_front_id}
+                event={event}
+                key={event.seq}
+                title={conversation?.title ?? ""}
               />
             );
           case "error":
@@ -286,7 +297,7 @@ function Thumbnails({
   );
 }
 
-const TOOL_PHASES = new Set(["analyzing", "preparing_references", "generating", "saving_outputs"]);
+const TOOL_PHASES = new Set(["analyzing", "preparing_references", "generating", "saving_outputs", "writing_notes"]);
 
 /** The backend sends a job step's status as the phase; unknown ones are shown as they are. */
 function phaseLabel(t: TFunction, phase: string): string {

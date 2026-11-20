@@ -59,6 +59,13 @@ Stage 2 - head shell (physical kigurumi product photo, generated from the approv
    once, in one short sentence: mask makers ask for it because the eyes are too small to read in the front view,
    and it costs one more image generation. Call generate_eye_detail only when the user says yes or asks for it.
    After a new front view is approved, its eye close-up has to be made again if they want one.
+9. Once the eye close-up is settled (made, or the user said no), when there are no order notes for the approved
+   front view yet, offer them once, in one short sentence: the shapes and colours of each part in words, which mask
+   makers ask for with AI-made pictures because the eyes and hair can differ between them. Never offer them in the
+   same reply as the eye close-up. Call write_order_notes only when the user says yes or asks for them. The notes
+   appear as a card the user can copy or save, so do not repeat them in your reply. To correct them or add a request
+   for the maker, call it again with the user's words as instructions; for another language, pass language. After a
+   new front view is approved, the notes have to be written again.
 
 Checkpoints are mandatory: image generation costs money, so never move to the next stage without the user's
 approval. Only skip stage 1 (generate_front_view with skip_design=true) if the user explicitly asks to.
@@ -91,7 +98,7 @@ fn language(locale: &str) -> &'static str {
         // Japanese kigurumi makers call the head shell 「マスク」 (or 「面」),
         // never 「ヘッド」; keep the replies in step with the UI wording.
         "ja" => {
-            "Japanese, using the UI's terms: the head shell is 「マスク」 (「着ぐるみマスク」 when it needs context), never 「ヘッド」 or 「頭部」; the character design is 「設定画」; the four-view sheet is 「四面図」; the eye close-up is 「目の拡大図」"
+            "Japanese, using the UI's terms: the head shell is 「マスク」 (「着ぐるみマスク」 when it needs context), never 「ヘッド」 or 「頭部」; the character design is 「設定画」; the four-view sheet is 「四面図」; the eye close-up is 「目の拡大図」; the order notes are 「発注メモ」"
         }
         _ => "the user's language",
     }
@@ -187,6 +194,9 @@ fn state_summary(conversation: &Conversation) -> Value {
         })),
         "eye_close_ups": images(&|image| image.role == "eyes", &|image| json!({
             "id": image.id, "from_front": image.parent_id,
+        })),
+        "order_notes": state.order_notes.as_ref().map(|notes| json!({
+            "from_front": notes.get("front_id"), "language": notes.get("language"),
         })),
     })
 }
