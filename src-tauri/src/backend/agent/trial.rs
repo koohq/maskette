@@ -21,12 +21,29 @@
 //! The reasoning effort follows `@` (none without it). The first message
 //! carries the character as its reference. `MASKETTE_TRIAL_ANALYSIS`
 //! (default `google/gemini-3.8-flash@medium`, the app's default analysis)
-//! picks the analysis model. Each model writes `<model>/transcript.md` (the
+//! picks the analysis model; `fixture` makes it the fixture, for runs that
+//! only look at what the chat model does (the order notes of the blank
+//! fixture images would say nothing). Each model writes `<model>/transcript.md` (the
 //! replies, the tool calls with their arguments and the tool results, turn
 //! by turn) and a line in `results.jsonl`: seconds per turn, the tools
 //! called, and what OpenRouter billed for the chat and the analysis
 //! together (the change in the key's spending, so nothing else may use the
 //! key meanwhile).
+//!
+//! `trial_order_notes` sends real pictures of one mask to the analysis
+//! model and keeps the order notes it writes:
+//!
+//! ```text
+//! MASKETTE_TRIAL_PICTURES=<front view>,<four-view sheet>,<eye close-up>
+//! MASKETTE_TRIAL_LANGUAGES=ja,zh-CN   (default ja)
+//! MASKETTE_TRIAL_NOTES=<the user's corrections, for one more run>
+//! MASKETTE_TRIAL_OUT=<folder for notes-<language>.json and results.jsonl>
+//! cargo test --lib trial_order_notes -- --ignored --nocapture
+//! ```
+//!
+//! The sheet and the close-up may be left out. With `MASKETTE_TRIAL_NOTES`,
+//! the first language is written once more with the user's words and the
+//! first notes, as when the user asks the assistant for a correction.
 
 use std::io::Write as _;
 use std::path::Path;
@@ -37,6 +54,9 @@ use axum::http::{Method, StatusCode, header};
 use serde_json::{Value, json};
 use tower::ServiceExt;
 
+use crate::backend::generation::analysis;
+use crate::backend::generation::order_notes::{self, OrderNotesRequest, Picture, Section};
+use crate::backend::references;
 use crate::backend::settings::store::service_of;
 use crate::backend::tests::{
     OPENROUTER, Spending, TestBackend, authed, effort_body, json_body, model_and_effort,
@@ -260,6 +280,11 @@ async fn run_model(
 
     let backend = TestBackend::new(true);
     let setting = |name: &str, value: String| (name.to_owned(), Some(value));
+    let analysis_provider = if analysis == "fixture" {
+        "fixture"
+    } else {
+        "openai_compatible"
+    };
     backend
         .state
         .settings
@@ -269,7 +294,7 @@ async fn run_model(
                 setting("agent_llm_base_url", OPENROUTER.to_owned()),
                 setting("agent_llm_model", model.clone()),
                 setting("agent_llm_extra_body", effort_body(effort.as_deref())),
-                setting("llm_provider", "openai_compatible".to_owned()),
+                setting("llm_provider", analysis_provider.to_owned()),
                 setting("analysis_llm_model", analysis_model),
                 setting(
                     "analysis_llm_extra_body",
@@ -368,6 +393,142 @@ async fn trial_chat_models() {
     let key = saved_openrouter_key();
     for spec in &models {
         run_model(spec, &analysis, &key, &reference, &turns, &out).await;
+    }
+}
+
+/// One run of the order notes: the notes, the seconds it took, and what
+/// OpenRouter billed.
+async fn notes_run(
+    backend: &TestBackend,
+    key: &str,
+    pictures: &[(&'static str, String)],
+    language: &str,
+    user_notes: &str,
+    previous: Vec<Section>,
+) -> (Vec<Section>, f64, f64) {
+    let analysis_backend = analysis::analysis_backend(&backend.state.settings.settings())
+        .expect("an analysis backend");
+    let request = OrderNotesRequest {
+        language: language.to_owned(),
+        pictures: pictures
+            .iter()
+            .map(|(view, key)| Picture {
+                view,
+                key: key.clone(),
+            })
+            .collect(),
+        user_notes: user_notes.to_owned(),
+        previous,
+        character_session_id: "trial".to_owned(),
+        notes_id: crate::backend::ids::short_hex(12),
+    };
+    let spending = Spending::start(key).await;
+    let started = Instant::now();
+    let notes = order_notes::write(&backend.state, &analysis_backend, &request)
+        .await
+        .unwrap_or_else(|failure| panic!("the notes failed: {}", failure.message));
+    let seconds = (started.elapsed().as_secs_f64() * 10.0).round() / 10.0;
+    (notes, seconds, spending.spent().await)
+}
+
+#[tokio::test(flavor = "multi_thread")]
+#[ignore = "calls OpenRouter and is billed; see the module comment"]
+async fn trial_order_notes() {
+    let paths: Vec<std::path::PathBuf> = env("MASKETTE_TRIAL_PICTURES")
+        .split(',')
+        .map(|path| std::path::PathBuf::from(path.trim()))
+        .collect();
+    assert!((1..=3).contains(&paths.len()), "one to three pictures");
+    let languages: Vec<String> = std::env::var("MASKETTE_TRIAL_LANGUAGES")
+        .unwrap_or_else(|_| "ja".to_owned())
+        .split(',')
+        .map(|language| language.trim().to_owned())
+        .collect();
+    let user_notes = std::env::var("MASKETTE_TRIAL_NOTES").unwrap_or_default();
+    let out = std::path::PathBuf::from(env("MASKETTE_TRIAL_OUT"));
+    std::fs::create_dir_all(&out).expect("output folder");
+    let analysis =
+        std::env::var("MASKETTE_TRIAL_ANALYSIS").unwrap_or_else(|_| DEFAULT_ANALYSIS.to_owned());
+    let (analysis_model, analysis_effort) = model_and_effort(&analysis);
+    let key = saved_openrouter_key();
+
+    let backend = TestBackend::new(true);
+    let setting = |name: &str, value: String| (name.to_owned(), Some(value));
+    backend
+        .state
+        .settings
+        .update_with_keys(
+            &[
+                setting("llm_provider", "openai_compatible".to_owned()),
+                setting("analysis_llm_base_url", OPENROUTER.to_owned()),
+                setting("analysis_llm_model", analysis_model),
+                setting(
+                    "analysis_llm_extra_body",
+                    effort_body(analysis_effort.as_deref()),
+                ),
+            ],
+            &[(service_of(OPENROUTER), Some(key.clone()))],
+        )
+        .expect("settings set");
+    // The pictures go where the app keeps the versions' clean pixels.
+    let folder = references::root(&backend.state.data_dir).join("agent/trial");
+    std::fs::create_dir_all(&folder).expect("references folder");
+    let pictures: Vec<(&'static str, String)> = ["front", "turnaround", "eyes"]
+        .into_iter()
+        .zip(&paths)
+        .map(|(view, path)| {
+            let name = format!(
+                "{view}.{}",
+                path.extension()
+                    .and_then(|ext| ext.to_str())
+                    .unwrap_or("png")
+            );
+            std::fs::copy(path, folder.join(&name))
+                .unwrap_or_else(|_| panic!("no picture at {}", path.display()));
+            (view, format!("references/agent/trial/{name}"))
+        })
+        .collect();
+
+    let mut results = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(out.join("results.jsonl"))
+        .expect("results file");
+    let mut runs: Vec<(String, String, Vec<Section>)> = languages
+        .iter()
+        .map(|language| (language.clone(), String::new(), Vec::new()))
+        .collect();
+    let mut index = 0;
+    while index < runs.len() {
+        let (language, notes_text, previous) = runs[index].clone();
+        let (notes, seconds, cost) =
+            notes_run(&backend, &key, &pictures, &language, &notes_text, previous).await;
+        let name = if notes_text.is_empty() {
+            format!("notes-{language}.json")
+        } else {
+            format!("notes-{language}-corrected.json")
+        };
+        std::fs::write(
+            out.join(&name),
+            serde_json::to_string_pretty(&notes).expect("notes as JSON"),
+        )
+        .expect("notes written");
+        let line = json!({
+            "analysis": analysis,
+            "language": language,
+            "user_notes": notes_text,
+            "pictures": pictures.iter().map(|(view, _)| *view).collect::<Vec<_>>(),
+            "seconds": seconds,
+            "cost_usd": cost,
+            "file": name,
+        });
+        println!("{line}");
+        writeln!(results, "{line}").expect("result written");
+        // The correction follows the first notes, as in the chat.
+        if index == 0 && !user_notes.is_empty() {
+            runs.push((language, user_notes.clone(), notes));
+        }
+        index += 1;
     }
 }
 
