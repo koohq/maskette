@@ -326,6 +326,33 @@ const ja: TranslationResource = {
     failed:
       "更新できませんでした。もう一度試すか、配布ページから新しいバージョンの setup.exe をダウンロードして実行してください。",
   },
+  about: {
+    section: "このアプリについて",
+    version: "Maskette {{version}}",
+    license:
+      "Maskette はフリーソフトウェアです。GNU GPL バージョン 3（またはそれ以降）の条件のもとで、誰でも自由に使用・改変・再配布できます。保証はありません。",
+    basedOn:
+      "Maskette は ElysiaRealm0019 の Visual Studio Kigurumi（VSK）を基にしています。VSK は、SeaRabbit / 海兔（icyqwq）の KigCraft を基にしています。",
+    source: "ソースコード：{{url}}",
+    thirdParty: "サードパーティのライセンス",
+  },
+  licenses: {
+    title: "サードパーティのライセンス",
+    breadcrumb: "パンくずリスト",
+    intro:
+      "Maskette には、ほかの人が作った次のソフトウェアとデータが入っています。著作権はそれぞれの作者にあり、それぞれのライセンスに従って使用しています。項目を開くと、ライセンスの本文を表示します。",
+    loading: "読み込み中…",
+    unavailable:
+      "ライセンスの一覧が見つかりません。インストールした Maskette には入っています。開発版では pnpm notices で作成できます。",
+    saveText: "テキストで保存",
+    count: "{{count}} 件",
+    groups: {
+      app: "アプリ本体（Rust）",
+      screen: "画面（JavaScript）",
+      data: "モデルとフォント",
+      installer: "インストーラー",
+    },
+  },
   settings: {
     title: "設定",
     open: "設定",

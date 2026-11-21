@@ -317,6 +317,77 @@ const MODEL_CANDIDATES = {
   ],
 };
 
+const licenseText = (id: string) => readFileSync(new URL(`../../LICENSES/${id}.txt`, import.meta.url), "utf8");
+
+/**
+ * The third-party notices `pnpm notices` writes into public/ (not committed, so a fresh checkout has none): a few of
+ * each group, with the longest names and notes the real list has.
+ */
+const notices = {
+  appVersion: "0.1.0",
+  components: [
+    {
+      name: "ab_glyph",
+      version: "0.2.32",
+      group: "app",
+      license: "Apache-2.0",
+      url: "https://crates.io/crates/ab_glyph/0.2.32",
+      texts: [1],
+    },
+    {
+      name: "Rust standard library",
+      version: "1.100.0",
+      group: "app",
+      license: "MIT",
+      url: "https://github.com/rust-lang/rust",
+      note: "Offered under MIT OR Apache-2.0; compiled into the app.",
+      texts: [0],
+    },
+    {
+      name: "unicode-ident",
+      version: "1.0.27",
+      group: "app",
+      license: "MIT AND Unicode-3.0",
+      url: "https://crates.io/crates/unicode-ident/1.0.27",
+      texts: [0],
+    },
+    {
+      name: "@mediapipe/tasks-vision",
+      version: "0.10.35",
+      group: "screen",
+      license: "Apache-2.0",
+      url: "https://www.npmjs.com/package/@mediapipe/tasks-vision/v/0.10.35",
+      note: "Its WebAssembly module is built with third-party components; see the third_party folder of the MediaPipe source: https://github.com/google-ai-edge/mediapipe/tree/v0.10.35/third_party",
+      texts: [1],
+    },
+    {
+      name: "react",
+      version: "19.3.1",
+      group: "screen",
+      license: "MIT",
+      url: "https://www.npmjs.com/package/react/v/19.3.1",
+      texts: [0],
+    },
+    {
+      name: "Anime face landmark model (anime-face-detector, HRNetV2)",
+      version: "0.0.1",
+      group: "data",
+      license: "MIT",
+      url: "https://github.com/hysts/anime-face-detector",
+      note: "anime-face-hrnetv2-int8.onnx: the weights of mmpose_anime-face_hrnetv2.pth from the v0.0.1 release, converted to ONNX and quantized to 8-bit integers (as found in Visual Studio Kigurumi).",
+      texts: [0],
+    },
+    {
+      name: "NSIS (Nullsoft Scriptable Install System)",
+      group: "installer",
+      license: "Zlib AND CPL-1.0",
+      url: "https://nsis.sourceforge.io/",
+      texts: [0],
+    },
+  ],
+  texts: [licenseText("MIT"), licenseText("Apache-2.0")],
+};
+
 type Answer = { json: unknown } | { body: Buffer; contentType: string } | { sse: true };
 
 function answer(method: string, path: string): Answer | null {
@@ -359,6 +430,10 @@ export async function mockBackend(page: Page): Promise<string[]> {
         await route.fulfill({ body: reply.body, contentType: reply.contentType });
       }
     },
+  );
+  await page.route(
+    (url) => url.pathname === "/third-party-notices.json",
+    (route: Route) => route.fulfill({ json: notices }),
   );
   return unanswered;
 }

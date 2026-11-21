@@ -92,3 +92,7 @@ Maskette は [Visual Studio Kigurumi](https://github.com/ElysiaRealm0019/Visual-
 VSK は、SeaRabbit / 海兔（icyqwq）の [KigCraft](https://github.com/icyqwq/KigCraft) を基にしています。
 ライセンスは GPL-3.0-or-later です。GPL の条件のもとで、誰でも自由に使用・改変・再配布できます。
 詳しくは [LICENSE](LICENSE) を参照してください。
+
+Maskette には、ほかの人が作ったソフトウェアとデータも、それぞれのライセンス（MIT や Apache-2.0 など）のもとで入っています。
+一覧は、アプリの「設定」→「このアプリについて」→「サードパーティのライセンス」で表示できます。
+Release にも third-party-notices.txt として付けています。

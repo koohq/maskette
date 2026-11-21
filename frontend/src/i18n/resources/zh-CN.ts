@@ -305,6 +305,32 @@ const zhCN = {
     installing: "正在启动安装程序。Maskette 将关闭，完成后自动重新打开。",
     failed: "更新未能完成。请重试，或从发布页面下载新版本的 setup.exe 并运行。",
   },
+  about: {
+    section: "关于本应用",
+    version: "Maskette {{version}}",
+    license:
+      "Maskette 是自由软件。任何人都可以按照 GNU GPL 第 3 版（或更高版本）的条款自由使用、修改和分发。不提供任何担保。",
+    basedOn:
+      "Maskette 基于 ElysiaRealm0019 的 Visual Studio Kigurumi（VSK），VSK 又基于 SeaRabbit / 海兔（icyqwq）的 KigCraft。",
+    source: "源代码：{{url}}",
+    thirdParty: "第三方许可证",
+  },
+  licenses: {
+    title: "第三方许可证",
+    breadcrumb: "面包屑导航",
+    intro:
+      "Maskette 包含以下由他人制作的软件和数据。版权归各自的作者所有，并按照各自的许可证使用。展开一项即可查看许可证全文。",
+    loading: "正在读取…",
+    unavailable: "找不到许可证列表。安装版的 Maskette 中包含该列表；开发版可以用 pnpm notices 生成。",
+    saveText: "保存为文本",
+    count: "{{count}} 项",
+    groups: {
+      app: "应用本体（Rust）",
+      screen: "界面（JavaScript）",
+      data: "模型和字体",
+      installer: "安装程序",
+    },
+  },
   settings: {
     title: "设置",
     open: "设置",

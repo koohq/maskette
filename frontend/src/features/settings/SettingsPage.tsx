@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ConfirmDialog } from "../../ui/IdeDialog";
+import { AboutSection } from "../about/AboutSection";
 import { errorDetail } from "../agent/apiErrorText";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { UpdateSection } from "../update/UpdateSection";
@@ -449,6 +450,7 @@ export function SettingsPage() {
               <PaletteSection />
             </div>
             <UpdateSection />
+            <AboutSection />
           </>
         ) : null}
       </main>

@@ -324,6 +324,33 @@ const en: TranslationResource = {
     failed:
       "The update did not finish. Try again, or download the new version's setup.exe from the releases page and run it.",
   },
+  about: {
+    section: "About Maskette",
+    version: "Maskette {{version}}",
+    license:
+      "Maskette is free software: anyone may use, change and share it under the terms of the GNU GPL, version 3 or later. It comes with no warranty.",
+    basedOn:
+      "Maskette is based on Visual Studio Kigurumi (VSK) by ElysiaRealm0019, which is based on KigCraft by SeaRabbit / 海兔 (icyqwq).",
+    source: "Source code: {{url}}",
+    thirdParty: "Third-party licenses",
+  },
+  licenses: {
+    title: "Third-party licenses",
+    breadcrumb: "Breadcrumb",
+    intro:
+      "Maskette includes the software and data below, which others made. Each belongs to its authors and is used under its own license. Open an item to see its license text.",
+    loading: "Loading…",
+    unavailable:
+      "The license list was not found. It comes with the installed Maskette; in a development build, pnpm notices writes it.",
+    saveText: "Save as text",
+    count: "{{count}} items",
+    groups: {
+      app: "The app (Rust)",
+      screen: "The screen (JavaScript)",
+      data: "Models and fonts",
+      installer: "The installer",
+    },
+  },
   settings: {
     title: "Settings",
     open: "Settings",

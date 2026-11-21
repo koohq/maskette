@@ -94,6 +94,14 @@ if (statSync(installer).mtimeMs < lastChange) {
   fail("the installer is older than the last commit to the app. Run `pnpm bundle` again.");
 }
 
+// The third-party notices that went into the same build, for anyone who reads them before installing.
+const noticesFile = join(root, "release", "third-party-notices.txt");
+if (!existsSync(noticesFile)) fail("the build has no third-party notices. Run `pnpm bundle`, which writes them.");
+const noticesVersion = /^Third-party notices for Maskette (\S+)$/m.exec(readFileSync(noticesFile, "utf8"))?.[1];
+if (noticesVersion !== version || statSync(noticesFile).mtimeMs < lastChange) {
+  fail("the third-party notices are not from this build. Run `pnpm bundle` again.");
+}
+
 // Signed with the key installed copies trust; anything else they would refuse to install.
 const problem = signatureProblem(readFileSync(installer), readFileSync(signatureFile, "utf8"), pubkey);
 if (problem) fail(`the installer's signature does not check out with the updater's public key: ${problem}.`);
@@ -102,7 +110,7 @@ const sizeMiB = (statSync(installer).size / 1024 / 1024).toFixed(2);
 console.log(`
 Release ${tag} on ${repo}
   commit: ${run("git", ["log", "-1", "--format=%h %s"])}
-  files:  ${installerName} (${sizeMiB} MiB), ${installerName}.sig, latest.json
+  files:  ${installerName} (${sizeMiB} MiB), ${installerName}.sig, latest.json, third-party-notices.txt
   notes:
 ${notes
   .split(/\r?\n/)
@@ -133,6 +141,7 @@ const created = spawnSync(
     installer,
     signatureFile,
     latestPath,
+    noticesFile,
     "--repo",
     repo,
     "--target",

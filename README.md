@@ -185,6 +185,12 @@ Like them, Maskette is licensed under GPL-3.0-or-later: anyone may use,
 change and share it under the GPL's terms. See [LICENSE](LICENSE), which
 also records what Maskette changed.
 
+Maskette also includes software and data that others made, under their own
+licenses (MIT, Apache-2.0 and others). The app lists them under Settings →
+About Maskette → Third-party licenses, and each release attaches the list as
+`third-party-notices.txt`. The few such files kept in this repository are
+listed in [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md).
+
 ## Development
 
 Requirements:
@@ -211,12 +217,13 @@ Other scripts:
 | Script | What it does |
 | --- | --- |
 | `pnpm typecheck` | Type-check the Node scripts in `scripts/` and every workspace package, tests included |
-| `pnpm test` | Run the frontend tests (Vitest) |
+| `pnpm test` | Run the tests of the Node scripts (`node --test`) and the frontend (Vitest) |
+| `pnpm notices` | Write the third-party notices for a build: every Rust crate, npm package, model, font and installer part that ships, with its license text (`frontend/public/third-party-notices.json` and `.txt`, not committed). Stops if a license is not one `scripts/notices/licenses.ts` accepts. `pnpm bundle` runs it first |
 | `pnpm vrt` | Screenshot the main screens in every language at the default and the smallest window size, compare them with `frontend/vrt/__screenshots__`, and check that no text or control overflows its box (Playwright; the API is answered by fixtures). The first run needs `pnpm --filter maskette-frontend exec playwright install chromium` |
 | `pnpm vrt:update` | Accept the current screenshots as the new baselines; look at the changed images before committing them |
 | `pnpm build` | Build the frontend into `frontend/dist` |
 | `pnpm cargo:check` | `cargo check` the Tauri crate |
-| `pnpm bundle` | Build the Windows installer, NSIS `-setup.exe` (`tauri build`), sign it for the updater, and copy it to `release/` with the `latest.json` that installed copies read. Needs the signing key (below) |
+| `pnpm bundle` | Write the third-party notices, build the Windows installer, NSIS `-setup.exe` (`tauri build`), sign it for the updater, and copy it to `release/` with the `latest.json` that installed copies read and the notices as text. Needs the signing key (below) |
 | `pnpm bundle:local` | Build the installer without the updater's files, so no signing key is needed. For trying a build on your own PC |
 | `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository); `--notes <file>` puts release notes into `latest.json` |
 | `pnpm release:publish` | Publish the signed build as a GitHub release, after checking it (below) |
@@ -239,8 +246,9 @@ installers signed with the key whose public half is `plugins.updater.pubkey`.
    and committed, that the installer was built after the last commit to the
    app and that its signature checks out with `plugins.updater.pubkey`. Then
    it shows what it will publish and asks before it creates the GitHub
-   release `v<version>` with the installer, its `.sig` and `latest.json`
-   (through `gh`). `--dry-run` stops before publishing.
+   release `v<version>` with the installer, its `.sig`, `latest.json` and
+   `third-party-notices.txt` (through `gh`). `--dry-run` stops before
+   publishing.
 
 Layout:
 

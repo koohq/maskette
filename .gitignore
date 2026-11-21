@@ -5,6 +5,8 @@ release/
 coverage/
 frontend/vrt-results/
 frontend/vrt-report/
+# Written by `pnpm notices` (and `pnpm bundle`) from the lockfiles
+frontend/public/third-party-notices.*
 .vite/
 *.log
 

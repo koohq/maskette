@@ -58,6 +58,21 @@ copyFileSync(join(nsisDir, newest.name), target);
 utimesSync(target, new Date(), new Date(newest.time));
 console.log(`Installer copied to ${shown(target)}`);
 
+// The third-party notices that went into this build: scripts/third-party-notices.ts writes them into frontend/public/,
+// and the screen's build carries them into frontend/dist/. The release attaches them.
+const noticesTarget = join(outDir, "third-party-notices.txt");
+rmSync(noticesTarget, { force: true });
+const builtNotices = join(root, "frontend", "dist", "third-party-notices.txt");
+if (existsSync(builtNotices)) {
+  copyFileSync(builtNotices, noticesTarget);
+  utimesSync(noticesTarget, new Date(), statSync(builtNotices).mtime);
+  console.log(`Third-party notices copied to ${shown(noticesTarget)}`);
+} else {
+  console.warn(
+    "This build has no third-party notices (frontend/dist/third-party-notices.txt); `pnpm bundle` writes them.",
+  );
+}
+
 // The signature `tauri build` writes next to the installer when the signing key is set
 // (TAURI_SIGNING_PRIVATE_KEY). One older than the installer belongs to an earlier build of the same version.
 const signature = join(nsisDir, `${newest.name}.sig`);

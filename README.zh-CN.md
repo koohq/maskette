@@ -92,3 +92,6 @@ Maskette 基于 ElysiaRealm0019 的 [Visual Studio Kigurumi](https://github.com/
 VSK 又基于 SeaRabbit / 海兔（icyqwq）的 [KigCraft](https://github.com/icyqwq/KigCraft)。
 许可证为 GPL-3.0-or-later，任何人都可以自由使用、修改和分发。
 详见 [LICENSE](LICENSE)。
+
+Maskette 还包含他人制作的软件和数据，按照各自的许可证（MIT、Apache-2.0 等）使用。
+列表可在应用的“设置”→“关于本应用”→“第三方许可证”中查看，每个 Release 也附有 third-party-notices.txt。

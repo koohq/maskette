@@ -67,7 +67,17 @@ const SETTINGS: Screen = {
   ready: (page) => expect(page.locator("input").first()).toBeVisible(),
 };
 
-const SCREENS = [PROJECTS, WORKSPACE, WORKSPACE_EMPTY, SETTINGS];
+const LICENSES: Screen = {
+  name: "licenses",
+  path: "/licenses",
+  // With one component open, so its note, link and license text are measured too.
+  ready: async (page) => {
+    await page.getByText("@mediapipe/tasks-vision", { exact: true }).click();
+    await expect(page.locator("pre").first()).toBeVisible();
+  },
+};
+
+const SCREENS = [PROJECTS, WORKSPACE, WORKSPACE_EMPTY, SETTINGS, LICENSES];
 
 /** Opens a screen with the fixtures; returns the requests the fixtures do not answer, filled in as the test goes. */
 async function open(page: Page, screen: Screen, locale: Locale, viewport: Viewport, theme: Theme = "dark") {
@@ -280,6 +290,16 @@ const SCENES: Scene[] = [
       const note = page.getByText(text.settings.urlNotes.siliconflow.international, { exact: true });
       await note.evaluate((element) => element.scrollIntoView({ block: "center" }));
       await expect(note).toBeVisible();
+    },
+  },
+  {
+    // The last part of the page: the license, the source and the way to the third-party licenses.
+    name: "settings-about",
+    screen: SETTINGS,
+    act: async (page, text) => {
+      const heading = page.getByRole("heading", { name: text.about.section, exact: true });
+      await heading.evaluate((element) => element.scrollIntoView({ block: "start" }));
+      await expect(page.getByRole("link", { name: text.about.thirdParty })).toBeVisible();
     },
   },
   {
