@@ -58,7 +58,7 @@ to use, and enter its API key.
   the default settings, enter it as the “OpenRouter API key” under “Chat
   assistant LLM” and save; reference analysis and image generation then use
   the same key. You pay OpenRouter for what you use.
-- API keys are stored in Windows Credential Manager, not in a file.
+- API keys are stored in Windows Credential Manager.
 - You can also use a CLI signed in with a paid ChatGPT or Claude plan. Codex
   CLI works for the chat, reference analysis and image generation; Claude
   Code works for the chat and reference analysis. To use only a paid ChatGPT
