@@ -17,6 +17,7 @@
     "test": "node --test scripts/ && pnpm -r --if-present test",
     "vrt": "pnpm --filter maskette-frontend vrt",
     "vrt:update": "pnpm --filter maskette-frontend vrt:update",
+    "screenshots": "pnpm --filter maskette-frontend screenshots",
     "typecheck": "tsc -p tsconfig.json && pnpm -r --if-present typecheck",
     "cargo:check": "cargo check --manifest-path src-tauri/Cargo.toml",
     "lint": "biome check",

@@ -19,6 +19,21 @@ fn data_dir(app: &tauri::App) -> tauri::Result<PathBuf> {
     app.path().app_data_dir()
 }
 
+/// The language the sample project is added in on a first launch: the
+/// system's, as the UI starts in. Debug builds take `MASKETTE_SAMPLE_LOCALE`
+/// (`ja`, `en` or `zh-CN`) instead when it is set, so the sample can be tried
+/// in each language on one PC.
+fn sample_locale() -> &'static str {
+    #[cfg(debug_assertions)]
+    if let Some(locale) = std::env::var("MASKETTE_SAMPLE_LOCALE")
+        .ok()
+        .filter(|locale| !locale.is_empty())
+    {
+        return backend::agent::sample::ui_locale([locale]);
+    }
+    backend::agent::sample::ui_locale(sys_locale::get_locales())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let app = tauri::Builder::default()
@@ -42,8 +57,7 @@ pub fn run() {
             // The user's data folder, in place of the old backend's `runtime/`.
             // A new one (the first launch) gets the sample project.
             let data_dir = data_dir(app)?;
-            let locale = backend::agent::sample::ui_locale(sys_locale::get_locales());
-            backend::agent::sample::open_data_dir(&data_dir, locale)?;
+            backend::agent::sample::open_data_dir(&data_dir, sample_locale())?;
 
             let backend = Backend::start(BackendConfig {
                 data_dir,

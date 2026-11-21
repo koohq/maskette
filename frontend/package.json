@@ -9,6 +9,7 @@
     "test": "vitest run",
     "vrt": "playwright test",
     "vrt:update": "playwright test --update-snapshots",
+    "screenshots": "node vrt/readme-screenshots.ts",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.test.json && tsc --noEmit -p vrt/tsconfig.json",
     "deps:semver": "pnpm up -r",
     "deps:latest": "pnpm up -r --latest",

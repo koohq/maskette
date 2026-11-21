@@ -13,6 +13,8 @@ notes that put the shapes and colours into words.
 Every image can be adjusted by hand in the built-in editor, and each result
 is kept in the project's version history.
 
+![The sample project: the head shell front view in the editor, and the four-view sheet in the assistant panel](.github/readme/workspace-en.webp)
+
 ## System requirements
 
 - Windows 10 / 11 (64-bit)
@@ -122,6 +124,8 @@ redraws both eyes and brows of the approved front view, large and clear (one
 image generation). You can also ask for it in the chat: “Make an eye
 close-up.”
 
+![The sample's eye close-up in the editor and in the assistant panel](.github/readme/eye-closeup-en.webp)
+
 - The eye close-up is made from the approved front view. To change the eyes,
   first fix the front view and approve it again, then make the eye close-up
   again.
@@ -141,6 +145,8 @@ reference analysis reads the approved front view, the four-view sheet and
 the eye close-up, and puts the shapes and colours of the eyes, brows, mouth,
 skin, hair, ears and accessories into words (one analysis). You can also ask
 for them in the chat: “Write design notes.”
+
+![The sample's design notes, shown as a card in the assistant panel](.github/readme/design-notes-en.webp)
 
 - The design notes appear as a card in the chat. Use “Copy” to paste them
   into another app, or “Save as text” to save them as a file.
@@ -233,7 +239,9 @@ pnpm dev            # opens the Maskette window (tauri dev)
 (`%APPDATA%\app.maskette`). Debug builds use the folder in the
 `MASKETTE_DATA_DIR` environment variable instead when it is set; a folder
 that does not exist yet tries a first launch, the only time the sample
-project (`src-tauri/sample/`) is added.
+project (`src-tauri/sample/`) is added. The sample comes in the system's
+language; debug builds take `MASKETTE_SAMPLE_LOCALE` (`en`, `ja` or `zh-CN`)
+instead when it is set.
 
 Other scripts:
 
@@ -244,6 +252,7 @@ Other scripts:
 | `pnpm notices` | Write the third-party notices for a build: every Rust crate, npm package, model, font and installer part that ships, with its license text (`frontend/public/third-party-notices.json` and `.txt`, not committed). Stops if a license is not one `scripts/notices/licenses.ts` accepts. `pnpm bundle` runs it first |
 | `pnpm vrt` | Screenshot the main screens in every language at the default and the smallest window size, compare them with `frontend/vrt/__screenshots__`, and check that no text or control overflows its box (Playwright; the API is answered by fixtures). The first run needs `pnpm --filter maskette-frontend exec playwright install chromium` |
 | `pnpm vrt:update` | Accept the current screenshots as the new baselines; look at the changed images before committing them |
+| `pnpm screenshots` | Take the README screenshots (`.github/readme/`) from the real app: for each language (or the ones given, such as `pnpm screenshots ja`), start `pnpm dev` on an empty data folder with the sample in that language, open its versions in the window over the DevTools protocol, and save WebP files. Windows only; run it from PowerShell |
 | `pnpm build` | Build the frontend into `frontend/dist` |
 | `pnpm cargo:check` | `cargo check` the Tauri crate |
 | `pnpm bundle` | Write the third-party notices, build the Windows installer, NSIS `-setup.exe` (`tauri build`), sign it for the updater, and copy it to `release/` with the `latest.json` that installed copies read and the notices as text. Needs the signing key (below) |
