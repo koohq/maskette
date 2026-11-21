@@ -1,0 +1,66 @@
+name: Bug report / 不具合の報告 / 问题反馈
+description: Something does not work as it should / 正しく動かない / 功能无法正常工作
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You may write in English, Japanese or Chinese. / 日本語で書いてかまいません。 / 可以用中文填写。
+
+        **Do not paste API keys**, in the text, error messages or screenshots. / **API キーは貼らないでください**（本文・エラーの文・スクリーンショットのどれにも）。 / **请不要贴出 API Key**（正文、错误信息和截图中都不要）。
+
+        For a security problem, use [Report a vulnerability](https://github.com/koohq/maskette/security/advisories/new) instead. / セキュリティの問題は、代わりに [Report a vulnerability](https://github.com/koohq/maskette/security/advisories/new) から。 / 安全问题请改用 [Report a vulnerability](https://github.com/koohq/maskette/security/advisories/new)。
+  - type: input
+    id: version
+    attributes:
+      label: Maskette version / バージョン / 版本
+      description: Settings → App updates / 設定の「アプリの更新」 / 设置中的“应用更新”
+      placeholder: 0.1.0
+    validations:
+      required: true
+  - type: input
+    id: windows
+    attributes:
+      label: Windows
+      placeholder: Windows 11 25H2
+    validations:
+      required: true
+  - type: input
+    id: ai
+    attributes:
+      label: AI service and model / AI サービスとモデル / AI 服务和模型
+      description: >-
+        For the step that went wrong: Chat assistant LLM, Reference analysis LLM or Image backend in Settings. /
+        うまくいかなかった工程のもの（設定の「チャットアシスタント」「参考画像の分析」「画像生成」）。 /
+        出问题的那一步所用的（设置中的“对话助手 LLM”“参考图分析 LLM”“生图后端”）。
+      placeholder: OpenRouter, google/gemini-3.8-flash
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened / 起きたこと / 发生了什么
+      description: >-
+        If an error message appeared, paste it as shown. /
+        エラーの文が出たら、そのまま貼ってください。 /
+        如果出现了错误信息，请原样贴出。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce / 再現手順 / 复现步骤
+      placeholder: |
+        1.
+        2.
+        3.
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected / 期待した動作 / 预期结果
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots / スクリーンショット / 截图
+      description: >-
+        Drag images here. Hide any API key first. /
+        画像をここにドラッグします。API キーが写っていたら隠してください。 /
+        把图片拖到这里。如果截到了 API Key，请先遮住。

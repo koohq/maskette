@@ -1,0 +1,22 @@
+name: Question / 質問 / 提问
+description: How to do something, or why something happens / 使い方や動きについての質問 / 关于用法或运行方式的问题
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        You may write in English, Japanese or Chinese. / 日本語で書いてかまいません。 / 可以用中文填写。
+
+        The [README](https://github.com/koohq/maskette#readme) may already answer it. **Do not paste API keys.** / [README](https://github.com/koohq/maskette/blob/main/README.ja.md) に答えがあるかもしれません。**API キーは貼らないでください。** / [README](https://github.com/koohq/maskette/blob/main/README.zh-CN.md) 里可能已有答案。**请不要贴出 API Key。**
+  - type: textarea
+    id: question
+    attributes:
+      label: Question / 質問 / 问题
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Maskette version / バージョン / 版本
+      description: Settings → App updates / 設定の「アプリの更新」 / 设置中的“应用更新”
+      placeholder: 0.1.0
