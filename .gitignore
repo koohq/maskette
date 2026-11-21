@@ -1,7 +1,8 @@
 # Node
 node_modules/
 dist/
-release/
+# Only the root one, where `pnpm bundle` copies the installer (scripts/release/ is source)
+/release/
 coverage/
 frontend/vrt-results/
 frontend/vrt-report/

@@ -5,6 +5,7 @@
 //
 // Usage: pnpm release:publish --notes <file> [--dry-run] [--yes]
 //   --notes <file>  release notes as plain text, shown in the app's update dialog and on the release page
+//                   (`pnpm release:notes` drafts them; a line still starting with "TODO:" stops the release)
 //   --dry-run       check and show everything, but publish nothing
 //   --yes           publish without asking
 import { execFileSync, spawnSync } from "node:child_process";
@@ -15,6 +16,7 @@ import { createInterface } from "node:readline/promises";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { signatureProblem } from "./minisign.ts";
+import { hasTodo, TODO_MARKER } from "./release/draft-notes.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { values: options } = parseArgs({
@@ -39,6 +41,7 @@ const notesFile = resolve(options.notes);
 if (!existsSync(notesFile)) fail(`there is no notes file at ${options.notes}.`);
 const notes = readFileSync(notesFile, "utf8").trim();
 if (!notes) fail("the notes file is empty.");
+if (hasTodo(notes)) fail(`the notes still have a line starting with "${TODO_MARKER}". Write it, then publish.`);
 
 // tauri.conf.json's version is the one the updater compares; Cargo's must say the same.
 const config = JSON.parse(readFileSync(join(root, "src-tauri", "tauri.conf.json"), "utf8")) as {

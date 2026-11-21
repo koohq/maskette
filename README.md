@@ -258,6 +258,7 @@ Other scripts:
 | `pnpm bundle` | Write the third-party notices, build the Windows installer, NSIS `-setup.exe` (`tauri build`), sign it for the updater, and copy it to `release/` with the `latest.json` that installed copies read and the notices as text. Needs the signing key (below) |
 | `pnpm bundle:local` | Build the installer without the updater's files, so no signing key is needed. For trying a build on your own PC |
 | `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository); `--notes <file>` puts release notes into `latest.json` |
+| `pnpm release:notes` | Draft the release notes for the version in `tauri.conf.json` into `release/notes-<version>.txt`: the `feat:` commits since the last release under "New" and the `fix:` commits under "Fixes". `--since <ref>` starts after another tag or commit; `--force` drafts over an existing file |
 | `pnpm release:publish` | Publish the signed build as a GitHub release, after checking it (below) |
 | `pnpm lint` | Biome check |
 
@@ -272,8 +273,12 @@ installers signed with the key whose public half is `plugins.updater.pubkey`.
    private key, or its contents) and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`.
    A `.env` file does not work for these.
 3. `pnpm bundle`.
-4. Write the release notes in a text file, outside the repository or in
-   `release/`, and run `pnpm release:publish --notes <file>`. It writes
+4. Draft the release notes with `pnpm release:notes`, read and edit
+   `release/notes-<version>.txt` (they are shown as they are in the app's
+   update dialog and on the release page; the first release has no earlier
+   tag, so its draft only asks you to write them), and run
+   `pnpm release:publish --notes release/notes-<version>.txt`. It refuses
+   notes that still have a line starting with `TODO:`, writes
    `latest.json`, checks that the two versions agree, that `main` is pushed
    and committed, that the installer was built after the last commit to the
    app and that its signature checks out with `plugins.updater.pubkey`. Then
