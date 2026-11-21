@@ -19,7 +19,7 @@ Maskette 是一款根据角色立绘设计 Kigurumi 头壳的桌面应用。
 
 ## 安装
 
-1. 从发布页面下载 `Maskette_<版本>_x64-setup.exe` 并打开。
+1. 从[发布页面](https://github.com/koohq/maskette/releases/latest)下载 `Maskette_<版本>_x64-setup.exe` 并打开。
 2. 如果出现“Windows 已保护你的电脑”，请点击“更多信息”→“仍要运行”。
    Maskette 目前还没有代码签名，所以会出现这个提示。
 3. 按照向导安装。不需要管理员权限（只安装给当前用户）。

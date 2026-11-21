@@ -26,7 +26,8 @@ There is no macOS version yet.
 
 ## Installing
 
-1. Download `Maskette_<version>_x64-setup.exe` from the releases page and run it.
+1. Download `Maskette_<version>_x64-setup.exe` from the
+   [latest release](https://github.com/koohq/maskette/releases/latest) and run it.
 2. If you see “Windows protected your PC”, choose “More info” → “Run anyway”.
    Maskette is not code-signed yet, so Windows shows this warning.
 3. Follow the installer. You do not need administrator rights: Maskette is
