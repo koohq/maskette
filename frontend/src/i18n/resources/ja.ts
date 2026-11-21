@@ -316,13 +316,13 @@ const ja: TranslationResource = {
     dismiss: "閉じる",
     confirmTitle: "バージョン {{version}} に更新",
     confirmMessage:
-      "Maskette をいったん閉じて新しいバージョンをインストールし、終わると自動で開き直します。プロジェクトと設定はそのまま残ります。",
+      "Maskette をいったん閉じて新しいバージョンをインストールし、終わると自動で再起動します。プロジェクトと設定はそのまま残ります。",
     notes: "このバージョンの変更点",
     published: "公開日：{{date}}",
     running: "生成中のプロジェクトがあります。終わってから更新してください。",
     downloading: "ダウンロード中… {{percent}}%",
     downloadingNoTotal: "ダウンロード中…",
-    installing: "インストールを始めます。Maskette はいったん閉じて、終わると自動で開き直します。",
+    installing: "インストールを始めます。Maskette はいったん閉じて、終わると自動で再起動します。",
     failed:
       "更新できませんでした。もう一度試すか、配布ページから新しいバージョンの setup.exe をダウンロードして実行してください。",
   },

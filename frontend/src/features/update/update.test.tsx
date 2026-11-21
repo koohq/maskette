@@ -77,7 +77,7 @@ describe("updates", () => {
       fireEvent.click(screen.getByRole("button", { name: "更新する" }));
       const dialog = screen.getByRole("dialog", { name: "バージョン 0.9.0 に更新" });
       expect(dialog).toHaveTextContent("目の拡大図を直しました。");
-      expect(dialog).toHaveTextContent("終わると自動で開き直します");
+      expect(dialog).toHaveTextContent("終わると自動で再起動します");
 
       fireEvent.click(within(dialog).getByRole("button", { name: "更新する" }));
       await waitFor(() => expect(calls.some(({ call }) => call === "POST /api/update/install")).toBe(true));
