@@ -65,10 +65,10 @@ describe("about and third-party licenses", () => {
 
   it("says what Maskette is licensed under and links to the third-party licenses", () => {
     renderWith(<AboutSection />);
-    expect(screen.getByRole("heading", { name: "このアプリについて" })).toBeInTheDocument();
-    expect(screen.getByText(/GNU GPL バージョン 3/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Maskette について" })).toBeInTheDocument();
+    expect(screen.getByText(/GNU GPL バージョン 3.*本ソフトウェアは無保証です。/)).toBeInTheDocument();
     expect(screen.getByText("ソースコード：https://github.com/koohq/maskette")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "サードパーティのライセンス" })).toHaveAttribute("href", "/licenses");
+    expect(screen.getByRole("link", { name: "オープンソースライセンス" })).toHaveAttribute("href", "/licenses");
   });
 
   it("lists the components by group and shows a license text when one is opened", async () => {
@@ -104,7 +104,7 @@ describe("about and third-party licenses", () => {
       vi.fn(async () => respond("<!doctype html><html></html>", "text/html")),
     );
     renderWith(<LicensesPage />);
-    expect(await screen.findByText(/ライセンスの一覧が見つかりません/)).toBeInTheDocument();
+    expect(await screen.findByText(/ライセンス情報が見つかりません/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "テキストで保存" })).not.toBeInTheDocument();
   });
 });
