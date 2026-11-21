@@ -178,17 +178,14 @@ anyone else. It connects to the internet only for these:
   them to OpenAI and Anthropic. How each service handles them is set by its
   own terms and privacy policy. Each API key is sent only to the service it
   was entered for. With OpenRouter, Settings also reads OpenRouter's list of
-  models and prices, without the key.
+  models and prices.
 - **GitHub, for updates.** At startup (unless you turn this off under “App
   updates” in Settings) and when you press “Check now”, Maskette reads a
   small file (`latest.json`) from the latest release on GitHub. When you
-  press “Update”, it downloads the installer from there. GitHub receives
-  only what any web request carries, such as your IP address.
+  press “Update”, it downloads the installer from there. As with any
+  website, GitHub receives your IP address and the like.
 - **Microsoft, when installing.** On a PC without the WebView2 runtime, the
   installer downloads it from Microsoft.
-
-Nothing else leaves your PC. Projects and images stay in the folder above,
-and the editor finds the landmarks of a face on your PC.
 
 ## Uninstalling
 
