@@ -134,6 +134,17 @@ async function openVersion(page: Page, version: Version) {
     .catch(() => {});
 }
 
+/**
+ * Turns off the landmark marks the editor draws over a face it has found (the eye button in its toolbar), so the
+ * picture shows the face itself.
+ */
+async function hideLandmarks(page: Page) {
+  const stage = page.getByTestId("landmark-stage");
+  if ((await stage.count()) === 0) return;
+  await page.getByTestId("landmark-visibility-toggle").click();
+  await stage.waitFor({ state: "detached", timeout: 10_000 });
+}
+
 /** Scrolls the chat so `card` sits at `block` of the visible part. */
 async function showInChat(card: Locator, block: "start" | "center" | "end") {
   await card.evaluate((element, where) => element.scrollIntoView({ block: where }), block);
@@ -165,6 +176,7 @@ async function shoot(page: Page, locale: Locale) {
   const card = (version: Version) => page.locator(".ide-agent-scroll .agent-image-card").nth(VERSIONS.indexOf(version));
 
   await openVersion(page, "front-1");
+  await hideLandmarks(page);
   await showInChat(card("turnaround-1"), "end");
   await settle(page);
   await capture(cdp, `workspace-${locale}`);
