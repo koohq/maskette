@@ -18,11 +18,13 @@ original tool by SeaRabbit / 海兔 (icyqwq). KigCraft and VSK are licensed
 under the GNU General Public License v3.0 or later; Maskette continues
 under the same license and keeps this attribution to both projects.
 
-Modifications: in November 2026 (first commit 2026-11-08), the VSK frontend
-(koohq/Visual-Studio-Kigurumi, commit b3dad39) was imported into this
-repository and modified: it was wrapped in a Tauri desktop shell, its
-server deployment files were removed, and the app was renamed to Maskette.
-The git history records every later change.
+Modifications: in November 2026, the VSK frontend at VSK commit 0b845be
+was changed in an unpublished fork starting 2026-11-04, then imported
+into this repository (first commit 2026-11-08) and modified: it was
+wrapped in a Tauri desktop shell, its server deployment files were
+removed, and the app was renamed to Maskette. The changes made in that
+fork are part of the first commit; the git history records every later
+change.
 
 Source code: the complete source code of Maskette, including the source of
 each released version, is available at https://github.com/koohq/maskette.
