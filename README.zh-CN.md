@@ -80,6 +80,16 @@ AI 生成的图片，每张图里的眼睛和发型可能会略有不同。设�
 - 项目和图片保存在 `%APPDATA%\app.maskette`。
 - 在项目列表的菜单中选择“导出 .maskette”，可以把项目导出为一个文件，在另一台电脑上导入。Visual Studio Kigurumi 导出的 .vkp 文件也可以导入（.maskette 文件无法在 Visual Studio Kigurumi 中打开）。
 
+## 发送的数据和发送对象
+
+Maskette 不会向开发者或任何人发送使用统计或崩溃报告。只有以下情况会联网：
+
+- **你选择的 AI 服务**：对话、分析参考图、生成或重画图片时，Maskette 会把这一步需要的内容发送给设置里为这一步选择的服务，包括对话内容、参考图、这一步要用到的已生成图片，以及 Maskette 给 AI 的指令。OpenRouter 会把它们转交给提供模型的公司（如 Google、OpenAI），Codex CLI 和 Claude Code 则分别发送给 OpenAI 和 Anthropic。这些数据如何处理，以各服务的使用条款和隐私政策为准。API Key 只会发送给填写它的那个服务。使用 OpenRouter 时，设置页面还会从 OpenRouter 读取模型和价格列表（此时不发送 Key）。
+- **GitHub（检查更新）**：启动时（除非在设置的“应用更新”中关闭）和点击“立即检查”时，Maskette 会从 GitHub 上最新的 Release 读取一个小文件（`latest.json`）。点击“更新”后，会从同一处下载安装程序。GitHub 收到的只有任何网页访问都会带有的信息，例如 IP 地址。
+- **微软（安装时）**：如果电脑上没有 WebView2，安装程序会从微软下载。
+
+除此之外，不会有任何内容离开你的电脑。项目和图片保存在上面的文件夹里，编辑器识别关键点也在你的电脑上完成。
+
 ## 卸载
 
 在 Windows 的“设置”→“应用”中卸载 Maskette。

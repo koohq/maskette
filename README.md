@@ -164,6 +164,32 @@ for them in the chat: “Write design notes.”
   Studio Kigurumi (.maskette files cannot be opened in Visual Studio
   Kigurumi).
 
+## What Maskette sends, and where
+
+Maskette sends no usage statistics or crash reports, to the developer or
+anyone else. It connects to the internet only for these:
+
+- **The AI services you choose.** When you chat, analyse reference pictures,
+  or generate or redraw an image, Maskette sends what that step needs to the
+  service chosen for it in Settings: the conversation, the reference
+  pictures, the generated pictures the step works from, and Maskette's
+  instructions to the AI. OpenRouter passes them on to the company that runs
+  the model (such as Google or OpenAI), and Codex CLI and Claude Code send
+  them to OpenAI and Anthropic. How each service handles them is set by its
+  own terms and privacy policy. Each API key is sent only to the service it
+  was entered for. With OpenRouter, Settings also reads OpenRouter's list of
+  models and prices, without the key.
+- **GitHub, for updates.** At startup (unless you turn this off under “App
+  updates” in Settings) and when you press “Check now”, Maskette reads a
+  small file (`latest.json`) from the latest release on GitHub. When you
+  press “Update”, it downloads the installer from there. GitHub receives
+  only what any web request carries, such as your IP address.
+- **Microsoft, when installing.** On a PC without the WebView2 runtime, the
+  installer downloads it from Microsoft.
+
+Nothing else leaves your PC. Projects and images stay in the folder above,
+and the editor finds the landmarks of a face on your PC.
+
 ## Uninstalling
 
 Uninstall Maskette from Windows Settings → Apps.
