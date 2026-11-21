@@ -1,0 +1,18 @@
+version: 2
+updates:
+  # Only the workflow actions, which are pinned to full commit SHAs and are
+  # tedious to bump by hand. npm and Cargo dependencies are updated locally.
+  # Releases are built locally, so the workflows only run checks; a monthly
+  # bump is enough, and security alerts do not wait for this schedule.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 3
+    groups:
+      actions:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: ci
