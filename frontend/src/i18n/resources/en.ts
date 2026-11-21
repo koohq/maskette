@@ -303,8 +303,7 @@ const en: TranslationResource = {
     section: "App updates",
     currentVersion: "Current version: {{version}}",
     checkOnLaunch: "Check for a new version at startup",
-    checkOnLaunchHint:
-      "Asks GitHub, where Maskette is published, for the latest version. No projects or settings are sent.",
+    checkOnLaunchHint: "Asks GitHub, where Maskette is published, for the latest version.",
     checkNow: "Check now",
     checking: "Checking…",
     upToDate: "You have the latest version.",

@@ -306,7 +306,7 @@ const ja: TranslationResource = {
     section: "アプリの更新",
     currentVersion: "現在のバージョン：{{version}}",
     checkOnLaunch: "起動時に新しいバージョンを確認する",
-    checkOnLaunchHint: "GitHub で公開している最新のバージョンを問い合わせます。プロジェクトや設定は送りません。",
+    checkOnLaunchHint: "GitHub で公開している最新のバージョンを問い合わせます。",
     checkNow: "今すぐ確認",
     checking: "確認中…",
     upToDate: "最新のバージョンです。",

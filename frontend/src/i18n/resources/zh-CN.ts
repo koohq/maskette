@@ -287,7 +287,7 @@ const zhCN = {
     section: "应用更新",
     currentVersion: "当前版本：{{version}}",
     checkOnLaunch: "启动时检查新版本",
-    checkOnLaunchHint: "向发布 Maskette 的 GitHub 查询最新版本，不会发送项目或设置。",
+    checkOnLaunchHint: "向发布 Maskette 的 GitHub 查询最新版本。",
     checkNow: "立即检查",
     checking: "正在检查…",
     upToDate: "已是最新版本。",
