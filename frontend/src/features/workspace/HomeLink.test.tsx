@@ -18,7 +18,7 @@ describe("HomeLink", () => {
       </MemoryRouter>,
     );
 
-    const link = screen.getByRole("link", { name: "すべてのプロジェクト" });
+    const link = screen.getByRole("link", { name: "全てのプロジェクト" });
     expect(link.getAttribute("href")).toBe("/");
     const logo = link.querySelector("img");
     expect(logo?.getAttribute("src")).toBe("/logo-head.png");

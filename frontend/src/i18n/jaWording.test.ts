@@ -27,6 +27,10 @@ const AVOIDED: { word: RegExp; use: string }[] = [
   { word: /経路|つなぎ先|接続先/u, use: "API キー方式・AI サービス（画面で選ぶ名前）" },
   { word: /取ってきて/u, use: "ダウンロードして" },
   { word: /作った画像/u, use: "生成した画像" },
+  // Adverbs that the standard kanji can write are written in kanji, as official Japanese writing does.
+  { word: /すでに/u, use: "既に" },
+  { word: /すべて/u, use: "全て" },
+  { word: /いったん/u, use: "一旦" },
 ];
 
 const JAPANESE = "\\p{Script=Hiragana}\\p{Script=Katakana}\\p{Script=Han}ー";

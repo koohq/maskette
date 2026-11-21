@@ -77,7 +77,7 @@ describe("CLI failures", () => {
     ).toBeTruthy();
     expect(
       screen.getByText(
-        "Claude Code の利用上限に達しました。時間をおいて試すか、設定で API キー方式に切り替えてください。",
+        "Claude Code の利用上限に達しました。時間を置いて試すか、設定で API キー方式に切り替えてください。",
       ),
     ).toBeTruthy();
     expect(screen.queryByText(/was not found/)).toBeNull();
@@ -183,7 +183,7 @@ describe("API and other failures", () => {
       "OpenRouter がリクエストを制限しているか、アカウントのクレジットや利用枠が尽きています（HTTP 429）。少し待ってから試してください。",
     );
     expect(failureText(i18n.t, "api_server_error", { service: "OpenRouter", status: 502 }, "x")).toBe(
-      "OpenRouter のサーバーでエラーが起きました（HTTP 502）。時間をおいて試してください。",
+      "OpenRouter のサーバーでエラーが起きました（HTTP 502）。時間を置いて試してください。",
     );
     const noCredits = { service: "OpenRouter", status: 402, detail: "Insufficient credits" };
     expect(failureText(i18n.t, "api_payment_required", noCredits, "x")).toBe(
@@ -243,7 +243,7 @@ describe("API and other failures", () => {
     await i18n.changeLanguage("ja");
     expect(
       failureText(i18n.t, "reference_rejected", { reason: "reference_adult_explicit", detail: "explicit" }, "x"),
-    ).toBe("この参考画像は使用できません：性的に露骨な画像とみられます。詳細：explicit");
+    ).toBe("この参考画像は使用できません：性的に露骨な画像と見られます。詳細：explicit");
     expect(failureText(i18n.t, "cancelled", {}, "Cancelled by the user.")).toBe("停止しました。");
     await i18n.changeLanguage("en");
     expect(failureText(i18n.t, "reference_rejected", { reason: "reference_unusable" }, "x")).toBe(
@@ -274,7 +274,7 @@ describe("Notices", () => {
       { seq: 2, type: "notice", code: "empty_reply" },
     ]);
     expect(
-      screen.getByText("AI の応答が空だったため、いったん停止しました。続けるには指示を送ってください。"),
+      screen.getByText("AI の応答が空だったため、一旦停止しました。続けるには指示を送ってください。"),
     ).toBeTruthy();
   });
 });

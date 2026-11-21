@@ -23,10 +23,10 @@ const ja: TranslationResource = {
     versionCount: "{{count}} バージョン",
     rename: "名前を変更",
     deleteProject: "プロジェクトを削除",
-    confirmDeleteNamed: "「{{name}}」を削除しますか？すべてのバージョンが削除され、元に戻せません。",
+    confirmDeleteNamed: "「{{name}}」を削除しますか？全てのバージョンが削除され、元に戻せません。",
     projectActions: "プロジェクトの操作",
     untitled: "無題のプロジェクト",
-    home: "すべてのプロジェクト",
+    home: "全てのプロジェクト",
     explorer: "画像",
     explorerShort: "画像",
     references: "参考画像",
@@ -186,7 +186,7 @@ const ja: TranslationResource = {
       sectionLine: "【{{label}}】{{text}}",
       bullet: "・",
       sides: "左右は、正面図を見たときの向き（向かって左・右）で書いています。",
-      priority: "画像どうしが食い違うときは、{{list}}を優先してください。",
+      priority: "画像同士が食い違うときは、{{list}}を優先してください。",
       priorityParts: {
         front: "形は正面図",
         turnaround: "横と後ろは四面図",
@@ -197,8 +197,8 @@ const ja: TranslationResource = {
     },
     notices: {
       cancelled: "停止しました。",
-      step_limit: "手順が上限に達したため、いったん停止しました。続けるには指示を送ってください。",
-      empty_reply: "AI の応答が空だったため、いったん停止しました。続けるには指示を送ってください。",
+      step_limit: "手順が上限に達したため、一旦停止しました。続けるには指示を送ってください。",
+      empty_reply: "AI の応答が空だったため、一旦停止しました。続けるには指示を送ってください。",
     },
     errors: {
       generic: "エラーが発生しました：{{message}}",
@@ -245,7 +245,7 @@ const ja: TranslationResource = {
       backend_unreachable: "通信に失敗しました。アプリを再起動してから、もう一度試してください。",
       reference_not_saved: "参考画像を保存できませんでした。ディスクの空き容量と書き込み権限を確認してください。",
       update_check_failed: "新しいバージョンを確認できませんでした。ネットワークにつながっているか確認してください。",
-      update_in_progress: "更新はすでに始まっています。終わるまでお待ちください。",
+      update_in_progress: "更新は既に始まっています。終わるまでお待ちください。",
       load: "チャットの読み込みに失敗しました：{{message}}",
     },
     // Failures the backend sends as a code (`code` / `params`), with the CLI's own words in `detail`.
@@ -258,7 +258,7 @@ const ja: TranslationResource = {
       cli_failed_silently: "{{name}} の CLI が何も出力せずに失敗しました。",
       cli_login_required:
         "{{name}} にログインしていないか、ログインの期限が切れています。ターミナルで {{command}} を実行してログインしてから、もう一度試してください。",
-      cli_usage_limit: "{{name}} の利用上限に達しました。時間をおいて試すか、設定で API キー方式に切り替えてください。",
+      cli_usage_limit: "{{name}} の利用上限に達しました。時間を置いて試すか、設定で API キー方式に切り替えてください。",
       cli_offline: "{{name}} がサーバーに接続できませんでした。ネットワーク接続を確認して、もう一度試してください。",
       cli_empty_reply: "{{name}} の応答が空でした。もう一度試してください。",
       cli_ran_command:
@@ -280,7 +280,7 @@ const ja: TranslationResource = {
         "{{service}} がリクエストを受け付けませんでした（HTTP 404）。設定の API URL とモデル名が正しいか確認してください。",
       api_rate_limited:
         "{{service}} がリクエストを制限しているか、アカウントのクレジットや利用枠が尽きています（HTTP 429）。少し待ってから試してください。",
-      api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間をおいて試してください。",
+      api_server_error: "{{service}} のサーバーでエラーが起きました（HTTP {{status}}）。時間を置いて試してください。",
       api_http_error: "{{service}} がエラーを返しました（HTTP {{status}}）。",
       api_timeout: "{{service}} が {{seconds}} 秒以内に応答しませんでした。もう一度試してください。",
       api_stream_failed: "{{service}} が応答の途中でエラーを返しました。もう一度試してください。",
@@ -291,7 +291,7 @@ const ja: TranslationResource = {
       cancelled: "停止しました。",
       reference_rejected: "この参考画像は使用できません：{{reason}}",
       rejectReason: {
-        reference_adult_explicit: "性的に露骨な画像とみられます。",
+        reference_adult_explicit: "性的に露骨な画像と見られます。",
         reference_unusable: "マスクのデザインには、キャラクターの頭（顔や髪）が写った画像が必要です。",
       },
       no_references: "参考画像がまだありません。キャラクターの画像を 1 枚以上追加してください。",
@@ -316,13 +316,13 @@ const ja: TranslationResource = {
     dismiss: "閉じる",
     confirmTitle: "バージョン {{version}} に更新",
     confirmMessage:
-      "Maskette をいったん閉じて新しいバージョンをインストールし、終わると自動で再起動します。プロジェクトと設定はそのまま残ります。",
+      "Maskette を一旦閉じて新しいバージョンをインストールし、終わると自動で再起動します。プロジェクトと設定はそのまま残ります。",
     notes: "このバージョンの変更点",
     published: "公開日：{{date}}",
     running: "生成中のプロジェクトがあります。終わってから更新してください。",
     downloading: "ダウンロード中… {{percent}}%",
     downloadingNoTotal: "ダウンロード中…",
-    installing: "インストールを始めます。Maskette はいったん閉じて、終わると自動で再起動します。",
+    installing: "インストールを始めます。Maskette は一旦閉じて、終わると自動で再起動します。",
     failed:
       "更新できませんでした。もう一度試すか、配布ページから新しいバージョンの setup.exe をダウンロードして実行してください。",
   },
@@ -361,8 +361,8 @@ const ja: TranslationResource = {
     saveFailed: "保存に失敗しました：{{error}}",
     saved: "保存しました。次の会話・分析・生成から使われます。",
     save: "保存",
-    reset: "すべて既定に戻す",
-    confirmReset: "この画面での変更を、保存した API キーも含めてすべて破棄し、既定に戻しますか？",
+    reset: "全て既定に戻す",
+    confirmReset: "この画面での変更を、保存した API キーも含めて全て破棄し、既定に戻しますか？",
     overridden: "変更済み",
     ready: "利用可能",
     missing: "未設定",
