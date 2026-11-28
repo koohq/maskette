@@ -290,7 +290,7 @@ installers signed with the key whose public half is `plugins.updater.pubkey`.
 
 Layout:
 
-- `frontend/` — the UI and the image editor (Vite, React, pixi.js, konva,
+- `frontend/` — the UI and the image editor (Vite, React, pixi.js,
   onnxruntime-web, MediaPipe)
 - `src-tauri/` — the desktop shell and the local API, in Rust (Tauri, axum)
 - `src-tauri/sample/` — the sample project, an unzipped `.maskette` file

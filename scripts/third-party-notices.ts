@@ -82,7 +82,7 @@ function addComponent(component: Omit<Component, "texts">, componentTexts: strin
 
 /** Files that hold a license, a notice or a copyright statement, at the top of a package. */
 const LICENSE_FILE = /^(?:licen[cs]e|copying|copyright|notice|unlicense)(?:[-_.][\w.-]*)?$/i;
-/** Code that happens to have such a name, like the "Copyright" icon of @mui/icons-material. */
+/** Code that happens to have such a name, like an icon component in `Copyright.js`. */
 const NOT_TEXT = /\.(?:[cm]?[jt]sx?|json|html?|rs|toml|map|css|svg|png)$/i;
 /** Apache-2.0 asks for the NOTICE file to go along, and a COPYRIGHT file says whose the package is. */
 const ALWAYS_KEPT = /^(?:notice|copyright)/i;
