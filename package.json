@@ -28,11 +28,11 @@
     "deps:interactive": "pnpm up -r -i --latest"
   },
   "devDependencies": {
-    "@biomejs/biome": "^2.6.5",
-    "@tauri-apps/cli": "^2.12.4",
-    "@tsconfig/node26": "^26.0.1",
-    "@tsconfig/strictest": "^2.0.8",
-    "@types/node": "^26.6.6",
+    "@biomejs/biome": "^2.6.9",
+    "@tauri-apps/cli": "^2.12.6",
+    "@tsconfig/node26": "^26.0.2",
+    "@tsconfig/strictest": "^2.0.9",
+    "@types/node": "^26.6.7",
     "typescript": "7.0.2"
   }
 }
