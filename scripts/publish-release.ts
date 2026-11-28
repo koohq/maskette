@@ -2,6 +2,7 @@
 //
 // Run it after `pnpm bundle` (with the signing key set), on a clean main that is pushed. It writes latest.json
 // with the release notes, checks that the pieces belong together, shows what it will publish and asks first.
+// After publishing, it waits (up to 15 minutes) until the updater's endpoint names the new version.
 //
 // Usage: pnpm release:publish --notes <file> [--dry-run] [--yes]
 //   --notes <file>  release notes as plain text, shown in the app's update dialog and on the release page
@@ -17,6 +18,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { signatureProblem } from "./minisign.ts";
 import { hasTodo, TODO_MARKER } from "./release/draft-notes.ts";
+import { describeAnswer, formatDuration, waitForLatest } from "./release/wait-for-latest.ts";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const { values: options } = parseArgs({
@@ -157,4 +159,26 @@ const created = spawnSync(
   { cwd: root, stdio: "inherit" },
 );
 if (created.status !== 0) fail("`gh release create` failed (see above).");
-console.log(`Published ${tag}. Installed copies offer it at their next launch.`);
+console.log(`Published ${tag}.`);
+
+// GitHub can take a while to point releases/latest at the new release, and until it does, installed copies keep
+// finding the previous latest.json. Wait for the switch, so it is clear when the update can be tried.
+console.log(`Waiting until the updater's latest.json names ${version} (Ctrl+C stops waiting; the release stays).`);
+const waited = await waitForLatest({
+  endpoint,
+  version,
+  timeoutMs: 15 * 60_000,
+  intervalMs: 10_000,
+  onWaiting: (answer, elapsedMs) => console.log(`  ${formatDuration(elapsedMs)}: ${describeAnswer(answer)}`),
+});
+if (waited.seen) {
+  console.log(
+    `Installed copies can find ${version} now, ${formatDuration(waited.elapsedMs)} after publishing. ` +
+      `They offer it at their next launch, or at once with "Check now" in the settings.`,
+  );
+} else {
+  console.log(
+    `After ${formatDuration(waited.elapsedMs)}, ${describeAnswer(waited.last)}. ` +
+      `Installed copies will find ${version} once GitHub points releases/latest at ${tag}.`,
+  );
+}

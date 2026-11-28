@@ -260,7 +260,7 @@ Other scripts:
 | `pnpm bundle:local` | Build the installer without the updater's files, so no signing key is needed. For trying a build on your own PC |
 | `pnpm release:copy` | Copy the latest built installer to `release/` again (Cargo may build outside the repository); `--notes <file>` puts release notes into `latest.json` |
 | `pnpm release:notes` | Draft the release notes for the version in `tauri.conf.json` into `release/notes-<version>.txt`: the `feat:` commits since the last release under "New" and the `fix:` commits under "Fixes". `--since <ref>` starts after another tag or commit; `--force` drafts over an existing file |
-| `pnpm release:publish` | Publish the signed build as a GitHub release, after checking it (below) |
+| `pnpm release:publish` | Publish the signed build as a GitHub release, after checking it, then wait until installed copies can find it (below) |
 | `pnpm lint` | Biome check |
 
 Releasing an update: installed copies of Maskette read
@@ -287,6 +287,11 @@ installers signed with the key whose public half is `plugins.updater.pubkey`.
    release `v<version>` with the installer, its `.sig`, `latest.json` and
    `third-party-notices.txt` (through `gh`). `--dry-run` stops before
    publishing.
+5. After publishing, `pnpm release:publish` waits (up to 15 minutes) until
+   `latest.json` at the updater's endpoint names the new version, and says
+   how long that took. GitHub can take a while to point the latest release
+   at it, and until then installed copies keep finding the previous version,
+   so try the update from an installed copy after that.
 
 Layout:
 
