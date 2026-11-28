@@ -39,6 +39,12 @@ describe("i18n", () => {
     expect(SUPPORTED_LOCALES.map((locale) => locale.label)).toEqual(["中文", "English", "日本語"]);
   });
 
+  it("returns an empty translation as empty instead of falling back to the key", () => {
+    expect(i18n.t("agent.failures.gap", { lng: "ja" })).toBe("");
+    expect(i18n.t("agent.failures.gap", { lng: "zh-CN" })).toBe("");
+    expect(i18n.t("agent.failures.gap", { lng: "en" })).toBe(" ");
+  });
+
   it("uses English resources when English is selected", async () => {
     await i18n.changeLanguage("en");
     expect(i18n.t("workspace.savedVersion")).toBe("Saved as a new version");

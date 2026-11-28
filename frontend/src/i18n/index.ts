@@ -22,6 +22,10 @@ void i18n.use(initReactI18next).init({
     escapeValue: false,
   },
   lng: initialLocale,
+  // ja and zh-CN translate `agent.failures.gap` (the separator between failure
+  // sentences) as "". Since i18next 27 an empty translation falls back like a
+  // missing one unless this is set, which would print the key.
+  returnEmptyString: true,
   resources: {
     en: {
       translation: en,
