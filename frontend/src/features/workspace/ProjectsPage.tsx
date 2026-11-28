@@ -10,7 +10,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router";
 import { inDesktopWindow } from "../../api/backend";
 import { normalizeLocale } from "../../i18n/locales";
 import { ConfirmDialog, PromptDialog } from "../../ui/IdeDialog";

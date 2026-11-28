@@ -2,7 +2,7 @@ import { IconDeviceFloppy, IconDownload, IconMessageCircle, IconPhoto, IconSpark
 import { useQueryClient } from "@tanstack/react-query";
 import { type DragEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router";
 import { writeStored } from "../../app/storage";
 import { ConfirmDialog } from "../../ui/IdeDialog";
 import {

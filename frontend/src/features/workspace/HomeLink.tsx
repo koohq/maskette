@@ -1,6 +1,6 @@
 import { IconArrowLeft } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 
 /**
  * Back to the project list. The arrow and the app's head logo make one button, so the logo in the header

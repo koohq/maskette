@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useParams } from "react-router";
 import { LicensesPage } from "../features/about/LicensesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { ProjectsPage } from "../features/workspace/ProjectsPage";

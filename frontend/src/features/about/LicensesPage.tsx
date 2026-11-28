@@ -1,7 +1,7 @@
 import { IconChevronRight } from "@tabler/icons-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link } from "react-router-dom";
+import { Link } from "react-router";
 import { LanguageSelector } from "../i18n/LanguageSelector";
 import { HomeLink } from "../workspace/HomeLink";
 import { ThemeToggle } from "../workspace/ThemeToggle";
