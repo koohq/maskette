@@ -102,11 +102,6 @@
   white-space: nowrap;
 }
 
-.ide-stages button:not(:disabled):hover {
-  background: var(--ide-hover);
-  color: var(--ide-text);
-}
-
 .ide-stages li[data-state="active"] button {
   color: var(--ide-text);
   font-weight: 600;
@@ -118,6 +113,11 @@
 
 .ide-stages li[data-state="skipped"] button {
   text-decoration: line-through;
+}
+
+.ide-stages button:not(:disabled):hover {
+  background: var(--ide-hover);
+  color: var(--ide-text);
 }
 
 .ide-stage-index {
@@ -192,6 +192,11 @@
     background-color 120ms ease;
 }
 
+.ide-activity-item:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
 .ide-activity-item:hover:not(:disabled) {
   background: var(--ide-hover);
   color: var(--ide-text);
@@ -201,11 +206,6 @@
 .ide-activity-item[data-active="true"]:hover:not(:disabled) {
   background: var(--ide-accent);
   color: var(--ide-accent-contrast);
-}
-
-.ide-activity-item:disabled {
-  cursor: not-allowed;
-  opacity: 0.35;
 }
 
 .ide-activity-divider {
@@ -610,14 +610,14 @@
   white-space: nowrap;
 }
 
-.ide-button:hover:not(:disabled) {
-  background: var(--ide-hover);
-  border-color: var(--ide-border-strong);
-}
-
 .ide-button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
+}
+
+.ide-button:hover:not(:disabled) {
+  background: var(--ide-hover);
+  border-color: var(--ide-border-strong);
 }
 
 .ide-button-primary {
@@ -669,6 +669,11 @@
   color: var(--ide-text);
 }
 
+.ide-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 .ide-icon-button:hover:not(:disabled) {
   background: var(--ide-hover);
   color: var(--ide-text);
@@ -676,11 +681,6 @@
 
 .ide-icon-button[data-active="true"] {
   color: var(--ide-accent);
-}
-
-.ide-icon-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .ide-input {
@@ -789,6 +789,11 @@
   white-space: nowrap;
 }
 
+.ide-preset:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 .ide-preset:hover:not(:disabled) {
   border-color: var(--ide-border-strong);
   color: var(--ide-text);
@@ -798,11 +803,6 @@
   background: var(--ide-accent-soft);
   border-color: transparent;
   color: var(--ide-accent);
-}
-
-.ide-preset:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
 }
 
 /* Agent panel */
@@ -1056,8 +1056,11 @@ body.agent-resizing {
   opacity: 0;
 }
 
-.ide-project-card:hover .ide-project-menu,
 .ide-project-menu:focus-within {
+  opacity: 1;
+}
+
+.ide-project-card:hover .ide-project-menu {
   opacity: 1;
 }
 
@@ -1083,12 +1086,6 @@ body.agent-resizing {
   width: min(420px, calc(100vw - 32px));
 }
 
-/* The dialog and the image preview take focus themselves only so Escape and Tab work; their controls show focus. */
-.ide-dialog:focus,
-.ide-lightbox:focus {
-  outline: none;
-}
-
 .ide-lightbox {
   align-items: center;
   background: rgba(0, 0, 0, 0.8);
@@ -1098,6 +1095,12 @@ body.agent-resizing {
   padding: 24px;
   position: fixed;
   z-index: 70;
+}
+
+/* The dialog and the image preview take focus themselves only so Escape and Tab work; their controls show focus. */
+.ide-dialog:focus,
+.ide-lightbox:focus {
+  outline: none;
 }
 
 .ide-lightbox img {
@@ -1193,8 +1196,11 @@ body.agent-resizing {
   transition: opacity 120ms ease;
 }
 
-li:hover > div > .agent-message-actions,
 .agent-message-actions:focus-within {
+  opacity: 1;
+}
+
+li:hover > div > .agent-message-actions {
   opacity: 1;
 }
 
@@ -1413,15 +1419,14 @@ li:hover > div > .agent-message-actions,
   width: 28px;
 }
 
+.agent-icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
 .agent-icon-button:hover:not(:disabled) {
   background: var(--ide-hover);
   color: var(--ide-text);
-}
-
-.agent-icon-button:disabled,
-.agent-send:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
 }
 
 .agent-composer {
@@ -1461,6 +1466,11 @@ li:hover > div > .agent-message-actions,
   height: 28px;
   justify-content: center;
   width: 28px;
+}
+
+.agent-send:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
 }
 
 .agent-send:hover:not(:disabled) {
